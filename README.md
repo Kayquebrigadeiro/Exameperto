@@ -27,7 +27,13 @@ Versões exatas e dependências serão fixadas na implementação. Hospedagem e 
 
 - [Arquitetura e estrutura das pastas](docs/ARQUITETURA.md)
 - [Diagramas de componentes, dados e entrega](docs/DIAGRAMAS.md)
-- [Decisões técnicas e plano de implementação](docs/DECISOES.md)
+- [Decisões técnicas e índice de ADRs](docs/DECISOES.md)
+- [Modelo físico PostgreSQL](docs/MODELO-DADOS.md)
+- [Contrato OpenAPI](contracts/openapi.yaml)
+- [Segurança e matriz de permissões](docs/SEGURANCA.md)
+- [Glossário do domínio](CONTEXT.md)
+- [Spec e backlog proposto](.scratch/planejamento/README.md)
+- [Progresso, validações e próxima ação](docs/STATUS.md)
 
 O GitHub renderiza os diagramas Mermaid presentes na documentação. Cada alteração de fluxo, entidade ou responsabilidade deve atualizar o diagrama correspondente no mesmo commit do código.
 
@@ -51,12 +57,12 @@ Consultas oficiais, biometria, pagamento, repasse, e-mail e mapas dependerão de
 
 ## Próximas etapas
 
-1. Validar este desenho e fechar os contratos da API e as migrações.
+1. Revisar modelo físico, contrato da API e backlog; aprovar políticas pendentes. Migrações ficam para implementação autorizada.
 2. Implementar cadastro, autenticação, autorização e análise de motorista/veículo.
 3. Implementar comprovações, benefícios e financiamento institucional.
 4. Implementar rota, orçamento, pedido e distribuição aos entregadores.
 5. Implementar app do motorista e rastreamento real.
 6. Verificar segurança, concorrência, persistência e execução em aparelhos reais.
-7. Publicar o repositório revisado e realizar deploy da versão verificada.
+7. Autorizar e realizar deploy da aplicação verificada. A documentação pode ser publicada antes, conforme o prompt desta etapa.
 
 Dados sintéticos poderão existir exclusivamente em testes automatizados isolados, sem criar contas ou registros no banco da aplicação.

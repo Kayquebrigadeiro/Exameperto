@@ -1,6 +1,6 @@
 # Diagramas
 
-Desenho inicial — 29/09/2026. As caixas representam componentes e capacidades planejados, não serviços já implementados, credenciados ou contratados. Integrações externas ficam indisponíveis até habilitação real.
+Planejamento técnico — 29/09/2026. As caixas representam componentes e capacidades planejados, não serviços já implementados, credenciados ou contratados. Integrações externas ficam indisponíveis até habilitação real.
 
 ## Componentes e comunicação
 
@@ -83,16 +83,23 @@ erDiagram
   PROGRAMA ||--o{ DECISAO_BENEFICIO : regula
   PEDIDO ||--o{ ORCAMENTO : possui
   ORCAMENTO ||--o| RESERVA_SUBSIDIO : requer
+  PROGRAMA ||--|| CONTA_PROGRAMA : controla
+  PROGRAMA ||--o{ APORTE : recebe
   PROGRAMA ||--o{ RESERVA_SUBSIDIO : garante
+  ORCAMENTO ||--o{ ORCAMENTO_BENEFICIO : aplica
+  DECISAO_BENEFICIO ||--o{ ORCAMENTO_BENEFICIO : comprova
   PEDIDO ||--o{ DESIGNACAO : registra
   VINCULO_VEICULO ||--o{ DESIGNACAO : executa
   PEDIDO ||--o{ EVENTO_ENTREGA : registra
   DESIGNACAO ||--o{ POSICAO : transmite
   PEDIDO ||--o{ LANCAMENTO_FINANCEIRO : origina
   RESERVA_SUBSIDIO ||--o{ LANCAMENTO_FINANCEIRO : movimenta
+  OPERACAO_FINANCEIRA ||--o{ LANCAMENTO_FINANCEIRO : agrupa
+  OPERACAO_FINANCEIRA ||--o{ OUTBOX : agenda
+  OPERACAO_FINANCEIRA o|--o{ EVENTO_EXTERNO : concilia
 ```
 
-Modelo conceitual, ainda sem migração. Restrições futuras: uma designação ativa por pedido; um orçamento aceito vigente; vínculo de veículo e motorista aprovados; decisão de benefício atribuída ao paciente; programa e reserva da mesma instituição; idempotência dos lançamentos. Pedido pode não usar subsídio, então lançamentos particulares não dependem de reserva. Evidências clínicas e financeiras precisam de acesso restrito e retenção própria.
+Visão resumida do [modelo físico](MODELO-DADOS.md), ainda sem migração. Restrições planejadas: uma designação ativa por pedido; um orçamento aceito vigente; vínculo de veículo e motorista aprovados; decisão de benefício atribuída ao paciente; programa e reserva da mesma instituição; idempotência dos lançamentos. Pedido pode não usar subsídio, então lançamentos particulares não dependem de reserva. Evidências clínicas e financeiras precisam de acesso restrito e retenção própria.
 
 ## Estados da entrega
 
@@ -100,6 +107,8 @@ Modelo conceitual, ainda sem migração. Restrições futuras: uma designação 
 stateDiagram-v2
   [*] --> SOLICITADA
   SOLICITADA --> EM_VERIFICACAO
+  SOLICITADA --> CANCELADA
+  EM_VERIFICACAO --> CANCELADA
   EM_VERIFICACAO --> AGUARDANDO_ACEITE
   EM_VERIFICACAO --> NAO_ATENDIDA
   AGUARDANDO_ACEITE --> DISPONIVEL: Aceite e cobertura financeira
@@ -107,6 +116,7 @@ stateDiagram-v2
   DISPONIVEL --> ACEITA: Designacao atomica
   DISPONIVEL --> CANCELADA
   ACEITA --> RETIRADA: Retirada autorizada
+  ACEITA --> OCORRENCIA: Suspensao operacional
   ACEITA --> CANCELADA: Regra de cancelamento
   RETIRADA --> EM_ENTREGA
   EM_ENTREGA --> ENTREGUE: Codigo de recebimento
@@ -130,10 +140,14 @@ sequenceDiagram
   participant B as Backend
   participant D as PostgreSQL
   participant M as Entregador
-  C->>B: Aceitar orçamento vigente
+  C->>B: Aceitar orçamento vigente e parcelas
   B->>D: Confirmar parcelas e reservar subsídio em transação
-  D-->>B: Cobertura garantida ou indisponível
-  alt Cobertura garantida
+  D-->>B: Reserva criada ou saldo indisponivel
+  Note over B,D: Cobranca externa via outbox, fora da transacao
+  Note over B,D: Parcela paciente positiva exige confirmacao real
+  B->>D: Aplicar evento autenticado sem duplicacao
+  D-->>B: Cobertura confirmada ou pendente
+  alt Cobertura confirmada
     B-->>C: Pedido disponível para entrega
     M->>B: Aceitar tarefa
     B->>D: Criar designação única e ativa
@@ -143,7 +157,7 @@ sequenceDiagram
     M->>B: Confirmar entrega com código
     B->>D: Liquidar reserva e registrar repasse uma vez
     B-->>C: Entrega concluída
-  else Cobertura indisponível
+  else Cobertura pendente ou indisponivel
     B-->>C: Aguardar ou aceitar outro orçamento
   end
 ```
@@ -171,3 +185,20 @@ sequenceDiagram
 ```
 
 O app enfileira somente dados recentes com limites e política de descarte; reconexão não reproduz pontos antigos como se fossem atuais. Autorização é reavaliada no envio e no recebimento, e o fechamento da tarefa encerra compartilhamento.
+
+## Estados financeiros independentes
+
+```mermaid
+flowchart LR
+  E["Beneficio aprovado"] --> V["Verificar recursos reais"]
+  V --> R["Reserva confirmada"]
+  R --> C["Cobertura: reserva e parcela paga"]
+  C --> D["Entrega comprovada"]
+  D --> L["Liquidacao local e valor a pagar"]
+  L --> P["Repasse pendente via outbox"]
+  P --> I["Resultado incerto: conciliar"]
+  P --> T["Transferencia confirmada pelo provedor"]
+  I --> T
+```
+
+Timeout não confirma transferência. [Contrato HTTP](../contracts/openapi.yaml) e [permissões/STOMP](SEGURANCA.md) detalham comandos e participantes. O [backlog](../.scratch/planejamento/README.md) mantém as dependências por fatia funcional.

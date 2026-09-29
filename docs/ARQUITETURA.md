@@ -24,12 +24,12 @@ Um repositório reúne backend, web, app do entregador e documentação. O backe
 | `backend/src/test/` | Testes de regras, API, banco e concorrência |
 | `web/src/` | Paciente, familiar e administração em React/TypeScript |
 | `driver-app/src/` | App do entregador em React Native/Expo |
-| `contracts/openapi.yaml` | Contrato HTTP versionado, a produzir |
+| `contracts/openapi.yaml` | Contrato HTTP versionado, proposta disponível |
 | `infra/compose.yaml` | Ambiente local reproduzível, a produzir |
 | `docs/` | Arquitetura, diagramas, execução e decisões |
 | `.github/workflows/` | Integração contínua, a produzir |
 
-Os caminhos de implementação são planejados; este pacote contém somente README e documentação. Dentro dos módulos, separar controladores HTTP, serviços de aplicação, entidades/regras e persistência conforme necessário, sem adicionar camadas vazias.
+Os caminhos de implementação são planejados; este pacote contém documentação, glossário, backlog local e contrato OpenAPI. Dentro dos módulos, separar controladores HTTP, serviços de aplicação, entidades/regras e persistência conforme necessário, sem adicionar camadas vazias.
 
 ## Interfaces
 
@@ -107,7 +107,7 @@ PostgreSQL e arquivos persistem entre reinícios; migrações Flyway são versio
 
 Testes essenciais: isolamento entre famílias/instituições, revogação, documentos privados, duas aceitações concorrentes, duas reservas concorrentes, repetição de webhook, cancelamento, código de recebimento, GPS antigo e perda de conexão.
 
-GitHub e deploy só depois de versão implementada e verificada. App mobile precisa de build e instalação reais; uma URL web não equivale à entrega do aplicativo nativo.
+A publicação da documentação no GitHub está autorizada nesta etapa, em branch sem deploy. Deploy da aplicação só depois de implementação, verificação e autorização posterior. App mobile precisa de build e instalação reais; uma URL web não equivale à entrega do aplicativo nativo.
 
 ## Referências técnicas
 
@@ -116,3 +116,7 @@ GitHub e deploy só depois de versão implementada e verificada. App mobile prec
 - OSRM: https://project-osrm.org/docs/v5.24.0/api/
 - Datavalid e requisitos: https://centraldeajuda.serpro.gov.br/duvidas/pt/avisos/datavalidsenatran/
 - Consulta Senatran: https://centraldeajuda.serpro.gov.br/consultasenatran/comofunciona/
+
+## Detalhamento técnico
+
+[Modelo físico](MODELO-DADOS.md), [matriz de segurança](SEGURANCA.md) e [OpenAPI](../contracts/openapi.yaml) detalham este desenho. [STATUS](STATUS.md) separa verificações realizadas de trabalho futuro.

@@ -1,0 +1,4767 @@
+openapi: 3.0.3
+info:
+  title: Exame Perto — contrato de planejamento
+  version: 0.1.0
+  description: 'Proposta documental, sem servidor implementado. Autorizar cada ação por papel e registro. Integrações
+    ausentes retornam 503 INTEGRATION_UNAVAILABLE; política material indefinida retorna 422 POLICY_UNDEFINED. Erros
+    principais: INVALID_INPUT, UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, STATE_CONFLICT, FUNDING_INSUFFICIENT, IDEMPOTENCY_CONFLICT,
+    ALREADY_ASSIGNED, VERSION_MISMATCH, RATE_LIMITED, LOCATION_STALE. Nomes de rotas em inglês e estados de domínio
+    em português são estáveis nesta proposta. Respostas sensíveis usam Cache-Control: no-store. Listas sempre paginadas
+    após escopo de autorização. Este arquivo não especifica STOMP; ver docs/SEGURANCA.md. Administração de papéis,
+    políticas, instituições e habilitação de integrações depende de procedimentos ainda não definidos; nenhuma rota
+    pública permite promovê-los. Replay de comando concluído exige sessão e relação histórica autorizadas; estado
+    ativo é guarda só para execução inédita. Revogação de representação prevalece sobre replay. O retorno mínimo
+    de replay não reabre acesso a GPS/endereço/código.'
+servers:
+- url: /api/v1
+  description: Caminho relativo previsto; nenhum host publicado.
+security:
+- bearerAuth: []
+paths:
+  /auth/register:
+    post:
+      operationId: register
+      summary: Cadastrar conta básica
+      tags:
+      - auth
+      description: Público; sem campos role/status. Resposta genérica, inclusive e-mail já existente. Sem provedor
+        de e-mail real, 503.
+      x-permission: Público; sem campos role/status
+      responses:
+        '202':
+          description: Cadastrar conta básica
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Accepted'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Register'
+  /auth/login:
+    post:
+      operationId: login
+      summary: Autenticar
+      tags:
+      - auth
+      description: Público; conta habilitada. WEB exige Origin permitido e recebe refresh em cookie; MOBILE recebe
+        refresh no corpo. Login não ativa papéis.
+      x-permission: Público; conta habilitada
+      responses:
+        '200':
+          description: Autenticar
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tokens'
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: 'WEB: refresh=...; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth. MOBILE não recebe
+                cookie.'
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                - no-store
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+  /auth/refresh:
+    post:
+      operationId: refresh
+      summary: Rotacionar sessão
+      tags:
+      - auth
+      description: Sessão válida; WEB cookie e CSRF, MOBILE refresh no corpo. Reutilização revoga família. Resposta
+        Cache-Control no-store; WEB retorna Set-Cookie, MOBILE recebe novo refresh no corpo. A alternativa vazia
+        de security modela apenas MOBILE com credencial obrigatória no corpo; nunca permite refresh anônimo.
+      x-permission: Sessão válida; WEB cookie e CSRF, MOBILE refresh no corpo
+      responses:
+        '200':
+          description: Rotacionar sessão
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tokens'
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: 'WEB: refresh=...; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth. MOBILE não recebe
+                cookie.'
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                - no-store
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - $ref: '#/components/parameters/Csrf'
+      security:
+      - refreshCookie: []
+      - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Refresh'
+  /auth/logout:
+    post:
+      operationId: logout
+      summary: Revogar sessão atual
+      tags:
+      - auth
+      description: Conta autenticada
+      x-permission: Conta autenticada
+      responses:
+        '204':
+          description: Revogar sessão atual
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - $ref: '#/components/parameters/Csrf'
+  /auth/verification:
+    post:
+      operationId: verifyEmail
+      summary: Confirmar e-mail
+      tags:
+      - auth
+      description: Token de desafio de uso único
+      x-permission: Token de desafio de uso único
+      responses:
+        '200':
+          description: Confirmar e-mail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Accepted'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChallengeInput'
+  /auth/recovery:
+    post:
+      operationId: requestRecovery
+      summary: Solicitar recuperação
+      tags:
+      - auth
+      description: Público; resposta genérica independentemente de existência
+      x-permission: Público; resposta genérica independentemente de existência
+      responses:
+        '202':
+          description: Solicitar recuperação
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Accepted'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailInput'
+  /auth/recovery/complete:
+    post:
+      operationId: completeRecovery
+      summary: Trocar senha e revogar sessões
+      tags:
+      - auth
+      description: Token de recuperação válido e uso único
+      x-permission: Token de recuperação válido e uso único
+      responses:
+        '200':
+          description: Trocar senha e revogar sessões
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Accepted'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPassword'
+  /me:
+    get:
+      operationId: getMe
+      summary: Consultar conta própria
+      tags:
+      - me
+      description: Conta autenticada
+      x-permission: Conta autenticada
+      responses:
+        '200':
+          description: Consultar conta própria
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+  /me/patient:
+    post:
+      operationId: createPatient
+      summary: Criar perfil de paciente próprio
+      tags:
+      - me
+      description: Conta autenticada; identidade ainda pendente
+      x-permission: Conta autenticada; identidade ainda pendente
+      responses:
+        '201':
+          description: Criar perfil de paciente próprio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Patient'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatientInput'
+    get:
+      operationId: getPatient
+      summary: Consultar perfil de paciente próprio
+      tags:
+      - me
+      description: Paciente titular
+      x-permission: Paciente titular
+      responses:
+        '200':
+          description: Consultar perfil de paciente próprio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Patient'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+  /me/privacy-requests:
+    post:
+      operationId: requestPrivacy
+      summary: Registrar solicitação do titular
+      tags:
+      - me
+      description: Conta autenticada; demanda encaminhada para processo auditado. Prazo e tratamento dependem de
+        política validada. Não promete exclusão imediata de obrigação legal.
+      x-permission: Conta autenticada; demanda encaminhada para processo auditado
+      responses:
+        '202':
+          description: Registrar solicitação do titular
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Accepted'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrivacyRequestInput'
+  /patients/{patientId}/grants:
+    post:
+      operationId: grantFamily
+      summary: Conceder representação
+      tags:
+      - patients
+      description: Somente paciente titular verificado
+      x-permission: Somente paciente titular verificado
+      responses:
+        '201':
+          description: Conceder representação
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Grant'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GrantInput'
+    get:
+      operationId: listGrants
+      summary: Listar representações
+      tags:
+      - patients
+      description: Paciente titular
+      x-permission: Paciente titular
+      responses:
+        '200':
+          description: Listar representações
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrantPage'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+  /patients/{patientId}/grants/{grantId}:
+    delete:
+      operationId: revokeGrant
+      summary: Revogar representação
+      tags:
+      - patients
+      description: Somente paciente titular; grant deve pertencer ao paciente. Revoga ações e assinaturas vinculadas;
+        idempotência reautoriza antes de responder.
+      x-permission: Somente paciente titular; grant deve pertencer ao paciente
+      responses:
+        '204':
+          description: Revogar representação
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+        '412':
+          $ref: '#/components/responses/Error412'
+        '428':
+          $ref: '#/components/responses/Error428'
+      parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: grantId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+  /documents:
+    post:
+      operationId: requestUpload
+      summary: Solicitar upload privado
+      tags:
+      - documents
+      description: Dono ou familiar com BENEFICIOS/PEDIDOS conforme categoria; gestor financeiro só documentos de
+        seu programa
+      x-permission: Dono ou familiar com BENEFICIOS/PEDIDOS conforme categoria; gestor financeiro só documentos
+        de seu programa
+      responses:
+        '201':
+          description: Solicitar upload privado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Upload'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+        '413':
+          $ref: '#/components/responses/Error413'
+        '415':
+          $ref: '#/components/responses/Error415'
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentInput'
+  /documents/{documentId}:
+    get:
+      operationId: getDocument
+      summary: Consultar metadados de documento
+      tags:
+      - documents
+      description: Dono ou concessão específica vigente ou analista atribuído ao caso
+      x-permission: Dono ou concessão específica vigente ou analista atribuído ao caso
+      responses:
+        '200':
+          description: Consultar metadados de documento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - name: documentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /documents/{documentId}/complete:
+    post:
+      operationId: completeUpload
+      summary: Concluir upload para inspeção
+      tags:
+      - documents
+      description: Solicitante autorizado do upload. Verifica armazenamento, tamanho/hash/tipo real; permanece QUARENTENA
+        até inspeção. Não aprova identidade.
+      x-permission: Solicitante autorizado do upload
+      responses:
+        '202':
+          description: Concluir upload para inspeção
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+        '412':
+          $ref: '#/components/responses/Error412'
+        '428':
+          $ref: '#/components/responses/Error428'
+        '413':
+          $ref: '#/components/responses/Error413'
+        '415':
+          $ref: '#/components/responses/Error415'
+      parameters:
+      - name: documentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+  /documents/{documentId}/download:
+    get:
+      operationId: downloadDocument
+      summary: Obter acesso temporário privado
+      tags:
+      - documents
+      description: Dono ou analista atribuído com finalidade ou familiar com escopo específico. Reavaliar autorização
+        e DISPONIVEL. Sem link público permanente.
+      x-permission: Dono ou analista atribuído com finalidade ou familiar com escopo específico
+      responses:
+        '200':
+          description: Obter acesso temporário privado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Download'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - name: documentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /me/driver:
+    post:
+      operationId: submitDriver
+      summary: Submeter cadastro de entregador
+      tags:
+      - me
+      description: Conta autenticada; documentos próprios disponíveis
+      x-permission: Conta autenticada; documentos próprios disponíveis
+      responses:
+        '201':
+          description: Submeter cadastro de entregador
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Driver'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DriverInput'
+    get:
+      operationId: getDriver
+      summary: Consultar revisão própria
+      tags:
+      - me
+      description: Entregador titular
+      x-permission: Entregador titular
+      responses:
+        '200':
+          description: Consultar revisão própria
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Driver'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+  /me/vehicle-links:
+    post:
+      operationId: submitVehicle
+      summary: Submeter veículo e vínculo
+      tags:
+      - me
+      description: Entregador titular; documentos próprios
+      x-permission: Entregador titular; documentos próprios
+      responses:
+        '201':
+          description: Submeter veículo e vínculo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleLink'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleInput'
+    get:
+      operationId: listVehicleLinks
+      summary: Listar vínculos próprios
+      tags:
+      - me
+      description: Entregador titular
+      x-permission: Entregador titular
+      responses:
+        '200':
+          description: Listar vínculos próprios
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleLinkPage'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+  /reviews/drivers/{driverId}:
+    post:
+      operationId: reviewDriver
+      summary: Revisar entregador
+      tags:
+      - reviews
+      description: ANALISTA_OPERACIONAL com atribuição; sem autoaprovação
+      x-permission: ANALISTA_OPERACIONAL com atribuição; sem autoaprovação
+      responses:
+        '200':
+          description: Revisar entregador
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Driver'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+        '412':
+          $ref: '#/components/responses/Error412'
+        '428':
+          $ref: '#/components/responses/Error428'
+      parameters:
+      - name: driverId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewInput'
+  /reviews/vehicle-links/{linkId}:
+    post:
+      operationId: reviewVehicle
+      summary: Revisar veículo e vínculo
+      tags:
+      - reviews
+      description: ANALISTA_OPERACIONAL com atribuição; sem autoaprovação
+      x-permission: ANALISTA_OPERACIONAL com atribuição; sem autoaprovação
+      responses:
+        '200':
+          description: Revisar veículo e vínculo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleLink'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+        '412':
+          $ref: '#/components/responses/Error412'
+        '428':
+          $ref: '#/components/responses/Error428'
+      parameters:
+      - name: linkId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewInput'
+  /programs:
+    get:
+      operationId: listPrograms
+      summary: Consultar programas oferecidos
+      tags:
+      - programs
+      description: Conta autenticada; somente programas habilitados, sem saldos/documentos privados
+      x-permission: Conta autenticada; somente programas habilitados, sem saldos/documentos privados
+      responses:
+        '200':
+          description: Consultar programas oferecidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProgramPage'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+  /patients/{patientId}/benefits:
+    post:
+      operationId: requestBenefit
+      summary: Solicitar benefício ou recurso
+      tags:
+      - patients
+      description: Paciente titular ou familiar BENEFICIOS
+      x-permission: Paciente titular ou familiar BENEFICIOS
+      responses:
+        '201':
+          description: Solicitar benefício ou recurso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Benefit'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BenefitInput'
+    get:
+      operationId: listBenefits
+      summary: Consultar solicitações
+      tags:
+      - patients
+      description: Paciente titular ou familiar BENEFICIOS
+      x-permission: Paciente titular ou familiar BENEFICIOS
+      responses:
+        '200':
+          description: Consultar solicitações
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BenefitPage'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+  /benefits/{benefitId}:
+    get:
+      operationId: getBenefit
+      summary: Consultar solicitação de benefício
+      tags:
+      - benefits
+      description: Paciente/familiar BENEFICIOS ou analista atribuído da instituição
+      x-permission: Paciente/familiar BENEFICIOS ou analista atribuído da instituição
+      responses:
+        '200':
+          description: Consultar solicitação de benefício
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Benefit'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - name: benefitId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /benefits/{benefitId}/decisions:
+    post:
+      operationId: decideBenefit
+      summary: Decidir benefício
+      tags:
+      - benefits
+      description: ANALISTA_BENEFICIO atribuído e membro ativo da mesma instituição; sem autoanálise. If-Match é
+        da solicitação. Aprovação de benefício não reserva recursos.
+      x-permission: ANALISTA_BENEFICIO atribuído e membro ativo da mesma instituição; sem autoanálise
+      responses:
+        '201':
+          description: Decidir benefício
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BenefitDecision'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+        '412':
+          $ref: '#/components/responses/Error412'
+        '428':
+          $ref: '#/components/responses/Error428'
+      parameters:
+      - name: benefitId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BenefitReview'
+    get:
+      operationId: listBenefitDecisions
+      summary: Consultar decisões e validade
+      tags:
+      - benefits
+      description: Paciente ou familiar BENEFICIOS ou AB atribuído da mesma instituição.
+      x-permission: Paciente ou familiar BENEFICIOS ou AB atribuído da mesma instituição.
+      parameters:
+      - name: benefitId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Consultar decisões e validade
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BenefitDecisionPage'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+  /benefits/{benefitId}/assignment:
+    post:
+      operationId: assignBenefit
+      summary: Atribuir análise de benefício
+      tags:
+      - benefits
+      description: Administrador habilitado a gerir acessos; analista deve pertencer à instituição
+      x-permission: Administrador habilitado a gerir acessos; analista deve pertencer à instituição
+      responses:
+        '200':
+          description: Atribuir análise de benefício
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Benefit'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+        '412':
+          $ref: '#/components/responses/Error412'
+        '428':
+          $ref: '#/components/responses/Error428'
+      parameters:
+      - name: benefitId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignmentInput'
+  /orders:
+    post:
+      operationId: createOrder
+      summary: Solicitar retirada e entrega
+      tags:
+      - orders
+      description: Paciente titular ou familiar PEDIDOS; destinatário autorizado
+      x-permission: Paciente titular ou familiar PEDIDOS; destinatário autorizado
+      responses:
+        '201':
+          description: Solicitar retirada e entrega
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderInput'
+    get:
+      operationId: listOrders
+      summary: Listar pedidos visíveis
+      tags:
+      - orders
+      description: Paciente/familiar PEDIDOS ou entregador designado; filtros não ampliam escopo
+      x-permission: Paciente/familiar PEDIDOS ou entregador designado; filtros não ampliam escopo
+      responses:
+        '200':
+          description: Listar pedidos visíveis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderPage'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+  /orders/{orderId}:
+    get:
+      operationId: getOrder
+      summary: Consultar pedido
+      tags:
+      - orders
+      description: Paciente/familiar PEDIDOS ou entregador designado ou analista operacional atribuído
+      x-permission: Paciente/familiar PEDIDOS ou entregador designado ou analista operacional atribuído
+      responses:
+        '200':
+          description: Consultar pedido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /orders/{orderId}/addresses:
+    get:
+      operationId: getOrderAddresses
+      summary: Consultar endereços da tarefa
+      tags:
+      - orders
+      description: Paciente/familiar PEDIDOS ou entregador designado ativo; analista operacional em ocorrência atribuída
+      x-permission: Paciente/familiar PEDIDOS ou entregador designado ativo; analista operacional em ocorrência
+        atribuída
+      responses:
+        '200':
+          description: Consultar endereços da tarefa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderAddresses'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /orders/{orderId}/verification:
+    post:
+      operationId: verifyOrder
+      summary: Verificar retirada autorizada
+      tags:
+      - orders
+      description: ANALISTA_OPERACIONAL atribuído; política/unidade de retirada habilitada. APROVADO → AGUARDANDO_ACEITE;
+        REJEITADO → NAO_ATENDIDA; SUSPENSO inválido nesta operação (422).
+      x-permission: ANALISTA_OPERACIONAL atribuído; política/unidade de retirada habilitada
+      responses:
+        '200':
+          description: Verificar retirada autorizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+        '412':
+          $ref: '#/components/responses/Error412'
+        '428':
+          $ref: '#/components/responses/Error428'
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewInput'
+  /orders/{orderId}/quotes:
+    post:
+      operationId: createQuote
+      summary: Calcular orçamento rastreável
+      tags:
+      - orders
+      description: Paciente titular ou familiar PEDIDOS. Sem rota real/tarifa válida retorna 503. If-Match da versão
+        do pedido.
+      x-permission: Paciente titular ou familiar PEDIDOS
+      responses:
+        '201':
+          description: Calcular orçamento rastreável
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quote'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+        '412':
+          $ref: '#/components/responses/Error412'
+        '428':
+          $ref: '#/components/responses/Error428'
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteInput'
+    get:
+      operationId: listQuotes
+      summary: Listar orçamentos
+      tags:
+      - orders
+      description: Paciente titular ou familiar PEDIDOS
+      x-permission: Paciente titular ou familiar PEDIDOS
+      responses:
+        '200':
+          description: Listar orçamentos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuotePage'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+  /quotes/{quoteId}:
+    get:
+      operationId: getQuote
+      summary: Consultar orçamento
+      tags:
+      - quotes
+      description: Paciente titular ou familiar PEDIDOS
+      x-permission: Paciente titular ou familiar PEDIDOS
+      responses:
+        '200':
+          description: Consultar orçamento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quote'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - name: quoteId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /quotes/{quoteId}/accept:
+    post:
+      operationId: acceptQuote
+      summary: Aceitar preço e iniciar cobertura
+      tags:
+      - quotes
+      description: Paciente titular ou familiar PEDIDOS. Lock, reserva e outbox atômicos. Retorno pode estar PENDENTE;
+        cobrar somente valor aceito. Cobertura insuficiente 409 FUNDING_INSUFFICIENT. If-Match do orçamento.
+      x-permission: Paciente titular ou familiar PEDIDOS
+      responses:
+        '202':
+          description: Aceitar preço e iniciar cobertura
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+        '412':
+          $ref: '#/components/responses/Error412'
+        '428':
+          $ref: '#/components/responses/Error428'
+      parameters:
+      - name: quoteId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptQuote'
+  /offers:
+    get:
+      operationId: listOffers
+      summary: Listar ofertas disponíveis
+      tags:
+      - offers
+      description: Entregador e vínculo aprovados, cobertura confirmada
+      x-permission: Entregador e vínculo aprovados, cobertura confirmada
+      responses:
+        '200':
+          description: Listar ofertas disponíveis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfferPage'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+  /orders/{orderId}/assignment:
+    post:
+      operationId: acceptOffer
+      summary: Aceitar tarefa atomicamente
+      tags:
+      - orders
+      description: Entregador aprovado; vínculo próprio aprovado; pedido DISPONIVEL. If-Match de orderVersion da
+        oferta. Duplo aceite 409 ALREADY_ASSIGNED; não expor identidade do vencedor.
+      x-permission: Entregador aprovado; vínculo próprio aprovado; pedido DISPONIVEL
+      responses:
+        '201':
+          description: Aceitar tarefa atomicamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assignment'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+        '412':
+          $ref: '#/components/responses/Error412'
+        '428':
+          $ref: '#/components/responses/Error428'
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptTask'
+  /orders/{orderId}/driver:
+    get:
+      operationId: getOperationalIdentity
+      summary: Consultar identificação operacional
+      tags:
+      - orders
+      description: Paciente/familiar PEDIDOS ou RECEBIMENTO; tarefa ativa
+      x-permission: Paciente/familiar PEDIDOS ou RECEBIMENTO; tarefa ativa
+      responses:
+        '200':
+          description: Consultar identificação operacional
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalIdentity'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /orders/{orderId}/cancel:
+    post:
+      operationId: cancelOrder
+      summary: Cancelar antes da retirada
+      tags:
+      - orders
+      description: Paciente/familiar PEDIDOS ou operador atribuído, dentro da política aceita. Após retirada exige
+        ocorrência. Reserva e financeiro tratados separadamente, sem estorno fictício.
+      x-permission: Paciente/familiar PEDIDOS ou operador atribuído, dentro da política aceita
+      responses:
+        '200':
+          description: Cancelar antes da retirada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+        '412':
+          $ref: '#/components/responses/Error412'
+        '428':
+          $ref: '#/components/responses/Error428'
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reason'
+  /orders/{orderId}/pickup:
+    post:
+      operationId: confirmPickup
+      summary: Confirmar retirada
+      tags:
+      - orders
+      description: Entregador designado ativo; autorização de retirada verificada
+      x-permission: Entregador designado ativo; autorização de retirada verificada
+      responses:
+        '200':
+          description: Confirmar retirada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+        '412':
+          $ref: '#/components/responses/Error412'
+        '428':
+          $ref: '#/components/responses/Error428'
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PickupConfirmation'
+  /orders/{orderId}/start-delivery:
+    post:
+      operationId: startDelivery
+      summary: Iniciar deslocamento ao destinatário
+      tags:
+      - orders
+      description: Entregador designado ativo; pedido RETIRADA
+      x-permission: Entregador designado ativo; pedido RETIRADA
+      responses:
+        '200':
+          description: Iniciar deslocamento ao destinatário
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+        '412':
+          $ref: '#/components/responses/Error412'
+        '428':
+          $ref: '#/components/responses/Error428'
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+  /orders/{orderId}/receipt-code:
+    post:
+      operationId: issueReceiptCode
+      summary: Emitir código de recebimento
+      tags:
+      - orders
+      description: Destinatário do pedido ainda autorizado por titularidade ou escopo RECEBIMENTO. Código novo invalida
+        anterior. Endpoint deliberadamente sem replay de segredo; rate limit, Cache-Control no-store, resposta não
+        armazenada em cache de idempotência.
+      x-permission: Destinatário do pedido ainda autorizado por titularidade ou escopo RECEBIMENTO
+      responses:
+        '200':
+          description: Emitir código de recebimento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiptChallenge'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+        '412':
+          $ref: '#/components/responses/Error412'
+        '428':
+          $ref: '#/components/responses/Error428'
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+  /orders/{orderId}/deliver:
+    post:
+      operationId: confirmDelivery
+      summary: Confirmar entrega e reconhecer valor devido
+      tags:
+      - orders
+      description: Entregador designado ativo; código válido do destinatário. Confirma entrega e liquidação local
+        uma vez; repasse permanece pendente até confirmação externa.
+      x-permission: Entregador designado ativo; código válido do destinatário
+      responses:
+        '200':
+          description: Confirmar entrega e reconhecer valor devido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+        '412':
+          $ref: '#/components/responses/Error412'
+        '428':
+          $ref: '#/components/responses/Error428'
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliveryCode'
+  /orders/{orderId}/incidents:
+    post:
+      operationId: openIncident
+      summary: Registrar ocorrência
+      tags:
+      - orders
+      description: Entregador designado ou paciente/familiar PEDIDOS ou operador atribuído
+      x-permission: Entregador designado ou paciente/familiar PEDIDOS ou operador atribuído
+      responses:
+        '201':
+          description: Registrar ocorrência
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+        '412':
+          $ref: '#/components/responses/Error412'
+        '428':
+          $ref: '#/components/responses/Error428'
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reason'
+  /incidents/{incidentId}/resolve:
+    post:
+      operationId: resolveIncident
+      summary: Resolver ocorrência
+      tags:
+      - incidents
+      description: ANALISTA_OPERACIONAL atribuído com política/cobertura verificadas
+      x-permission: ANALISTA_OPERACIONAL atribuído com política/cobertura verificadas
+      responses:
+        '200':
+          description: Resolver ocorrência
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+        '412':
+          $ref: '#/components/responses/Error412'
+        '428':
+          $ref: '#/components/responses/Error428'
+      parameters:
+      - name: incidentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncidentResolution'
+  /orders/{orderId}/locations:
+    post:
+      operationId: sendLocation
+      summary: Enviar posição real
+      tags:
+      - orders
+      description: Entregador designado ativo; assignmentId deve pertencer ao pedido. Deduplicação natural por designação/sequence;
+        repetição idêntica retorna 200, diferente retorna 409; antigo/fora de ordem 422. Sem Idempotency-Key adicional.
+      x-permission: Entregador designado ativo; assignmentId deve pertencer ao pedido
+      responses:
+        '201':
+          description: Enviar posição real
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Location'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+        '200':
+          description: Posição idêntica já aceita, sem nova publicação.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Location'
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocationInput'
+  /orders/{orderId}/locations/latest:
+    get:
+      operationId: getLatestLocation
+      summary: Consultar última posição com idade
+      tags:
+      - orders
+      description: Paciente titular ou familiar RASTREAMENTO ou entregador designado; tarefa ativa. 404 LOCATION_UNAVAILABLE
+        se não há posição; posição antiga real retorna stale=true. Tarefa encerrada nega compartilhamento.
+      x-permission: Paciente titular ou familiar RASTREAMENTO ou entregador designado; tarefa ativa
+      responses:
+        '200':
+          description: Consultar última posição com idade
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Location'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /institutions/{institutionId}/programs:
+    post:
+      operationId: createProgram
+      summary: Registrar programa pendente
+      tags:
+      - institutions
+      description: Administrador com escopo de gestão; acordo privado verificado posteriormente
+      x-permission: Administrador com escopo de gestão; acordo privado verificado posteriormente
+      responses:
+        '201':
+          description: Registrar programa pendente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Program'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - name: institutionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProgramInput'
+  /programs/{programId}/balance:
+    get:
+      operationId: getBalance
+      summary: Consultar saldo comprovado
+      tags:
+      - programs
+      description: GESTOR_FINANCEIRO da instituição do programa
+      x-permission: GESTOR_FINANCEIRO da instituição do programa
+      responses:
+        '200':
+          description: Consultar saldo comprovado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Balance'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - name: programId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /programs/{programId}/funding:
+    post:
+      operationId: recordFunding
+      summary: Registrar aporte para conciliação
+      tags:
+      - programs
+      description: GESTOR_FINANCEIRO da instituição. Registro não aumenta saldo até verificação independente.
+      x-permission: GESTOR_FINANCEIRO da instituição
+      responses:
+        '201':
+          description: Registrar aporte para conciliação
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Funding'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - name: programId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FundingInput'
+    get:
+      operationId: listFunding
+      summary: Listar aportes institucionais
+      tags:
+      - programs
+      description: GESTOR_FINANCEIRO da instituição
+      x-permission: GESTOR_FINANCEIRO da instituição
+      responses:
+        '200':
+          description: Listar aportes institucionais
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FundingPage'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - name: programId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+  /funding/{fundingId}/review:
+    post:
+      operationId: reviewFunding
+      summary: Confirmar conciliação de aporte
+      tags:
+      - funding
+      description: GESTOR_FINANCEIRO da mesma instituição, distinto do registrador. Comprovante deve demonstrar
+        ingresso real; gera crédito único após conciliação. Sem procedimento habilitado retorna 503.
+      x-permission: GESTOR_FINANCEIRO da mesma instituição, distinto do registrador
+      responses:
+        '200':
+          description: Confirmar conciliação de aporte
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Funding'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+        '412':
+          $ref: '#/components/responses/Error412'
+        '428':
+          $ref: '#/components/responses/Error428'
+      parameters:
+      - name: fundingId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FundingReview'
+  /orders/{orderId}/financial-operations:
+    get:
+      operationId: listFinancialOperations
+      summary: Consultar situação financeira pertinente
+      tags:
+      - orders
+      description: 'Paciente/familiar PEDIDOS: cobrança/estorno próprios; entregador: repasse próprio; gestor: subsídio
+        de seu programa'
+      x-permission: 'Paciente/familiar PEDIDOS: cobrança/estorno próprios; entregador: repasse próprio; gestor:
+        subsídio de seu programa'
+      responses:
+        '200':
+          description: Consultar situação financeira pertinente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancialOperationPage'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+  /financial-operations/{operationId}:
+    get:
+      operationId: getFinancialOperation
+      summary: Consultar operação financeira
+      tags:
+      - financial-operations
+      description: Ator participante da parcela ou gestor do programa; escopo igual à listagem
+      x-permission: Ator participante da parcela ou gestor do programa; escopo igual à listagem
+      responses:
+        '200':
+          description: Consultar operação financeira
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancialOperation'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - name: operationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /integrations/payments/events:
+    post:
+      operationId: receivePaymentEvent
+      tags:
+      - integrations
+      summary: Receber evento financeiro autenticado
+      description: Contrato de entrada do adaptador, desabilitado até seleção do provedor. Verificar assinatura
+        sobre bytes originais, timestamp/replay, credencial e referência da operação; validar valor, moeda e beneficiário.
+        Corpo/event headers definitivos dependem do provedor. Persistir inbox antes de 202; repetição ID/hash idênticos
+        recebe 200 sem novo efeito. Mesmo ID/hash diferente recebe 409. Não expor como webhook genérico habilitado.
+      security:
+      - paymentSignature: []
+      x-permission: Provedor contratado e autenticado, nunca token de usuário
+      parameters:
+      - name: X-Event-Id
+        in: header
+        required: true
+        schema:
+          type: string
+          maxLength: 160
+      - name: X-Event-Timestamp
+        in: header
+        required: true
+        schema:
+          type: string
+          format: date-time
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '202':
+          description: Evento autenticado persistido para processamento.
+        '200':
+          description: Evento já processado, sem efeito duplicado.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '413':
+          $ref: '#/components/responses/Error413'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+  /reviews/cases:
+    get:
+      operationId: listOperationalCases
+      summary: Listar casos operacionais
+      tags:
+      - reviews
+      description: AO vê apenas atribuídos; AD com capacidade de gestão vê fila mínima, sem documentos.
+      x-permission: AO vê apenas atribuídos; AD com capacidade de gestão vê fila mínima, sem documentos.
+      parameters:
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Listar casos operacionais
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalCasePage'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+  /reviews/cases/{caseId}:
+    get:
+      operationId: getOperationalCase
+      summary: Consultar caso operacional atribuído
+      tags:
+      - reviews
+      description: AO atribuído vê o alvo e referências de evidências necessárias; AD sem atribuição não lê documentos.
+      x-permission: AO atribuído vê o alvo e referências de evidências necessárias; AD sem atribuição não lê documentos.
+      parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Consultar caso operacional atribuído
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalCaseDetails'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+  /reviews/cases/{caseId}/assignment:
+    post:
+      operationId: assignOperationalCase
+      summary: Atribuir revisão operacional
+      tags:
+      - reviews
+      description: AD com capacidade de gestão; alvo analista deve ser AO ativo, distinto do titular.
+      x-permission: AD com capacidade de gestão; alvo analista deve ser AO ativo, distinto do titular.
+      parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Atribuir revisão operacional
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalCase'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Versão entre aspas para If-Match.
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+        '412':
+          $ref: '#/components/responses/Error412'
+        '428':
+          $ref: '#/components/responses/Error428'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignmentInput'
+  /financial-operations/{operationId}/checkout:
+    get:
+      operationId: getCheckout
+      summary: Acessar pagamento real da parcela aceita
+      tags:
+      - financial-operations
+      description: Pagador titular ou familiar PEDIDOS autorizado ao pedido, somente COBRANCA pendente própria;
+        URL do provedor não confirma pagamento.
+      x-permission: Pagador titular ou familiar PEDIDOS autorizado ao pedido, somente COBRANCA pendente própria;
+        URL do provedor não confirma pagamento.
+      parameters:
+      - name: operationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Acessar pagamento real da parcela aceita
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Checkout'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+  /auth/csrf:
+    get:
+      operationId: getCsrf
+      summary: Obter token CSRF para cliente web
+      tags:
+      - auth
+      description: 'WEB: Origin permitido, token ligado ao contexto CSRF; resposta no-store. CORS só origem web
+        configurada.'
+      x-permission: 'WEB: Origin permitido, token ligado ao contexto CSRF; resposta no-store. CORS só origem web
+        configurada.'
+      parameters: []
+      responses:
+        '200':
+          description: Obter token CSRF para cliente web
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfToken'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      security: []
+  /reviews/benefits:
+    get:
+      operationId: listAssignedBenefits
+      summary: Listar solicitações para análise
+      tags:
+      - reviews
+      description: AB vê apenas solicitações atribuídas da própria instituição; AD com capacidade de gestão vê fila
+        mínima para atribuição, sem evidências.
+      x-permission: AB atribuído / AD gestor de acessos, projeção mínima
+      parameters:
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Fila paginada com escopo aplicado antes da consulta.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BenefitPage'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Sessão revogável, emissor/audiência/assinatura/expiração validados. Nenhum privilégio inferido
+        de cadastro.
+    paymentSignature:
+      type: apiKey
+      in: header
+      name: X-Event-Signature
+      description: 'Placeholder técnico do adaptador: cabeçalho sozinho não autentica. Algoritmo, janela e headers
+        finais precisam seguir o provedor selecionado; endpoint desabilitado até isso.'
+    refreshCookie:
+      type: apiKey
+      in: cookie
+      name: refresh
+      description: Refresh rotativo da sessão WEB, sempre acompanhado de CSRF/Origin. MOBILE envia refresh no corpo.
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+        pattern: ^[A-Za-z0-9._:-]+$
+      description: Única por ator/operação. Mesmo corpo retorna resultado original após reautorização; corpo diferente
+        ou em andamento retorna 409. Chaves financeiras de negócio não expiram.
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      schema:
+        type: string
+        pattern: ^"[0-9]+"$
+      description: ETag da versão do recurso alvo (pedido para seus comandos, orçamento para seu aceite). Ausente
+        428, versão antiga 412.
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+        maxLength: 2048
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Csrf:
+      name: X-CSRF-Token
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Obrigatório em requisições WEB com cookie, além de Origin permitido; omitido em MOBILE sem cookie.
+        Falha 403.
+  schemas:
+    Money:
+      type: string
+      pattern: ^(0|[1-9][0-9]{0,11})\.[0-9]{2}$
+      description: BRL exato, até 999999999999.99. Não usar ponto flutuante.
+    Version:
+      type: integer
+      format: int64
+      minimum: 0
+    Error:
+      type: object
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        correlationId:
+          type: string
+          format: uuid
+        retryable:
+          type: boolean
+      required:
+      - code
+      - message
+      - correlationId
+      - retryable
+      description: Sem dados pessoais, stack trace ou existência de recurso alheio. code é estável; message é segura
+        para exibição.
+    Accepted:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - PENDENTE
+          - EM_PROCESSAMENTO
+          - CONCLUIDA
+      required:
+      - id
+      - status
+    Register:
+      type: object
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          format: password
+          minLength: 12
+          maxLength: 128
+          writeOnly: true
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+      required:
+      - email
+      - password
+      - name
+    Login:
+      type: object
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          writeOnly: true
+        client:
+          type: string
+          enum:
+          - WEB
+          - MOBILE
+      required:
+      - email
+      - password
+      - client
+    Tokens:
+      type: object
+      additionalProperties: false
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          enum:
+          - Bearer
+        expiresIn:
+          type: integer
+          minimum: 1
+        refreshToken:
+          type: string
+          description: Somente MOBILE; WEB recebe cookie HttpOnly/Secure/SameSite, nunca este campo.
+      required:
+      - accessToken
+      - tokenType
+      - expiresIn
+    Refresh:
+      type: object
+      additionalProperties: false
+      properties:
+        refreshToken:
+          type: string
+          writeOnly: true
+          description: Obrigatório somente no mobile; web usa cookie.
+    EmailInput:
+      type: object
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+          format: email
+      required:
+      - email
+    ChallengeInput:
+      type: object
+      additionalProperties: false
+      properties:
+        token:
+          type: string
+          minLength: 16
+          maxLength: 512
+          writeOnly: true
+      required:
+      - token
+    ResetPassword:
+      type: object
+      additionalProperties: false
+      properties:
+        token:
+          type: string
+          minLength: 16
+          maxLength: 512
+          writeOnly: true
+        newPassword:
+          type: string
+          format: password
+          minLength: 12
+          maxLength: 128
+          writeOnly: true
+      required:
+      - token
+      - newPassword
+    Account:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        email:
+          type: string
+          format: email
+        status:
+          type: string
+          enum:
+          - PENDENTE_EMAIL
+          - ATIVO
+          - BLOQUEADO
+          - ENCERRADO
+        version:
+          $ref: '#/components/schemas/Version'
+      required:
+      - id
+      - name
+      - email
+      - status
+      - version
+    PatientInput:
+      type: object
+      additionalProperties: false
+      properties:
+        cpf:
+          type: string
+          pattern: ^\d{11}$
+          writeOnly: true
+        birthDate:
+          type: string
+          format: date
+      required:
+      - cpf
+      - birthDate
+    Patient:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        identityStatus:
+          type: string
+          enum:
+          - PENDENTE
+          - VERIFICADA
+          - REJEITADA
+        version:
+          $ref: '#/components/schemas/Version'
+      required:
+      - id
+      - identityStatus
+      - version
+    GrantInput:
+      type: object
+      additionalProperties: false
+      properties:
+        familyUserId:
+          type: string
+          format: uuid
+        scopes:
+          type: array
+          items:
+            type: string
+            enum:
+            - PEDIDOS
+            - BENEFICIOS
+            - RASTREAMENTO
+            - RECEBIMENTO
+          uniqueItems: true
+          minItems: 1
+        expiresAt:
+          type: string
+          format: date-time
+      required:
+      - familyUserId
+      - scopes
+      - expiresAt
+    Grant:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        patientId:
+          type: string
+          format: uuid
+        familyUserId:
+          type: string
+          format: uuid
+        scopes:
+          type: array
+          items:
+            type: string
+            enum:
+            - PEDIDOS
+            - BENEFICIOS
+            - RASTREAMENTO
+            - RECEBIMENTO
+          uniqueItems: true
+          minItems: 1
+        expiresAt:
+          type: string
+          format: date-time
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+        version:
+          $ref: '#/components/schemas/Version'
+      required:
+      - id
+      - patientId
+      - familyUserId
+      - scopes
+      - expiresAt
+      - revokedAt
+      - version
+    DocumentInput:
+      type: object
+      additionalProperties: false
+      properties:
+        category:
+          type: string
+          enum:
+          - IDENTIDADE
+          - HABILITACAO
+          - VEICULO
+          - FOTO_OPERACIONAL
+          - IDADE
+          - DEFICIENCIA
+          - RENDA
+          - RETIRADA
+          - FINANCIAMENTO
+          - COMPROVANTE
+        patientId:
+          type: string
+          format: uuid
+        institutionId:
+          type: string
+          format: uuid
+        contentType:
+          type: string
+          enum:
+          - image/jpeg
+          - image/png
+          - application/pdf
+        sizeBytes:
+          type: integer
+          minimum: 1
+          maximum: 10485760
+      required:
+      - category
+      - contentType
+      - sizeBytes
+      description: 'Limite técnico proposto: 10 MiB. Escopos opcionais só aceitos com autorização; MIME declarado
+        não substitui inspeção real.'
+    Document:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        category:
+          type: string
+          enum:
+          - IDENTIDADE
+          - HABILITACAO
+          - VEICULO
+          - FOTO_OPERACIONAL
+          - IDADE
+          - DEFICIENCIA
+          - RENDA
+          - RETIRADA
+          - FINANCIAMENTO
+          - COMPROVANTE
+        status:
+          type: string
+          enum:
+          - AGUARDANDO_UPLOAD
+          - QUARENTENA
+          - DISPONIVEL
+          - REJEITADO
+          - EXPURGADO
+        version:
+          $ref: '#/components/schemas/Version'
+      required:
+      - id
+      - category
+      - status
+      - version
+    Upload:
+      type: object
+      additionalProperties: false
+      properties:
+        document:
+          $ref: '#/components/schemas/Document'
+        uploadUrl:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
+        method:
+          type: string
+          enum:
+          - PUT
+      required:
+      - document
+      - uploadUrl
+      - expiresAt
+      - method
+      description: URL privada temporária vinculada a objeto, tamanho e tipo. Falta de armazenamento habilitado
+        produz 503.
+    Download:
+      type: object
+      additionalProperties: false
+      properties:
+        url:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
+      required:
+      - url
+      - expiresAt
+      description: Só documento DISPONIVEL e ator autorizado. URL temporária é credencial; não registrar em log.
+    DriverInput:
+      type: object
+      additionalProperties: false
+      properties:
+        cpf:
+          type: string
+          pattern: ^\d{11}$
+          writeOnly: true
+        birthDate:
+          type: string
+          format: date
+        identityNumber:
+          type: string
+          maxLength: 30
+          writeOnly: true
+        licenseNumber:
+          type: string
+          maxLength: 30
+          writeOnly: true
+        licenseCategory:
+          type: string
+          maxLength: 10
+        licenseExpiresOn:
+          type: string
+          format: date
+        identityDocumentId:
+          type: string
+          format: uuid
+        licenseDocumentId:
+          type: string
+          format: uuid
+        selfieDocumentId:
+          type: string
+          format: uuid
+        operationalPhotoId:
+          type: string
+          format: uuid
+      required:
+      - cpf
+      - birthDate
+      - identityNumber
+      - licenseNumber
+      - licenseCategory
+      - licenseExpiresOn
+      - identityDocumentId
+      - licenseDocumentId
+      - selfieDocumentId
+      - operationalPhotoId
+    Driver:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - RASCUNHO
+          - EM_ANALISE
+          - APROVADO
+          - REJEITADO
+          - SUSPENSO
+        version:
+          $ref: '#/components/schemas/Version'
+      required:
+      - id
+      - status
+      - version
+    VehicleInput:
+      type: object
+      additionalProperties: false
+      properties:
+        plate:
+          type: string
+          minLength: 7
+          maxLength: 10
+        brand:
+          type: string
+          minLength: 1
+          maxLength: 200
+        model:
+          type: string
+          minLength: 1
+          maxLength: 200
+        color:
+          type: string
+          minLength: 1
+          maxLength: 200
+        manufactureYear:
+          type: integer
+          minimum: 1886
+        modelYear:
+          type: integer
+          minimum: 1886
+        relationship:
+          type: string
+          enum:
+          - PROPRIEDADE
+          - LOCACAO
+          - AUTORIZACAO
+        registrationDocumentId:
+          type: string
+          format: uuid
+        authorizationDocumentId:
+          type: string
+          format: uuid
+        photoDocumentIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+      required:
+      - plate
+      - brand
+      - model
+      - color
+      - manufactureYear
+      - modelYear
+      - relationship
+      - registrationDocumentId
+      - photoDocumentIds
+    VehicleLink:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        driverId:
+          type: string
+          format: uuid
+        vehicleId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - RASCUNHO
+          - EM_ANALISE
+          - APROVADO
+          - REJEITADO
+          - SUSPENSO
+        version:
+          $ref: '#/components/schemas/Version'
+      required:
+      - id
+      - driverId
+      - vehicleId
+      - status
+      - version
+    ReviewInput:
+      type: object
+      additionalProperties: false
+      properties:
+        decision:
+          type: string
+          enum:
+          - APROVADO
+          - REJEITADO
+          - SUSPENSO
+        reasonCode:
+          type: string
+          minLength: 1
+          maxLength: 50
+        evidenceIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+      required:
+      - decision
+      - reasonCode
+      - evidenceIds
+    Program:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        institutionId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        status:
+          type: string
+          enum:
+          - PENDENTE
+          - HABILITADO
+          - SUSPENSO
+          - ENCERRADO
+        policyVersion:
+          type: integer
+          minimum: 1
+          nullable: true
+        version:
+          $ref: '#/components/schemas/Version'
+      required:
+      - id
+      - institutionId
+      - name
+      - status
+      - policyVersion
+      - version
+    BenefitInput:
+      type: object
+      additionalProperties: false
+      properties:
+        programId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+          - IDADE
+          - DEFICIENCIA
+          - RENDA
+        evidenceIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+        appealOf:
+          type: string
+          format: uuid
+      required:
+      - programId
+      - type
+      - evidenceIds
+    Benefit:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        patientId:
+          type: string
+          format: uuid
+        programId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+          - IDADE
+          - DEFICIENCIA
+          - RENDA
+        status:
+          type: string
+          enum:
+          - RASCUNHO
+          - EM_ANALISE
+          - APROVADA
+          - REJEITADA
+          - REVOGADA
+          - EXPIRADA
+        policyVersion:
+          type: integer
+          minimum: 1
+        version:
+          $ref: '#/components/schemas/Version'
+      required:
+      - id
+      - patientId
+      - programId
+      - type
+      - status
+      - policyVersion
+      - version
+    BenefitReview:
+      type: object
+      additionalProperties: false
+      properties:
+        decision:
+          type: string
+          enum:
+          - APROVADA
+          - REJEITADA
+        reasonCode:
+          type: string
+          minLength: 1
+          maxLength: 50
+        validUntil:
+          type: string
+          format: date-time
+      required:
+      - decision
+      - reasonCode
+      - validUntil
+      description: Percentual calculado pela política versionada e evidências, não escolhido livremente pelo analista.
+        Requer processo atribuído a ele e instituição correspondente.
+    BenefitDecision:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        requestId:
+          type: string
+          format: uuid
+        decision:
+          type: string
+          enum:
+          - APROVADA
+          - REJEITADA
+        percentage:
+          type: string
+          pattern: ^(100\.00|[0-9]{1,2}\.[0-9]{2})$
+        validUntil:
+          type: string
+          format: date-time
+        reasonCode:
+          type: string
+          minLength: 1
+          maxLength: 200
+      required:
+      - id
+      - requestId
+      - decision
+      - percentage
+      - validUntil
+      - reasonCode
+    Address:
+      type: object
+      additionalProperties: false
+      properties:
+        street:
+          type: string
+          minLength: 1
+          maxLength: 160
+        number:
+          type: string
+          minLength: 1
+          maxLength: 20
+        complement:
+          type: string
+          maxLength: 100
+        district:
+          type: string
+          minLength: 1
+          maxLength: 200
+        city:
+          type: string
+          minLength: 1
+          maxLength: 200
+        state:
+          type: string
+          pattern: ^[A-Z]{2}$
+        postalCode:
+          type: string
+          pattern: ^\d{8}$
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+      required:
+      - street
+      - number
+      - district
+      - city
+      - state
+      - postalCode
+      - latitude
+      - longitude
+    OrderInput:
+      type: object
+      additionalProperties: false
+      properties:
+        patientId:
+          type: string
+          format: uuid
+        origin:
+          $ref: '#/components/schemas/Address'
+        destination:
+          $ref: '#/components/schemas/Address'
+        recipientUserId:
+          type: string
+          format: uuid
+        pickupAuthorizationDocumentId:
+          type: string
+          format: uuid
+      required:
+      - patientId
+      - origin
+      - destination
+      - recipientUserId
+      - pickupAuthorizationDocumentId
+    Order:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        patientId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - SOLICITADA
+          - EM_VERIFICACAO
+          - AGUARDANDO_ACEITE
+          - DISPONIVEL
+          - ACEITA
+          - RETIRADA
+          - EM_ENTREGA
+          - ENTREGUE
+          - OCORRENCIA
+          - CANCELADA
+          - NAO_ATENDIDA
+          - ENCERRADA_COM_OCORRENCIA
+        coverageStatus:
+          type: string
+          enum:
+          - NAO_CONTRATADA
+          - PENDENTE
+          - CONFIRMADA
+          - INSUFICIENTE
+          - RECONCILIAR
+        createdAt:
+          type: string
+          format: date-time
+        version:
+          $ref: '#/components/schemas/Version'
+        pickupAuthorizationId:
+          type: string
+          format: uuid
+      required:
+      - id
+      - patientId
+      - status
+      - coverageStatus
+      - createdAt
+      - version
+      - pickupAuthorizationId
+      description: Visão mínima dos participantes; endereços operacionais têm endpoint separado. Estado de entrega
+        não confirma repasse.
+    OrderAddresses:
+      type: object
+      additionalProperties: false
+      properties:
+        origin:
+          $ref: '#/components/schemas/Address'
+        destination:
+          $ref: '#/components/schemas/Address'
+      required:
+      - origin
+      - destination
+    QuoteInput:
+      type: object
+      additionalProperties: false
+      properties:
+        programId:
+          type: string
+          format: uuid
+      description: Sem programa, solicitar orçamento particular. O servidor calcula preço e verifica decisões; aceitar
+        particular após falta de financiamento requer escolha expressa.
+    Quote:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - PROPOSTO
+          - ACEITO
+          - EXPIRADO
+          - SUBSTITUIDO
+        currency:
+          type: string
+          enum:
+          - BRL
+        grossAmount:
+          $ref: '#/components/schemas/Money'
+        patientAmount:
+          $ref: '#/components/schemas/Money'
+        subsidyAmount:
+          $ref: '#/components/schemas/Money'
+        programId:
+          type: string
+          format: uuid
+          nullable: true
+        tariffVersion:
+          type: integer
+          minimum: 1
+        routeProvider:
+          type: string
+          minLength: 1
+          maxLength: 200
+        distanceMeters:
+          type: integer
+          minimum: 1
+        durationSeconds:
+          type: integer
+          minimum: 1
+        includesLiveTraffic:
+          type: boolean
+        expiresAt:
+          type: string
+          format: date-time
+        version:
+          $ref: '#/components/schemas/Version'
+      required:
+      - id
+      - orderId
+      - status
+      - currency
+      - grossAmount
+      - patientAmount
+      - subsidyAmount
+      - programId
+      - tariffVersion
+      - routeProvider
+      - distanceMeters
+      - durationSeconds
+      - includesLiveTraffic
+      - expiresAt
+      - version
+    AcceptQuote:
+      type: object
+      additionalProperties: false
+      properties:
+        acceptedGrossAmount:
+          $ref: '#/components/schemas/Money'
+        acceptedPatientAmount:
+          $ref: '#/components/schemas/Money'
+        acceptedCurrency:
+          type: string
+          enum:
+          - BRL
+      required:
+      - acceptedGrossAmount
+      - acceptedPatientAmount
+      - acceptedCurrency
+      description: Confirma os valores apresentados; divergência com proposta resulta em 409, não recalcula silenciosamente.
+    Offer:
+      type: object
+      additionalProperties: false
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        originCity:
+          type: string
+          minLength: 1
+          maxLength: 200
+        destinationCity:
+          type: string
+          minLength: 1
+          maxLength: 200
+        distanceMeters:
+          type: integer
+          minimum: 1
+        grossAmount:
+          $ref: '#/components/schemas/Money'
+        currency:
+          type: string
+          enum:
+          - BRL
+        orderVersion:
+          $ref: '#/components/schemas/Version'
+      required:
+      - orderId
+      - originCity
+      - destinationCity
+      - distanceMeters
+      - grossAmount
+      - currency
+      - orderVersion
+      description: Antes do aceite não expõe endereço, paciente ou tipo de exame.
+    AcceptTask:
+      type: object
+      additionalProperties: false
+      properties:
+        vehicleLinkId:
+          type: string
+          format: uuid
+      required:
+      - vehicleLinkId
+    Assignment:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        driverId:
+          type: string
+          format: uuid
+        vehicleLinkId:
+          type: string
+          format: uuid
+        acceptedAt:
+          type: string
+          format: date-time
+        closedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - id
+      - orderId
+      - driverId
+      - vehicleLinkId
+      - acceptedAt
+      - closedAt
+    OperationalIdentity:
+      type: object
+      additionalProperties: false
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 200
+        photoUrl:
+          type: string
+          format: uri
+        photoExpiresAt:
+          type: string
+          format: date-time
+        plate:
+          type: string
+        model:
+          type: string
+          minLength: 1
+          maxLength: 200
+        color:
+          type: string
+          minLength: 1
+          maxLength: 200
+      required:
+      - displayName
+      - photoUrl
+      - photoExpiresAt
+      - plate
+      - model
+      - color
+      description: Apenas participantes da tarefa ativa; nenhum CPF, CNH, RG, renda ou documento clínico.
+    Reason:
+      type: object
+      additionalProperties: false
+      properties:
+        reasonCode:
+          type: string
+          minLength: 1
+          maxLength: 50
+      required:
+      - reasonCode
+    PickupConfirmation:
+      type: object
+      additionalProperties: false
+      properties:
+        pickupAuthorizationId:
+          type: string
+          format: uuid
+      required:
+      - pickupAuthorizationId
+      description: Somente autorização específica verificada e vigente; não substitui prova exigida pela unidade.
+    DeliveryCode:
+      type: object
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          minLength: 6
+          maxLength: 12
+          writeOnly: true
+      required:
+      - code
+      description: Código obtido do destinatário; limite de tentativas e validade. Resposta nunca ecoa o código.
+    ReceiptChallenge:
+      type: object
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          minLength: 6
+          maxLength: 12
+        expiresAt:
+          type: string
+          format: date-time
+      required:
+      - code
+      - expiresAt
+      description: Somente destinatário autorizado atual. Não registrar nem incluir em idempotência persistida como
+        resposta em texto claro.
+    Incident:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        reasonCode:
+          type: string
+          minLength: 1
+          maxLength: 200
+        status:
+          type: string
+          enum:
+          - ABERTA
+          - RESOLVIDA
+        version:
+          $ref: '#/components/schemas/Version'
+      required:
+      - id
+      - orderId
+      - reasonCode
+      - status
+      - version
+    IncidentResolution:
+      type: object
+      additionalProperties: false
+      properties:
+        action:
+          type: string
+          enum:
+          - REENTREGA
+          - ENCERRAR
+        reasonCode:
+          type: string
+          minLength: 1
+          maxLength: 50
+      required:
+      - action
+      - reasonCode
+      description: Exige política de custeio resolvida, registro de concordância e cobertura antes de custo novo;
+        caso contrário 422 POLICY_UNDEFINED.
+    LocationInput:
+      type: object
+      additionalProperties: false
+      properties:
+        assignmentId:
+          type: string
+          format: uuid
+        sequence:
+          type: integer
+          format: int64
+          minimum: 1
+        capturedAt:
+          type: string
+          format: date-time
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+        accuracyMeters:
+          type: number
+          minimum: 0
+          maximum: 999999.99
+      required:
+      - assignmentId
+      - sequence
+      - capturedAt
+      - latitude
+      - longitude
+      - accuracyMeters
+    Location:
+      type: object
+      additionalProperties: false
+      properties:
+        assignmentId:
+          type: string
+          format: uuid
+        sequence:
+          type: integer
+          format: int64
+          minimum: 1
+        capturedAt:
+          type: string
+          format: date-time
+        receivedAt:
+          type: string
+          format: date-time
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+        accuracyMeters:
+          type: number
+          minimum: 0
+        stale:
+          type: boolean
+        staleAfterSeconds:
+          type: integer
+          minimum: 1
+      required:
+      - assignmentId
+      - sequence
+      - capturedAt
+      - receivedAt
+      - latitude
+      - longitude
+      - accuracyMeters
+      - stale
+      - staleAfterSeconds
+    FundingInput:
+      type: object
+      additionalProperties: false
+      properties:
+        amount:
+          $ref: '#/components/schemas/Money'
+        currency:
+          type: string
+          enum:
+          - BRL
+        evidenceDocumentId:
+          type: string
+          format: uuid
+        sourceReference:
+          type: string
+          minLength: 1
+          maxLength: 160
+      required:
+      - amount
+      - currency
+      - evidenceDocumentId
+      - sourceReference
+    Funding:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        programId:
+          type: string
+          format: uuid
+        amount:
+          $ref: '#/components/schemas/Money'
+        currency:
+          type: string
+          enum:
+          - BRL
+        status:
+          type: string
+          enum:
+          - PENDENTE
+          - CONFIRMADO
+          - REJEITADO
+        version:
+          $ref: '#/components/schemas/Version'
+      required:
+      - id
+      - programId
+      - amount
+      - currency
+      - status
+      - version
+    FundingReview:
+      type: object
+      additionalProperties: false
+      properties:
+        decision:
+          type: string
+          enum:
+          - CONFIRMADO
+          - REJEITADO
+        reconciliationEvidenceId:
+          type: string
+          format: uuid
+        reasonCode:
+          type: string
+          minLength: 1
+          maxLength: 200
+      required:
+      - decision
+      - reconciliationEvidenceId
+      - reasonCode
+    Balance:
+      type: object
+      additionalProperties: false
+      properties:
+        programId:
+          type: string
+          format: uuid
+        currency:
+          type: string
+          enum:
+          - BRL
+        available:
+          $ref: '#/components/schemas/Money'
+        reserved:
+          $ref: '#/components/schemas/Money'
+        settled:
+          $ref: '#/components/schemas/Money'
+        version:
+          $ref: '#/components/schemas/Version'
+      required:
+      - programId
+      - currency
+      - available
+      - reserved
+      - settled
+      - version
+    FinancialOperation:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+          nullable: true
+        type:
+          type: string
+          enum:
+          - APORTE
+          - COBRANCA
+          - RESERVA
+          - LIBERACAO
+          - LIQUIDACAO
+          - REPASSE
+          - ESTORNO
+        amount:
+          $ref: '#/components/schemas/Money'
+        currency:
+          type: string
+          enum:
+          - BRL
+        status:
+          type: string
+          enum:
+          - PENDENTE
+          - PROCESSANDO
+          - CONFIRMADA
+          - FALHOU
+          - INCERTA
+        version:
+          $ref: '#/components/schemas/Version'
+      required:
+      - id
+      - orderId
+      - type
+      - amount
+      - currency
+      - status
+      - version
+      description: Representação mínima; cada ator vê apenas operações pertinentes à sua parcela/função, sem contas
+        bancárias de terceiros.
+    ProgramInput:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        agreementDocumentId:
+          type: string
+          format: uuid
+      required:
+      - name
+      - agreementDocumentId
+    AssignmentInput:
+      type: object
+      additionalProperties: false
+      properties:
+        analystUserId:
+          type: string
+          format: uuid
+      required:
+      - analystUserId
+    PrivacyRequestInput:
+      type: object
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          enum:
+          - ACESSO
+          - CORRECAO
+          - EXCLUSAO
+        description:
+          type: string
+          minLength: 1
+          maxLength: 1000
+      required:
+      - type
+      - description
+    GrantPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Grant'
+        nextCursor:
+          type: string
+          nullable: true
+      required:
+      - items
+      - nextCursor
+      description: Ordem estável createdAt,id; nextCursor nulo encerra. Limite máximo 100. Cursor só vale para os
+        mesmos filtros e escopo.
+    ProgramPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Program'
+        nextCursor:
+          type: string
+          nullable: true
+      required:
+      - items
+      - nextCursor
+      description: Ordem estável createdAt,id; nextCursor nulo encerra. Limite máximo 100. Cursor só vale para os
+        mesmos filtros e escopo.
+    BenefitPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Benefit'
+        nextCursor:
+          type: string
+          nullable: true
+      required:
+      - items
+      - nextCursor
+      description: Ordem estável createdAt,id; nextCursor nulo encerra. Limite máximo 100. Cursor só vale para os
+        mesmos filtros e escopo.
+    OrderPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Order'
+        nextCursor:
+          type: string
+          nullable: true
+      required:
+      - items
+      - nextCursor
+      description: Ordem estável createdAt,id; nextCursor nulo encerra. Limite máximo 100. Cursor só vale para os
+        mesmos filtros e escopo.
+    QuotePage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Quote'
+        nextCursor:
+          type: string
+          nullable: true
+      required:
+      - items
+      - nextCursor
+      description: Ordem estável createdAt,id; nextCursor nulo encerra. Limite máximo 100. Cursor só vale para os
+        mesmos filtros e escopo.
+    OfferPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Offer'
+        nextCursor:
+          type: string
+          nullable: true
+      required:
+      - items
+      - nextCursor
+      description: Ordem estável createdAt,id; nextCursor nulo encerra. Limite máximo 100. Cursor só vale para os
+        mesmos filtros e escopo.
+    VehicleLinkPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/VehicleLink'
+        nextCursor:
+          type: string
+          nullable: true
+      required:
+      - items
+      - nextCursor
+      description: Ordem estável createdAt,id; nextCursor nulo encerra. Limite máximo 100. Cursor só vale para os
+        mesmos filtros e escopo.
+    FinancialOperationPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FinancialOperation'
+        nextCursor:
+          type: string
+          nullable: true
+      required:
+      - items
+      - nextCursor
+      description: Ordem estável createdAt,id; nextCursor nulo encerra. Limite máximo 100. Cursor só vale para os
+        mesmos filtros e escopo.
+    FundingPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Funding'
+        nextCursor:
+          type: string
+          nullable: true
+      required:
+      - items
+      - nextCursor
+      description: Ordem estável createdAt,id; nextCursor nulo encerra. Limite máximo 100. Cursor só vale para os
+        mesmos filtros e escopo.
+    OperationalCase:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - kind
+      - targetId
+      - status
+      - version
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+          - ENTREGADOR
+          - VINCULO
+          - PEDIDO
+          - OCORRENCIA
+        targetId:
+          type: string
+          format: uuid
+        analystUserId:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          type: string
+          enum:
+          - PENDENTE
+          - ATRIBUIDO
+          - ENCERRADO
+        version:
+          $ref: '#/components/schemas/Version'
+    OperationalCasePage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - nextCursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OperationalCase'
+        nextCursor:
+          type: string
+          nullable: true
+    OperationalCaseDetails:
+      type: object
+      additionalProperties: false
+      required:
+      - case
+      - documentIds
+      properties:
+        case:
+          $ref: '#/components/schemas/OperationalCase'
+        documentIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        driver:
+          $ref: '#/components/schemas/Driver'
+        vehicleLink:
+          $ref: '#/components/schemas/VehicleLink'
+        order:
+          $ref: '#/components/schemas/Order'
+        incident:
+          $ref: '#/components/schemas/Incident'
+      description: Somente alvo do caso e documentos necessários à finalidade. Metadados/documentos requerem a mesma
+        atribuição; sem laudo/renda em caso operacional. Versões dos alvos geram If-Match nas revisões; versão do
+        caso em case.version para atribuição.
+    BenefitDecisionPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - nextCursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BenefitDecision'
+        nextCursor:
+          type: string
+          nullable: true
+    Checkout:
+      type: object
+      additionalProperties: false
+      required:
+      - url
+      - expiresAt
+      - operationId
+      properties:
+        url:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
+        operationId:
+          type: string
+          format: uuid
+      description: URL do provedor real para a cobrança já criada, restrita ao pagador autorizado. Não cria cobrança
+        nova em cada consulta; sem provedor retorna 503.
+    CsrfToken:
+      type: object
+      additionalProperties: false
+      required:
+      - token
+      properties:
+        token:
+          type: string
+  responses:
+    Error400:
+      description: Requisição inválida / cursor inválido.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error401:
+      description: Autenticação ausente, expirada ou revogada.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error403:
+      description: Ação negada, CSRF ou escopo insuficiente.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error404:
+      description: Recurso inexistente ou não visível ao ator.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error409:
+      description: Conflito de estado, saldo insuficiente, duplicidade ou idempotência incompatível.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error412:
+      description: Versão If-Match obsoleta.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error413:
+      description: Arquivo ou corpo excede limite.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error415:
+      description: Tipo de conteúdo não aceito.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error422:
+      description: Regra não satisfeita, evidência inválida, política indefinida ou GPS antigo.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error428:
+      description: If-Match obrigatório ausente.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error429:
+      description: Limite de tentativas/requisições excedido.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+            minimum: 1
+          description: Segundos até nova tentativa, quando conhecidos.
+    Error503:
+      description: Integração ou configuração operacional indisponível; nunca resposta fictícia.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+            minimum: 1
+          description: Segundos até nova tentativa, quando conhecidos.

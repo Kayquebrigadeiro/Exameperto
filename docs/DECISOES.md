@@ -38,13 +38,13 @@ App envia GPS durante tarefa ativa; backend distribui apenas aos autorizados. Lo
 
 ## ADR-006 — GitHub e deploy no final da primeira versão
 
-Status: sequência definida pelo autor.
+Status: parcialmente substituída pelo prompt autorizado de 29/09/2026.
 
-Git pode versionar localmente desde o primeiro código; publicação no GitHub e deploy seguem implementação e validação. Arquitetura e diagramas acompanham o código. Não publicar documentos pessoais, arquivos de configuração com segredos ou dumps de banco.
+A documentação pode ser commitada e publicada agora no remoto confirmado do aplicativo, em branch sem deploy automático, após validação e revisão contra a base capturada. Implementação e deploy continuam sujeitos a autorização posterior. Arquitetura e diagramas acompanham o código. Não publicar documentos pessoais, arquivos de configuração com segredos ou dumps de banco.
 
 ## Pendências antes do código
 
-- Contratos OpenAPI e modelo físico com constraints, índices e migrações.
+- Revisão do [OpenAPI](../contracts/openapi.yaml) e do [modelo físico](MODELO-DADOS.md) produzidos nesta etapa; migrações ficam para implementação.
 - Critérios/documentos aceitos e papéis de revisão de benefícios.
 - Procedimento de criação do administrador e recuperação/verificação de contas.
 - Política de retenção e permissão de acesso a documentos e GPS.
@@ -52,3 +52,13 @@ Git pode versionar localmente desde o primeiro código; publicação no GitHub e
 - Seleção e acesso a serviços de identidade, rotas, armazenamento, e-mail e pagamentos.
 
 Essas dependências podem ser implementadas em etapas; sem credencial/contrato, manter a integração indisponível. Não bloquear desenvolvimento local das partes independentes nem preencher dependências com respostas fictícias.
+
+## Índice complementar de ADRs
+
+ADR-001 a ADR-006 permanecem neste documento como fonte original. Não duplicar seu conteúdo em novos arquivos.
+
+| ADR | Estado | Fonte |
+|---|---|---|
+| ADR-007 — Transações e efeitos externos | Proposta para revisão | [0007-transacoes-financeiras](adr/0007-transacoes-financeiras.md) |
+
+Políticas em aberto e alternativas operacionais estão em [SEGURANCA](SEGURANCA.md) e nos tickets 01–02 do [backlog](../.scratch/planejamento/README.md). A inclusão de uma proposta técnica no contrato não representa aprovação das políticas comerciais.
