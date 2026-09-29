@@ -122,7 +122,9 @@ stateDiagram-v2
   EM_ENTREGA --> ENTREGUE: Codigo de recebimento
   RETIRADA --> OCORRENCIA
   EM_ENTREGA --> OCORRENCIA
-  OCORRENCIA --> EM_ENTREGA: Reentrega autorizada
+  OCORRENCIA --> ACEITA: Retomar se origem ACEITA
+  OCORRENCIA --> RETIRADA: Retomar se origem RETIRADA
+  OCORRENCIA --> EM_ENTREGA: Retomar se origem EM_ENTREGA
   OCORRENCIA --> ENCERRADA_COM_OCORRENCIA: Resolucao auditada
   ENTREGUE --> [*]
   CANCELADA --> [*]

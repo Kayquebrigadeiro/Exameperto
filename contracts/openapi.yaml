@@ -168,7 +168,8 @@ paths:
       summary: Revogar sessão atual
       tags:
       - auth
-      description: Conta autenticada
+      description: Conta autenticada WEB também limpa refresh com Set-Cookie expirado; revogação no servidor é obrigatória
+        mesmo se apagar o cookie falhar.
       x-permission: Conta autenticada
       responses:
         '204':
@@ -435,7 +436,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Accepted'
+                $ref: '#/components/schemas/PrivacyRequest'
         '400':
           $ref: '#/components/responses/Error400'
         '401':
@@ -599,20 +600,21 @@ paths:
   /documents:
     post:
       operationId: requestUpload
-      summary: Solicitar upload privado
+      summary: Criar registro de documento privado
       tags:
       - documents
       description: Dono ou familiar com BENEFICIOS/PEDIDOS conforme categoria; gestor financeiro só documentos de
-        seu programa
+        seu programa Criação idempotente retorna somente metadados. URL de upload é emitida separadamente com nova
+        autorização, sem duplicar documento.
       x-permission: Dono ou familiar com BENEFICIOS/PEDIDOS conforme categoria; gestor financeiro só documentos
         de seu programa
       responses:
         '201':
-          description: Solicitar upload privado
+          description: Documento criado; emitir URL temporária no endpoint upload-url.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Upload'
+                $ref: '#/components/schemas/Document'
         '400':
           $ref: '#/components/responses/Error400'
         '401':
@@ -2153,7 +2155,8 @@ paths:
       summary: Registrar ocorrência
       tags:
       - orders
-      description: Entregador designado ou paciente/familiar PEDIDOS ou operador atribuído
+      description: Entregador designado ou paciente/familiar PEDIDOS ou operador atribuído Somente ACEITA/RETIRADA/EM_ENTREGA;
+        outros estados retornam 409. Origem é capturada no servidor, não no corpo.
       x-permission: Entregador designado ou paciente/familiar PEDIDOS ou operador atribuído
       responses:
         '201':
@@ -2951,6 +2954,123 @@ paths:
           $ref: '#/components/responses/Error429'
         '503':
           $ref: '#/components/responses/Error503'
+  /documents/{documentId}/upload-url:
+    get:
+      operationId: getUploadUrl
+      summary: Emitir URL temporária para upload existente
+      tags:
+      - documents
+      description: Solicitante autorizado do documento AGUARDANDO_UPLOAD. Reemite credencial curta para o mesmo
+        objeto, tamanho e tipo; não cria documento novo. URL anterior expira e upload/complete verificam versão,
+        hash e imutabilidade para impedir substituição após QUARENTENA. Resposta no-store.
+      x-permission: Solicitante do upload ainda autorizado ao paciente/finalidade; documento AGUARDANDO_UPLOAD
+      responses:
+        '200':
+          description: Credencial temporária para o registro existente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Upload'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - name: documentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /benefits/{benefitId}/evidence:
+    get:
+      operationId: getBenefitEvidence
+      summary: Consultar referências de evidências do benefício
+      tags:
+      - benefits
+      description: Paciente titular, familiar BENEFICIOS ou AB atribuído e membro ativo da instituição. Cada documento
+        continua exigindo autorização própria para download.
+      x-permission: P/F BENEFICIOS ou AB atribuído da instituição
+      responses:
+        '200':
+          description: Referências mínimas aos documentos necessários para análise.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BenefitEvidence'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - name: benefitId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /me/privacy-requests/{requestId}:
+    get:
+      operationId: getPrivacyRequest
+      summary: Consultar protocolo próprio de privacidade
+      tags:
+      - benefits
+      description: Somente usuário que abriu a solicitação; resposta não expõe dados de outro titular.
+      x-permission: Usuário titular da solicitação
+      responses:
+        '200':
+          description: Protocolo e resposta quando disponíveis.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrivacyRequest'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      parameters:
+      - name: requestId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
 components:
   securitySchemes:
     bearerAuth:
@@ -3485,21 +3605,23 @@ components:
         brand:
           type: string
           minLength: 1
-          maxLength: 200
+          maxLength: 80
         model:
           type: string
           minLength: 1
-          maxLength: 200
+          maxLength: 80
         color:
           type: string
           minLength: 1
-          maxLength: 200
+          maxLength: 40
         manufactureYear:
           type: integer
           minimum: 1886
+          maximum: 32767
         modelYear:
           type: integer
           minimum: 1886
+          maximum: 32767
         relationship:
           type: string
           enum:
@@ -4135,12 +4257,19 @@ components:
           - RESOLVIDA
         version:
           $ref: '#/components/schemas/Version'
+        previousOrderStatus:
+          type: string
+          enum:
+          - ACEITA
+          - RETIRADA
+          - EM_ENTREGA
       required:
       - id
       - orderId
       - reasonCode
       - status
       - version
+      - previousOrderStatus
     IncidentResolution:
       type: object
       additionalProperties: false
@@ -4148,7 +4277,7 @@ components:
         action:
           type: string
           enum:
-          - REENTREGA
+          - RETOMAR
           - ENCERRAR
         reasonCode:
           type: string
@@ -4157,8 +4286,10 @@ components:
       required:
       - action
       - reasonCode
-      description: Exige política de custeio resolvida, registro de concordância e cobertura antes de custo novo;
-        caso contrário 422 POLICY_UNDEFINED.
+      description: 'RETOMAR restaura apenas previousOrderStatus persistido pelo servidor: ACEITA exige retirada
+        posterior, RETIRADA exige início posterior, EM_ENTREGA retoma deslocamento. Não admite salto de retirada.
+        Custo novo exige política, concordância e cobertura; caso contrário 422 POLICY_UNDEFINED. ENCERRAR requer
+        resolução e remuneração apuradas.'
     LocationInput:
       type: object
       additionalProperties: false
@@ -4680,6 +4811,54 @@ components:
       properties:
         token:
           type: string
+    BenefitEvidence:
+      type: object
+      additionalProperties: false
+      required:
+      - requestId
+      - documentIds
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        documentIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+    PrivacyRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - type
+      - status
+      - createdAt
+      - version
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+          - ACESSO
+          - CORRECAO
+          - EXCLUSAO
+        status:
+          type: string
+          enum:
+          - PENDENTE
+          - EM_ANALISE
+          - RESPONDIDA
+        createdAt:
+          type: string
+          format: date-time
+        response:
+          type: string
+          maxLength: 4000
+        version:
+          $ref: '#/components/schemas/Version'
   responses:
     Error400:
       description: Requisição inválida / cursor inválido.

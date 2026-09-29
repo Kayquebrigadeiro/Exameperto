@@ -17,13 +17,16 @@ Skills exigidas não estavam instaladas. Fontes e templates consultados em cópi
 
 ## Verificações
 
-- Primeira validação sintática/estrutural de OpenAPI com `openapi-spec-validator 0.9.0`: passou; fechamento do contrato revisado ainda será executado.
+- Contrato corrigido passou em `openapi-spec-validator 0.9.0` (OpenAPI 3.0.3): 69 operações. Comando: `/tmp/exame-perto-validation/bin/python -m openapi_spec_validator contracts/openapi.yaml`.
+- Validação complementar local: YAML sem chaves duplicadas; 823 referências internas resolvidas, operationIds únicos, parâmetros de path/permissão e paginação conferidos; 57 links Markdown locais existentes; 15 tickets com critérios e dependências sem ciclos. Script temporário `/tmp/exame-perto-validate.py`; estes números precedem a inclusão deste relatório de revisão.
+- Sete blocos Mermaid passaram em `mermaid.parse`, versão 12.0.0, ambiente temporário com jsdom. Não houve renderização/inspeção visual dos diagramas.
+- `git diff --check` passou; nenhum código de aplicação/workflow foi criado.
 - Consultas Git e inspeção documental inicial executadas; base original preservada.
-- Revisão final de links, referências, dependências e commits: em andamento.
+- [Revisão em dois eixos](REVISAO.md): Standards encontrou 3 P2, Spec encontrou 1 P1; correções escritas, aguardando conferência do commit corretivo.
 - Nenhum teste de aplicação, PostgreSQL, Android, provedor, segurança ou desempenho foi executado: não existe implementação nesta etapa.
 
 ## Pendências e próxima ação
 
-Concluir validação documental e revisão dos commits; corrigir achados antes do push autorizado. Revisar backlog concreto e políticas materiais dos tickets 01–02; só então autorizar as próximas fatias. Política de retenção, comprovações, custeio, cancelamento, acesso privilegiado, representação e fornecedores continuam abertas, detalhadas nos artefatos correspondentes.
+Conferir as correções no conjunto de commits antes do push autorizado. Revisar backlog concreto e políticas materiais dos tickets 01–02; só então autorizar as próximas fatias. Política de retenção, comprovações, custeio, cancelamento, acesso privilegiado, representação e fornecedores continuam abertas, detalhadas nos artefatos correspondentes.
 
 Push: ainda não executado; somente após revisão.
