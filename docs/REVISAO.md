@@ -43,4 +43,17 @@ Correção documental: aporte preserva separadamente evidência da revisão, rev
 
 Zero novos achados materiais ou desvios de escopo. Retomada de ocorrência restaura somente a origem persistida, mantendo confirmação posterior de retirada quando a origem é ACEITA. O P1 anterior está corrigido.
 
-Resultado da conferência até `63e033d`: Standards 1 novo P2; Spec 0 novos achados. A correção de conciliação será conferida em commit local antes do envio.
+Resultado da conferência até `63e033d`: Standards 1 novo P2; Spec 0 novos achados. A correção foi commitada em `84631aa4244120c8ddfa6dea00355fa8e8fde594` e conferida pelos mesmos dois revisores no diff corretivo e no conjunto cumulativo contra a base antes do envio.
+
+
+## Fechamento da revisão
+
+### Standards
+
+P2 de conciliação encerrado: vínculo separado, revisor, data e motivo persistidos; autorização, revisão única e crédito atômico coerentes entre modelo, contrato, segurança, diagrama e ticket. As três correções anteriores permanecem válidas. Nenhuma nova violação ou heurística relatada.
+
+### Spec
+
+Zero novos achados. A correção atende à história de recursos comprovados, preserva as garantias anteriores e permanece no escopo documental.
+
+Resultado do conjunto até `84631aa`: **Standards 0 pendentes; Spec 0 pendentes**. Primeiro push desse conjunto concluído para `origin/docs/planejamento-tecnico`; sem implementação ou deploy. O commit de fechamento altera somente este relatório e o status, com conferência local do diff antes de envio.

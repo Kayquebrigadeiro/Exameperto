@@ -2,7 +2,7 @@
 
 ## Etapa e artefatos
 
-Planejamento técnico documental produzido para revisão; aplicação, migrações e deploy não iniciados.
+Planejamento técnico documental concluído e publicado para revisão humana; aplicação, migrações e deploy não iniciados.
 
 - [Modelo físico](MODELO-DADOS.md): campos/tipos, FKs, índices, estados, dinheiro exato, concorrência, idempotência e reconciliação.
 - [OpenAPI](../contracts/openapi.yaml): contrato HTTP proposto com autenticação, DTOs, erros, paginação, versões e comandos idempotentes; STOMP descrito em segurança.
@@ -22,7 +22,7 @@ Skills exigidas não estavam instaladas. Fontes e templates consultados em cópi
 - Sete blocos Mermaid passaram em `mermaid.parse`, versão 12.0.0, ambiente temporário com jsdom. Não houve renderização/inspeção visual dos diagramas.
 - `git diff --check` passou; nenhum código de aplicação/workflow foi criado.
 - Consultas Git e inspeção documental inicial executadas; base original preservada.
-- [Revisão em dois eixos](REVISAO.md): na retomada, dois revisores confirmaram as quatro correções até `63e033d`. Standards identificou novo P2 no vínculo da evidência de conciliação; correção documental escrita, aguardando conferência em commit. Spec não encontrou novo desvio material.
+- [Revisão em dois eixos](REVISAO.md): na retomada, dois revisores confirmaram as quatro correções até `63e033d`. Standards identificou novo P2 no vínculo da evidência de conciliação; correção documental commitada em `84631aa` e reconferida pelos dois revisores no conjunto cumulativo. Standards e Spec encerrados com zero achados pendentes.
 - Nenhum teste de aplicação, PostgreSQL, Android, provedor, segurança ou desempenho foi executado: não existe implementação nesta etapa.
 
 ## Retomada e análise do prompt
@@ -35,6 +35,6 @@ Validações refeitas após ajustar a conciliação: OpenAPI 3.0.3 válido com `
 
 ## Pendências e próxima ação
 
-Conferir as correções no conjunto de commits antes do push autorizado. Revisar backlog concreto e políticas materiais dos tickets 01–02; só então autorizar as próximas fatias. Política de retenção, comprovações, custeio, cancelamento, acesso privilegiado, representação e fornecedores continuam abertas, detalhadas nos artefatos correspondentes.
+Revisão técnica e primeiro push concluídos. Próxima ação humana: revisar o backlog concreto e decidir as políticas materiais dos tickets 01–02; autorizar explicitamente as próximas fatias antes de implementação. Política de retenção, comprovações, custeio, cancelamento, acesso privilegiado, representação e fornecedores continuam abertas, detalhadas nos artefatos correspondentes.
 
-Push: ainda não executado; somente após revisão.
+Push executado com sucesso para `https://github.com/Kayquebrigadeiro/Exameperto.git`, branch `docs/planejamento-tecnico`, até `84631aa4244120c8ddfa6dea00355fa8e8fde594`, após revisão. Este registro de fechamento segue em commit documental separado. Sem force push, workflows de deploy ou alterações de aplicação. Nenhum bloqueio técnico documental remanescente; políticas materiais e autorização da próxima etapa continuam pendentes.
