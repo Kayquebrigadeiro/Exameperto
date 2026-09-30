@@ -40,7 +40,7 @@ Negar por padrão. Autenticação não concede identidade verificada nem aprova�
 | Consultar/assinar GPS | P, F RASTREAMENTO ou E designado ativo | Só pedido ativo e concessão vigente; AO/AB/GF/AD sem participação não recebem GPS por padrão. |
 | Criar programa pendente | AD habilitado | Instituição existente; não habilita financiamento automaticamente. |
 | Registrar/ver aporte e saldo | GF da instituição | Programa da instituição autenticada; comprovante privado; saldo não aumenta ao cadastrar aporte. |
-| Confirmar aporte | Outro GF da mesma instituição | Segregação registrador/revisor; conciliação comprovada; idempotência e crédito único. |
+| Confirmar aporte | Outro GF da mesma instituição | Segregação registrador/revisor; conciliação comprovada; evidência DISPONIVEL da mesma instituição e finalidade financeira, preservada com revisor, data e motivo sem substituir comprovante original; idempotência e crédito único. |
 | Consultar operação financeira | P/F PEDIDOS, E ou GF conforme parcela | Paciente vê cobrança/estorno próprios; E vê repasse próprio; GF vê subsídio institucional. Nenhum dado bancário alheio. |
 | Webhook financeiro | Provedor contratado autenticado | Assinatura dos bytes, replay, referência, valor/moeda/destinatário; conta de usuário não substitui autenticação de provedor. |
 | Acessos/políticas/integrações | AD via procedimento controlado | Sem rota pública de promoção; habilitação requer acordo e configuração reais, revisão/auditoria; procedimento definitivo é bloqueador da respectiva operação. |

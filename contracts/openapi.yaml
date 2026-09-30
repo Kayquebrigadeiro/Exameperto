@@ -2539,7 +2539,9 @@ paths:
       tags:
       - funding
       description: GESTOR_FINANCEIRO da mesma instituição, distinto do registrador. Comprovante deve demonstrar
-        ingresso real; gera crédito único após conciliação. Sem procedimento habilitado retorna 503.
+        ingresso real; gera crédito único após conciliação. Revisão apenas de PENDENTE para CONFIRMADO/REJEITADO;
+        persiste revisor, data, motivo e reconciliationEvidenceId sem substituir evidenceDocumentId original,
+        na mesma transação do eventual crédito. Replay preserva a decisão. Sem procedimento habilitado retorna 503.
       x-permission: GESTOR_FINANCEIRO da mesma instituição, distinto do registrador
       responses:
         '200':
@@ -4410,11 +4412,28 @@ components:
           - PENDENTE
           - CONFIRMADO
           - REJEITADO
+        evidenceDocumentId:
+          type: string
+          format: uuid
+          description: Comprovante original; download exige autorização própria.
+        reconciliationEvidenceId:
+          type: string
+          format: uuid
+          description: Evidência preservada da revisão; presente após CONFIRMADO/REJEITADO, com acesso restrito ao GF da instituição.
+        reviewedAt:
+          type: string
+          format: date-time
+          description: Data da revisão registrada pelo servidor; presente após CONFIRMADO/REJEITADO.
+        reviewReasonCode:
+          type: string
+          maxLength: 200
+          description: Motivo preservado da revisão; presente após CONFIRMADO/REJEITADO.
         version:
           $ref: '#/components/schemas/Version'
       required:
       - id
       - programId
+      - evidenceDocumentId
       - amount
       - currency
       - status
@@ -4431,6 +4450,7 @@ components:
         reconciliationEvidenceId:
           type: string
           format: uuid
+          description: Documento DISPONIVEL da mesma instituição, categoria FINANCIAMENTO/COMPROVANTE, autorizado ao revisor; preservado separadamente do comprovante original.
         reasonCode:
           type: string
           minLength: 1

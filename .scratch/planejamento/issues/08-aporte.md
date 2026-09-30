@@ -8,6 +8,7 @@
 
 - [ ] Programa/acordo e habilitação têm procedimento auditado; banco/API/painel distinguem aporte PENDENTE de CONFIRMADO.
 - [ ] Registro sem conciliação não aumenta saldo; revisor é distinto do registrador e pertence à mesma instituição.
+- [ ] Revisão preserva comprovante original e vínculo separado da evidência de conciliação autorizada, revisor, data e motivo; rejeição também mantém a evidência, e replay não substitui a decisão.
 - [ ] Replay de confirmação credita uma única vez e lançamentos reconciliam com saldo, em PostgreSQL real isolado.
 - [ ] Instituição não vê saldo/documentos de outra; integração ausente aparece indisponível.
 

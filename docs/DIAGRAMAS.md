@@ -85,6 +85,8 @@ erDiagram
   ORCAMENTO ||--o| RESERVA_SUBSIDIO : requer
   PROGRAMA ||--|| CONTA_PROGRAMA : controla
   PROGRAMA ||--o{ APORTE : recebe
+  DOCUMENTO ||--o{ APORTE : comprova_registro
+  DOCUMENTO o|--o{ APORTE : fundamenta_revisao
   PROGRAMA ||--o{ RESERVA_SUBSIDIO : garante
   ORCAMENTO ||--o{ ORCAMENTO_BENEFICIO : aplica
   DECISAO_BENEFICIO ||--o{ ORCAMENTO_BENEFICIO : comprova

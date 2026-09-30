@@ -26,4 +26,21 @@ Correção: ocorrência registra estado_origem; RETOMAR restaura apenas ACEITA, 
 
 Revisão local também explicitou leitura das referências de evidências pelo analista autorizado e consulta do protocolo de privacidade pelo titular, fluxos já previstos na spec, além de limpeza do cookie no logout. Não houve implementação da aplicação.
 
-Totais iniciais: Standards 3 (maior severidade P2); Spec 1 (maior severidade P1). Correções serão verificadas no conjunto completo, incluindo o commit corretivo, antes do push. Esta revisão não substitui testes de aplicação, segurança ou transações PostgreSQL.
+Totais iniciais: Standards 3 (maior severidade P2); Spec 1 (maior severidade P1). As quatro correções foram conferidas no conjunto completo até `63e033d` na retomada, por dois revisores independentes. Esta revisão não substitui testes de aplicação, segurança ou transações PostgreSQL.
+
+
+## Conferência na retomada
+
+Base mantida em `4ff66bf`; HEAD recebido `63e033d93e081c812e1a2c99aa1de321481c2447`. Mesma skill e fonte, consultadas novamente em cópia temporária; setup anterior preservado, sem instalação permanente.
+
+### Standards
+
+As três correções anteriores foram confirmadas. Novo **P2 — evidência de conciliação sem vínculo persistente**: `FundingReview.reconciliationEvidenceId` era obrigatório, mas `aporte` só preservava o comprovante original. Isso impedia rastrear a evidência da revisão independente, contrariando a coerência Dados/API de AGENTS e a confirmação verificável de recursos.
+
+Correção documental: aporte preserva separadamente evidência da revisão, revisor, data e motivo; revisão única sob lock e na transação do eventual crédito. Contrato retorna referências autorizadas, segurança restringe instituição/finalidade, diagrama explicita os vínculos e ticket 08 exige sua preservação. Nenhum smell adicional relatado.
+
+### Spec
+
+Zero novos achados materiais ou desvios de escopo. Retomada de ocorrência restaura somente a origem persistida, mantendo confirmação posterior de retirada quando a origem é ACEITA. O P1 anterior está corrigido.
+
+Resultado da conferência até `63e033d`: Standards 1 novo P2; Spec 0 novos achados. A correção de conciliação será conferida em commit local antes do envio.
