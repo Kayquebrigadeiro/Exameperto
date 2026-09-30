@@ -191,13 +191,15 @@ AD atribui análises com escopo mínimo, sem ler comprovantes por ser administra
 
 **Dependências:** orçamento/volume, responsável pela contratação, termos de tratamento/suboperadores/transferência internacional, credenciais por ambiente em cofre e homologação observável. Contratos/segredos não entram em Git. Aprovar esta estratégia não autoriza compra nem declara fornecedor capaz.
 
-### D12 — Condições para liberar o piloto
+### D12 — Recorte do primeiro piloto
 
-**Pergunta:** aceita liberação por capacidade, exigindo política aprovada, responsável, custeio, evidência externa e autorização posterior de implementação/operação para cada uma?
+**Pergunta:** o primeiro piloto pode priorizar entregas subsidiadas de um único programa e unidades confirmadas, ou pedidos particulares precisam estar disponíveis desde o início?
 
-**Recomendação e justificativa:** decisão material deve ter registro de aceite/rejeição/alteração por ID; depois, atualizar os artefatos técnicos afetados antes dos tickets dependentes. Manter bloqueada a capacidade sem prova, sem simular dados/recursos. Isso permite revisar escolhas sem confundir proposta, implementação e operação habilitada.
+**Recomendação e justificativa:** começar com um programa financiado e suas unidades confirmadas, incluindo pacientes elegíveis conforme D01–D02; deixar pedidos inteiramente particulares para a expansão. Isso concentra validação operacional, suporte e custeio da garantia em um acordo verificável. Paciente sem cobertura recebe indisponibilidade/espera; a alternativa particular prevista na arquitetura só é oferecida quando efetivamente habilitada. Não elimina a dimensão independente de renda nem muda quem é elegível.
 
-**Impactos:** produto — piloto pode começar com cobertura menor, somente após nova autorização; segurança — bloqueios verificáveis e rastreabilidade; custo — evita contratar antes de esclarecer dependências, mas demanda coordenação; implementação — backlog continua `ready-for-human`, sem novos fluxos nesta rodada.
+Regras já estabelecidas, sem nova pergunta: registrar decisão por ID, atualizar artefatos técnicos afetados e obter autorização posterior de implementação/deploy; capacidade sem política ou integração continua bloqueada, sem simulação.
+
+**Impactos:** produto — piloto pode começar com cobertura menor, somente após nova autorização; segurança — bloqueios verificáveis e rastreabilidade; custo — permite medir despesa e cancelamentos de um programa, mas concentra dependência no financiador; implementação — backlog continua `ready-for-human`, sem novos fluxos nesta rodada.
 
 **Dependências:** aprovação do autor, responsáveis institucionais, validações externas indicadas e autorização futura de implementação; deploy permanece separado. Aprovação do usuário não substitui contrato/credencial/validação externa.
 
@@ -212,7 +214,7 @@ Esta proposta não modifica estados, DTOs, tabelas nem diagramas vigentes. Eles 
 | D05–D06 | Tarifas reais, receita separada, garantia contingente, liberação versus liquidação no cancelamento, disputa e serviço adicional; revisar ADR-007, dados/API, segurança e diagramas. | 08–12, 14 |
 | D07–D09 | Tabela aprovada de retenção, remoção de referências sem quebra contábil, exclusão/backup, proxy e limiares medidos; atualizar dados/API, segurança e diagramas afetados. | 03, 05–07, 13, 15 |
 | D10–D11 | Procedimentos privilegiados, MFA, contratos de adaptadores, evidências externas e responsáveis; conferir matriz e protocolo de cada serviço. | 03, 05–06, 08–10, 13–15 |
-| D12 | Registrar decisões verificáveis e reavaliar dependências; não marcar tickets concluídos por existir este documento. | 01–15 |
+| D12 | Delimitar público/programa/unidades e disponibilidade de modalidade particular; reavaliar backlog sem marcar tickets concluídos. | 01–15 |
 
 ## Como responder às decisões
 
@@ -223,6 +225,6 @@ Pode aprovar, rejeitar ou ajustar cada ID, sem repetir regras já estabelecidas.
 - **D05/D06:** qual instituição financiará fretes, contingências e custos da plataforma? Aceita garantir frete após designação e cancelamento sem multa ao paciente? Valores de tarifa e cláusula de falha do entregador precisam de validação própria.
 - **D07/D08:** qual organização responde pelo tratamento, quem conduz privacidade e quem validará os prazos financeiros? Aceita os demais tetos operacionais como proposta para validação?
 - **D09/D10:** aceita os limites experimentais de GPS/proxy e MFA/dupla conferência? Quem terá funções privilegiadas, sem publicar dados pessoais aqui?
-- **D11/D12:** existem contratos/provedores aproveitáveis e teto mensal? Aceita a ordem de habilitação e os bloqueios propostos?
+- **D11/D12:** existem contratos/provedores aproveitáveis e teto mensal? O piloto pode começar com um programa subsidiado, ou precisa incluir pedidos particulares?
 
 Nenhuma resposta foi presumida. Regras sem aprovação, contratos/credenciais não apresentados, prazo financeiro e valores reais de tarifa permanecem abertos. Próxima ação: decisão humana por ID e validações externas; depois, nova rodada documental coerente antes de qualquer implementação autorizada.
