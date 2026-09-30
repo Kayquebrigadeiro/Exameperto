@@ -73,7 +73,7 @@ Instituição e programa têm escopo próprio. Acesso a financiamento requer aco
 
 Não habilitar programa real com orçamento inventado. Sem financiamento disponível, benefício pode ser elegível sem que uma entrega subsidiada possa ser contratada. Oferecer espera ou orçamento particular com aceite, nunca cobrar diferença automaticamente.
 
-Reserva, cancelamento e liquidação usam transações PostgreSQL, bloqueio adequado e chaves de idempotência. Registrar lançamentos rastreáveis. Paciente + instituição = frete integral do entregador. Receita da plataforma é separada e explicitada.
+Reserva, cancelamento e liquidação usam transações PostgreSQL, bloqueio adequado e chaves de idempotência. Registrar lançamentos rastreáveis. Paciente + eventual instituição = frete do serviço completo; cancelamento segue apuração D06. Receita da plataforma é separada e explicitada.
 
 ## Entrega e rastreamento
 
@@ -92,7 +92,7 @@ Navegação turn-by-turn será inicialmente delegada ao aplicativo de mapas inst
 | Adaptador | Propósito | Condição |
 |---|---|---|
 | Cadastro oficial | Conferir CPF e nascimento | Serviço contratado e finalidade definida |
-| Identidade | Biometria/prova de vida e CNH | Credenciamento e contrato aplicáveis |
+| Identidade | Conferência documental; biometria adiada | Critérios profissionais e eventual credenciamento/contrato aplicáveis |
 | Documento VIO | Autenticar QR compatível | API contratada ou conferência assistida |
 | Senatran | Situação de condutor e veículo | Autorização, contratação e escopo permitido |
 | Rotas | Distância, duração e geometria | Provedor/instância configurado |
@@ -120,3 +120,7 @@ A publicação da documentação no GitHub está autorizada nesta etapa, em bran
 ## Detalhamento técnico
 
 [Modelo físico](MODELO-DADOS.md), [matriz de segurança](SEGURANCA.md) e [OpenAPI](../contracts/openapi.yaml) detalham este desenho. [STATUS](STATUS.md) separa verificações realizadas de trabalho futuro.
+
+## Direções adotadas em 30/09/2026
+
+[D01–D12](DECISOES-PENDENTES.md) distinguem arquitetura adotada, política operacional pendente e integração indisponível. Primeiro marco: versão funcional validada localmente, sem piloto presumido. Cadastro/segurança independem de programa subsidiado. Particular e subsidiado exigem habilitação real própria. Biometria adiada; seleção por requisitos/custo total, sem orçamento ou compra autorizada. Nenhuma unidade confirmada. Após retirada, custódia e retorno precisam de protocolo e cobertura; cancelamento não garante frete integral no aceite.

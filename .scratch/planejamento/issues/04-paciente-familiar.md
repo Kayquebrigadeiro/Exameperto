@@ -12,3 +12,9 @@
 - [ ] Revogação concorrente com ação possui ponto efetivo documentado e testes no PostgreSQL quando depender dos locks.
 
 Proposta de backlog; não iniciado. Base de revisão documental: `4ff66bf2332de25e48aa2bc884825b12a8b35f11`.
+
+## Ajuste D01–D12 — 30/09/2026
+
+D03: paciente adulto inicia convite privado, destinatário autenticado aceita e paciente reautenticado confirma escopos/expiração. Testar que aceite sozinho não concede acesso, token não reutiliza e revogação/expiração negam REST/STOMP. Documentar menores/representação legal fora da cobertura inicial; não exigir solução de representação legal para este recorte.
+
+- [ ] Verificar os comportamentos e bloqueios acima nas interfaces públicas da fatia, conforme [decisões](../../../docs/DECISOES-PENDENTES.md).

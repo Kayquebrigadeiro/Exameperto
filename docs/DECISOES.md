@@ -28,7 +28,7 @@ Status: requisito do autor.
 
 Gratuidade por idade/deficiência e desconto por renda são avaliações separadas. Financiador deve ser identificado e habilitado; recurso registrado deve ser rastreável e comprovado. Reserva precisa impedir gasto concorrente do mesmo saldo.
 
-Pagamento do paciente + subsídio = frete integral do entregador. A plataforma precisa de receita separada. Critério proposto não cria direito a recursos governamentais; contratação pública/institucional continua sendo dependência operacional.
+Pagamento do paciente + subsídio = frete integral do serviço completo do entregador. Cancelamento não garante integral no aceite: apuração segue D06, sem valores/multas definidos. A plataforma precisa de receita separada. Critério proposto não cria direito a recursos governamentais; contratação pública/institucional continua sendo dependência operacional.
 
 ## ADR-005 — Rastreamento verdadeiro
 
@@ -65,4 +65,4 @@ Políticas em aberto e alternativas operacionais estão em [SEGURANCA](SEGURANCA
 
 ## Rodada de decisão dos tickets 01–02
 
-A [proposta de decisões pendentes](DECISOES-PENDENTES.md), baseada em `629ad36`, reúne perguntas, recomendações, impactos e dependências externas. Está `ready-for-human`; não altera os requisitos estabelecidos nem aprova políticas, fornecedores ou implementação.
+As [decisões D01–D12](DECISOES-PENDENTES.md) foram respondidas pelo autor em 30/09/2026: direções técnicas adotadas, políticas materiais e integrações reais ainda pendentes. D06 substitui garantia integral por apuração de serviço comprovado; D12 define marco local independente de programa subsidiado. A fatia [03A](../.scratch/planejamento/issues/03a-cadastro-local.md) aguarda autorização de implementação. Deploy posterior.

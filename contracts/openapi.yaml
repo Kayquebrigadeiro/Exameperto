@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Exame Perto — contrato de planejamento
-  version: 0.1.0
+  version: 0.2.0
   description: 'Proposta documental, sem servidor implementado. Autorizar cada ação por papel e registro. Integrações
     ausentes retornam 503 INTEGRATION_UNAVAILABLE; política material indefinida retorna 422 POLICY_UNDEFINED. Erros
     principais: INVALID_INPUT, UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, STATE_CONFLICT, FUNDING_INSUFFICIENT, IDEMPOTENCY_CONFLICT,
@@ -11,7 +11,10 @@ info:
     políticas, instituições e habilitação de integrações depende de procedimentos ainda não definidos; nenhuma rota
     pública permite promovê-los. Replay de comando concluído exige sessão e relação histórica autorizadas; estado
     ativo é guarda só para execução inédita. Revogação de representação prevalece sobre replay. O retorno mínimo
-    de replay não reabre acesso a GPS/endereço/código.'
+    de replay não reabre acesso a GPS/endereço/código. D01–D12 adotadas em 30/09/2026: arquitetura não habilita
+    políticas ou integrações. Cadastro/segurança e particular independem de programa subsidiado. AD/AO/AB/GF exigem
+    MFA validado no servidor (403 MFA_REQUIRED), sem bootstrap padrão. Nenhuma unidade ou financiador confirmado;
+    biometria adiada. Primeiro marco funcional local, sem piloto presumido.'
 servers:
 - url: /api/v1
   description: Caminho relativo previsto; nenhum host publicado.
@@ -25,7 +28,9 @@ paths:
       tags:
       - auth
       description: Público; sem campos role/status. Resposta genérica, inclusive e-mail já existente. Sem provedor
-        de e-mail real, 503.
+        de e-mail real, 503. Sem e-mail habilitado não persistir conta/desafio/outbox de envio, nem retornar 202
+        ou token. 03A cobre essa indisponibilidade; cadastro bem-sucedido fica para 03. Responsáveis e retenção
+        validados são necessários para dados reais (422).
       x-permission: Público; sem campos role/status
       responses:
         '202':
@@ -467,7 +472,10 @@ paths:
       summary: Conceder representação
       tags:
       - patients
-      description: Somente paciente titular verificado
+      description: Somente paciente titular verificado Paciente adulto reautenticado confirma invitationId ACEITO,
+        não expirado, do próprio paciente. Destinatário e escopos derivam do convite; scopes deve coincidir, expiresAt
+        depende de política validada. Consumo único e concessão atômicos. Sem fluxo de representação legal/menores.
+        Aceite sozinho não concede acesso.
       x-permission: Somente paciente titular verificado
       responses:
         '201':
@@ -747,15 +755,31 @@ paths:
       tags:
       - documents
       description: Dono ou analista atribuído com finalidade ou familiar com escopo específico. Reavaliar autorização
-        e DISPONIVEL. Sem link público permanente.
+        e DISPONIVEL. Sem link público permanente. Proxy autenticado transmite bytes; reautoriza cada acesso, sem
+        redirect/URL assinada de download. Revogação impede novo acesso; não apaga cópias já recebidas.
       x-permission: Dono ou analista atribuído com finalidade ou familiar com escopo específico
       responses:
         '200':
           description: Obter acesso temporário privado
           content:
-            application/json:
+            application/pdf:
               schema:
-                $ref: '#/components/schemas/Download'
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                - no-store
         '400':
           $ref: '#/components/responses/Error400'
         '401':
@@ -941,7 +965,9 @@ paths:
       summary: Revisar entregador
       tags:
       - reviews
-      description: ANALISTA_OPERACIONAL com atribuição; sem autoaprovação
+      description: ANALISTA_OPERACIONAL com atribuição; sem autoaprovação Para capacidade privilegiada AD/AO/AB/GF,
+        exigir MFA validado no servidor; ausência retorna 403 MFA_REQUIRED. Sem procedimento/fatores habilitados,
+        negar ação privilegiada.
       x-permission: ANALISTA_OPERACIONAL com atribuição; sem autoaprovação
       responses:
         '200':
@@ -996,7 +1022,9 @@ paths:
       summary: Revisar veículo e vínculo
       tags:
       - reviews
-      description: ANALISTA_OPERACIONAL com atribuição; sem autoaprovação
+      description: ANALISTA_OPERACIONAL com atribuição; sem autoaprovação Para capacidade privilegiada AD/AO/AB/GF,
+        exigir MFA validado no servidor; ausência retorna 403 MFA_REQUIRED. Sem procedimento/fatores habilitados,
+        negar ação privilegiada.
       x-permission: ANALISTA_OPERACIONAL com atribuição; sem autoaprovação
       responses:
         '200':
@@ -1218,7 +1246,12 @@ paths:
       tags:
       - benefits
       description: ANALISTA_BENEFICIO atribuído e membro ativo da mesma instituição; sem autoanálise. If-Match é
-        da solicitação. Aprovação de benefício não reserva recursos.
+        da solicitação. Aprovação de benefício não reserva recursos. Recurso requer analista distinto de quem decidiu
+        processo original; sem outro responsável real fica sem decisão. Reaproveitar verificações válidas e evidência
+        mínima; não produzir diagnóstico. MFA obrigatório. Decisão registra verificações mínimas aceitas com política,
+        origem, data, validade e motivo, reutilizáveis pela consulta autorizada; referências fornecidas pelo solicitante
+        nunca são aprovação automática. Para capacidade privilegiada AD/AO/AB/GF, exigir MFA validado no servidor;
+        ausência retorna 403 MFA_REQUIRED. Sem procedimento/fatores habilitados, negar ação privilegiada.
       x-permission: ANALISTA_BENEFICIO atribuído e membro ativo da mesma instituição; sem autoanálise
       responses:
         '201':
@@ -1267,7 +1300,9 @@ paths:
       summary: Consultar decisões e validade
       tags:
       - benefits
-      description: Paciente ou familiar BENEFICIOS ou AB atribuído da mesma instituição.
+      description: Paciente ou familiar BENEFICIOS ou AB atribuído da mesma instituição. Para capacidade privilegiada
+        AD/AO/AB/GF, exigir MFA validado no servidor; ausência retorna 403 MFA_REQUIRED. Sem procedimento/fatores
+        habilitados, negar ação privilegiada.
       x-permission: Paciente ou familiar BENEFICIOS ou AB atribuído da mesma instituição.
       parameters:
       - name: benefitId
@@ -1307,7 +1342,10 @@ paths:
       summary: Atribuir análise de benefício
       tags:
       - benefits
-      description: Administrador habilitado a gerir acessos; analista deve pertencer à instituição
+      description: Administrador habilitado a gerir acessos; analista deve pertencer à instituição Recurso recusa
+        mesmo analista do processo recorrido; sem responsável independente, 422 POLICY_UNDEFINED. Para capacidade
+        privilegiada AD/AO/AB/GF, exigir MFA validado no servidor; ausência retorna 403 MFA_REQUIRED. Sem procedimento/fatores
+        habilitados, negar ação privilegiada.
       x-permission: Administrador habilitado a gerir acessos; analista deve pertencer à instituição
       responses:
         '200':
@@ -1362,7 +1400,10 @@ paths:
       summary: Solicitar retirada e entrega
       tags:
       - orders
-      description: Paciente titular ou familiar PEDIDOS; destinatário autorizado
+      description: Paciente titular ou familiar PEDIDOS; destinatário autorizado Unidade deve aceitar procedimento
+        e possuir protocolo versionado de custódia/retorno habilitado. Nenhuma unidade confirmada. Destinatário
+        paciente ou familiar RECEBIMENTO vigente. Servidor seleciona protocolo da unidade; particular dispensa programa
+        subsidiado.
       x-permission: Paciente titular ou familiar PEDIDOS; destinatário autorizado
       responses:
         '201':
@@ -1522,7 +1563,9 @@ paths:
       tags:
       - orders
       description: ANALISTA_OPERACIONAL atribuído; política/unidade de retirada habilitada. APROVADO → AGUARDANDO_ACEITE;
-        REJEITADO → NAO_ATENDIDA; SUSPENSO inválido nesta operação (422).
+        REJEITADO → NAO_ATENDIDA; SUSPENSO inválido nesta operação (422). Para capacidade privilegiada AD/AO/AB/GF,
+        exigir MFA validado no servidor; ausência retorna 403 MFA_REQUIRED. Sem procedimento/fatores habilitados,
+        negar ação privilegiada.
       x-permission: ANALISTA_OPERACIONAL atribuído; política/unidade de retirada habilitada
       responses:
         '200':
@@ -1895,7 +1938,10 @@ paths:
       tags:
       - orders
       description: Paciente/familiar PEDIDOS ou operador atribuído, dentro da política aceita. Após retirada exige
-        ocorrência. Reserva e financeiro tratados separadamente, sem estorno fictício.
+        ocorrência. Reserva e financeiro tratados separadamente, sem estorno fictício. Antes da designação reconciliar
+        cobertura, sem remuneração sem serviço. Com designação criar apuração PENDENTE e encerrar deslocamento/assinaturas,
+        preservando cobertura. Não liberar tudo, pagar integral ou zerar automaticamente. Liquidação/liberação do
+        excedente somente após apuração concluída, com idempotência.
       x-permission: Paciente/familiar PEDIDOS ou operador atribuído, dentro da política aceita
       responses:
         '200':
@@ -1950,7 +1996,9 @@ paths:
       summary: Confirmar retirada
       tags:
       - orders
-      description: Entregador designado ativo; autorização de retirada verificada
+      description: Entregador designado ativo; autorização de retirada verificada Exigir unidade/protocolo aceitos,
+        destinatário vigente, cobertura de retorno comprovada e evidência mínima de recibo/lacre DISPONIVEL do pedido.
+        Criar custódia na mesma transação; sem conteúdo do exame. Nenhuma unidade confirmada.
       x-permission: Entregador designado ativo; autorização de retirada verificada
       responses:
         '200':
@@ -2211,7 +2259,11 @@ paths:
       summary: Resolver ocorrência
       tags:
       - incidents
-      description: ANALISTA_OPERACIONAL atribuído com política/cobertura verificadas
+      description: ANALISTA_OPERACIONAL atribuído com política/cobertura verificadas ENCERRAR pós-retirada requer
+        protocolo, destino e evidência de retorno aceitos, custódia encerrada e apuração/cobertura de serviço e
+        retorno verificadas atomicamente. Falta dessas condições preserva ocorrência/custódia, sem encerramento
+        administrativo fictício. Para capacidade privilegiada AD/AO/AB/GF, exigir MFA validado no servidor; ausência
+        retorna 403 MFA_REQUIRED. Sem procedimento/fatores habilitados, negar ação privilegiada.
       x-permission: ANALISTA_OPERACIONAL atribuído com política/cobertura verificadas
       responses:
         '200':
@@ -2356,7 +2408,9 @@ paths:
       summary: Registrar programa pendente
       tags:
       - institutions
-      description: Administrador com escopo de gestão; acordo privado verificado posteriormente
+      description: Administrador com escopo de gestão; acordo privado verificado posteriormente Para capacidade
+        privilegiada AD/AO/AB/GF, exigir MFA validado no servidor; ausência retorna 403 MFA_REQUIRED. Sem procedimento/fatores
+        habilitados, negar ação privilegiada.
       x-permission: Administrador com escopo de gestão; acordo privado verificado posteriormente
       responses:
         '201':
@@ -2540,8 +2594,8 @@ paths:
       - funding
       description: GESTOR_FINANCEIRO da mesma instituição, distinto do registrador. Comprovante deve demonstrar
         ingresso real; gera crédito único após conciliação. Revisão apenas de PENDENTE para CONFIRMADO/REJEITADO;
-        persiste revisor, data, motivo e reconciliationEvidenceId sem substituir evidenceDocumentId original,
-        na mesma transação do eventual crédito. Replay preserva a decisão. Sem procedimento habilitado retorna 503.
+        persiste revisor, data, motivo e reconciliationEvidenceId sem substituir evidenceDocumentId original, na
+        mesma transação do eventual crédito. Replay preserva a decisão. Sem procedimento habilitado retorna 503.
       x-permission: GESTOR_FINANCEIRO da mesma instituição, distinto do registrador
       responses:
         '200':
@@ -2731,7 +2785,9 @@ paths:
       summary: Listar casos operacionais
       tags:
       - reviews
-      description: AO vê apenas atribuídos; AD com capacidade de gestão vê fila mínima, sem documentos.
+      description: AO vê apenas atribuídos; AD com capacidade de gestão vê fila mínima, sem documentos. Para capacidade
+        privilegiada AD/AO/AB/GF, exigir MFA validado no servidor; ausência retorna 403 MFA_REQUIRED. Sem procedimento/fatores
+        habilitados, negar ação privilegiada.
       x-permission: AO vê apenas atribuídos; AD com capacidade de gestão vê fila mínima, sem documentos.
       parameters:
       - $ref: '#/components/parameters/Cursor'
@@ -2766,6 +2822,8 @@ paths:
       tags:
       - reviews
       description: AO atribuído vê o alvo e referências de evidências necessárias; AD sem atribuição não lê documentos.
+        Para capacidade privilegiada AD/AO/AB/GF, exigir MFA validado no servidor; ausência retorna 403 MFA_REQUIRED.
+        Sem procedimento/fatores habilitados, negar ação privilegiada.
       x-permission: AO atribuído vê o alvo e referências de evidências necessárias; AD sem atribuição não lê documentos.
       parameters:
       - name: caseId
@@ -2803,7 +2861,9 @@ paths:
       summary: Atribuir revisão operacional
       tags:
       - reviews
-      description: AD com capacidade de gestão; alvo analista deve ser AO ativo, distinto do titular.
+      description: AD com capacidade de gestão; alvo analista deve ser AO ativo, distinto do titular. Para capacidade
+        privilegiada AD/AO/AB/GF, exigir MFA validado no servidor; ausência retorna 403 MFA_REQUIRED. Sem procedimento/fatores
+        habilitados, negar ação privilegiada.
       x-permission: AD com capacidade de gestão; alvo analista deve ser AO ativo, distinto do titular.
       parameters:
       - name: caseId
@@ -2934,7 +2994,8 @@ paths:
       tags:
       - reviews
       description: AB vê apenas solicitações atribuídas da própria instituição; AD com capacidade de gestão vê fila
-        mínima para atribuição, sem evidências.
+        mínima para atribuição, sem evidências. Para capacidade privilegiada AD/AO/AB/GF, exigir MFA validado no
+        servidor; ausência retorna 403 MFA_REQUIRED. Sem procedimento/fatores habilitados, negar ação privilegiada.
       x-permission: AB atribuído / AD gestor de acessos, projeção mínima
       parameters:
       - $ref: '#/components/parameters/Cursor'
@@ -3003,7 +3064,9 @@ paths:
       tags:
       - benefits
       description: Paciente titular, familiar BENEFICIOS ou AB atribuído e membro ativo da instituição. Cada documento
-        continua exigindo autorização própria para download.
+        continua exigindo autorização própria para download. Para capacidade privilegiada AD/AO/AB/GF, exigir MFA
+        validado no servidor; ausência retorna 403 MFA_REQUIRED. Sem procedimento/fatores habilitados, negar ação
+        privilegiada.
       x-permission: P/F BENEFICIOS ou AB atribuído da instituição
       responses:
         '200':
@@ -3073,6 +3136,411 @@ paths:
         schema:
           type: string
           format: uuid
+  /patients/{patientId}/invitations:
+    post:
+      operationId: inviteFamily
+      summary: Convidar familiar sem conceder acesso
+      tags:
+      - planning
+      description: Paciente adulto titular verificado, reautenticado; enviar segredo somente por canal privado habilitado.
+        Sem canal, 503 e nenhum convite emitido. Prazo não configurado, 422.
+      x-permission: Paciente adulto titular verificado, reautenticado; enviar segredo somente por canal privado
+        habilitado. Sem canal, 503 e nenhum convite emitido. Prazo não configurado, 422.
+      parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Convidar familiar sem conceder acesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FamilyInvitation'
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                - no-store
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FamilyInvitationInput'
+  /family-invitations/{invitationId}:
+    get:
+      operationId: getFamilyInvitation
+      summary: Consultar convite privado
+      tags:
+      - planning
+      description: Paciente titular ou destinatário autenticado de e-mail verificado; terceiro recebe 404.
+      x-permission: Paciente titular ou destinatário autenticado de e-mail verificado; terceiro recebe 404.
+      parameters:
+      - name: invitationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Consultar convite privado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FamilyInvitation'
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                - no-store
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+  /family-invitations/{invitationId}/accept:
+    post:
+      operationId: acceptFamilyInvitation
+      summary: Aceitar convite sem ativar concessão
+      tags:
+      - planning
+      description: Somente destinatário autenticado, e-mail verificado e token válido. If-Match do convite; expiração
+        checada sob lock. Paciente ainda deve confirmar em grants.
+      x-permission: Somente destinatário autenticado, e-mail verificado e token válido. If-Match do convite; expiração
+        checada sob lock. Paciente ainda deve confirmar em grants.
+      parameters:
+      - name: invitationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Aceitar convite sem ativar concessão
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FamilyInvitation'
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                - no-store
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptInvitation'
+  /family-invitations/{invitationId}/revoke:
+    post:
+      operationId: revokeFamilyInvitation
+      summary: Revogar convite pendente
+      tags:
+      - planning
+      description: Paciente titular; If-Match do convite PENDENTE/ACEITO. Convite CONFIRMADO exige revogar grant
+        correspondente; não deixa concessão ativa silenciosamente.
+      x-permission: Paciente titular; If-Match do convite PENDENTE/ACEITO. Convite CONFIRMADO exige revogar grant
+        correspondente; não deixa concessão ativa silenciosamente.
+      parameters:
+      - name: invitationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Revogar convite pendente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FamilyInvitation'
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                - no-store
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reason'
+  /patients/{patientId}/verifications:
+    get:
+      operationId: listReusableVerifications
+      summary: Consultar verificações reutilizáveis
+      tags:
+      - planning
+      description: Paciente ou familiar BENEFICIOS vigente; somente verificações autorizadas do paciente, sem fonte
+        privada. Não expõe documentos de outros programas.
+      x-permission: Paciente ou familiar BENEFICIOS vigente; somente verificações autorizadas do paciente, sem fonte
+        privada. Não expõe documentos de outros programas.
+      parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Consultar verificações reutilizáveis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationPage'
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                - no-store
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+  /orders/{orderId}/cancellation-terms:
+    get:
+      operationId: getCancellationTerms
+      summary: Consultar política de cancelamento do orçamento
+      tags:
+      - planning
+      description: Paciente/familiar PEDIDOS, entregador com oferta autorizada ou designado e AO atribuído; somente
+        termos da versão vinculada ao pedido. Para capacidade privilegiada AD/AO/AB/GF, exigir MFA validado no servidor;
+        ausência retorna 403 MFA_REQUIRED. Sem procedimento/fatores habilitados, negar ação privilegiada.
+      x-permission: Paciente/familiar PEDIDOS, entregador com oferta autorizada ou designado e AO atribuído; somente
+        termos da versão vinculada ao pedido.
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Consultar política de cancelamento do orçamento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancellationTerms'
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                - no-store
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+  /orders/{orderId}/remuneration:
+    get:
+      operationId: getRemuneration
+      summary: Consultar apuração de remuneração
+      tags:
+      - planning
+      description: Paciente/familiar PEDIDOS, entregador designado histórico ou AO atribuído; somente pedido relacionado,
+        sem ampliar acesso a GPS/documentos. Para capacidade privilegiada AD/AO/AB/GF, exigir MFA validado no servidor;
+        ausência retorna 403 MFA_REQUIRED. Sem procedimento/fatores habilitados, negar ação privilegiada.
+      x-permission: Paciente/familiar PEDIDOS, entregador designado histórico ou AO atribuído; somente pedido relacionado,
+        sem ampliar acesso a GPS/documentos.
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Consultar apuração de remuneração
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RemunerationAssessment'
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                - no-store
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+  /orders/{orderId}/remuneration/review:
+    post:
+      operationId: reviewRemuneration
+      summary: Apurar serviço e deslocamento comprovados
+      tags:
+      - planning
+      description: AO atribuído com MFA; If-Match do pedido. Apuração única PENDENTE para CONCLUIDA com política
+        aceita, evidências, parcelas e cobertura verificadas; atualizar versão do pedido na mesma transação. Após
+        retirada, apurar inclui retorno/serviço adicional e só concluir com destino comprovado. Para capacidade
+        privilegiada AD/AO/AB/GF, exigir MFA validado no servidor; ausência retorna 403 MFA_REQUIRED. Sem procedimento/fatores
+        habilitados, negar ação privilegiada.
+      x-permission: AO atribuído com MFA; If-Match do pedido. Apuração única PENDENTE para CONCLUIDA com política
+        aceita, evidências, parcelas e cobertura verificadas; atualizar versão do pedido na mesma transação. Após
+        retirada, apurar inclui retorno/serviço adicional e só concluir com destino comprovado.
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Apurar serviço e deslocamento comprovados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RemunerationAssessment'
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                - no-store
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssessmentReview'
 components:
   securitySchemes:
     bearerAuth:
@@ -3354,9 +3822,6 @@ components:
       type: object
       additionalProperties: false
       properties:
-        familyUserId:
-          type: string
-          format: uuid
         scopes:
           type: array
           items:
@@ -3371,10 +3836,13 @@ components:
         expiresAt:
           type: string
           format: date-time
+        invitationId:
+          type: string
+          format: uuid
       required:
-      - familyUserId
       - scopes
       - expiresAt
+      - invitationId
     Grant:
       type: object
       additionalProperties: false
@@ -3408,6 +3876,9 @@ components:
           nullable: true
         version:
           $ref: '#/components/schemas/Version'
+        invitationId:
+          type: string
+          format: uuid
       required:
       - id
       - patientId
@@ -3416,6 +3887,7 @@ components:
       - expiresAt
       - revokedAt
       - version
+      - invitationId
     DocumentInput:
       type: object
       additionalProperties: false
@@ -3513,20 +3985,6 @@ components:
       - method
       description: URL privada temporária vinculada a objeto, tamanho e tipo. Falta de armazenamento habilitado
         produz 503.
-    Download:
-      type: object
-      additionalProperties: false
-      properties:
-        url:
-          type: string
-          format: uri
-        expiresAt:
-          type: string
-          format: date-time
-      required:
-      - url
-      - expiresAt
-      description: Só documento DISPONIVEL e ator autorizado. URL temporária é credencial; não registrar em log.
     DriverInput:
       type: object
       additionalProperties: false
@@ -3757,14 +4215,22 @@ components:
           items:
             type: string
             format: uuid
-          minItems: 1
+          minItems: 0
         appealOf:
           type: string
           format: uuid
+        verificationIds:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
       required:
       - programId
       - type
-      - evidenceIds
+      description: Exigir ao menos uma evidência nova ou verificação reutilizável. Reuso por mesmo paciente/programa,
+        finalidade/critérios compatíveis, validade e não revogação; não exige recópia. Revisão administrativa humana;
+        documentos e critérios profissionais pendentes. 50%/25% são propostas financeiras, nunca defaults ativos.
     Benefit:
       type: object
       additionalProperties: false
@@ -3923,12 +4389,16 @@ components:
         pickupAuthorizationDocumentId:
           type: string
           format: uuid
+        pickupUnitId:
+          type: string
+          format: uuid
       required:
       - patientId
       - origin
       - destination
       - recipientUserId
       - pickupAuthorizationDocumentId
+      - pickupUnitId
     Order:
       type: object
       additionalProperties: false
@@ -3970,6 +4440,12 @@ components:
         pickupAuthorizationId:
           type: string
           format: uuid
+        pickupUnitId:
+          type: string
+          format: uuid
+        custodyProtocolId:
+          type: string
+          format: uuid
       required:
       - id
       - patientId
@@ -3978,6 +4454,8 @@ components:
       - createdAt
       - version
       - pickupAuthorizationId
+      - pickupUnitId
+      - custodyProtocolId
       description: Visão mínima dos participantes; endereços operacionais têm endpoint separado. Estado de entrega
         não confirma repasse.
     OrderAddresses:
@@ -4051,6 +4529,15 @@ components:
           format: date-time
         version:
           $ref: '#/components/schemas/Version'
+        platformRevenueAmount:
+          type: string
+          nullable: true
+          pattern: ^\d+\.\d{2}$
+          description: Separado do frete; null significa modelo indefinido, não zero. Este contrato não autoriza
+            cobrar receita da plataforma.
+        cancellationPolicyId:
+          type: string
+          format: uuid
       required:
       - id
       - orderId
@@ -4067,6 +4554,11 @@ components:
       - includesLiveTraffic
       - expiresAt
       - version
+      - platformRevenueAmount
+      - cancellationPolicyId
+      description: patientAmount + subsidyAmount = grossAmount para serviço completo. Receita da plataforma separada,
+        modelo comercial pendente. Política de cancelamento versionada deve estar validada; não garante frete integral
+        no aceite. Modalidade com receita cobrável depende de contrato financeiro específico posterior.
     AcceptQuote:
       type: object
       additionalProperties: false
@@ -4079,11 +4571,17 @@ components:
           type: string
           enum:
           - BRL
+        acceptedCancellationPolicyId:
+          type: string
+          format: uuid
       required:
       - acceptedGrossAmount
       - acceptedPatientAmount
       - acceptedCurrency
+      - acceptedCancellationPolicyId
       description: Confirma os valores apresentados; divergência com proposta resulta em 409, não recalcula silenciosamente.
+        Política de cancelamento deve coincidir com a proposta e ter sido apresentada; nenhum aceite implica remuneração
+        integral automática em cancelamento.
     Offer:
       type: object
       additionalProperties: false
@@ -4166,12 +4664,6 @@ components:
           type: string
           minLength: 1
           maxLength: 200
-        photoUrl:
-          type: string
-          format: uri
-        photoExpiresAt:
-          type: string
-          format: date-time
         plate:
           type: string
         model:
@@ -4182,14 +4674,18 @@ components:
           type: string
           minLength: 1
           maxLength: 200
+        photoDocumentId:
+          type: string
+          format: uuid
       required:
       - displayName
-      - photoUrl
-      - photoExpiresAt
       - plate
       - model
       - color
-      description: Apenas participantes da tarefa ativa; nenhum CPF, CNH, RG, renda ou documento clínico.
+      - photoDocumentId
+      description: Apenas participantes da tarefa ativa; nenhum CPF, CNH, RG, renda ou documento clínico. Foto pelo
+        proxy /documents/{documentId}/download, autorizado pela participação vigente e projeção FOTO_OPERACIONAL
+        aprovada.
     Reason:
       type: object
       additionalProperties: false
@@ -4207,8 +4703,16 @@ components:
         pickupAuthorizationId:
           type: string
           format: uuid
+        custodyProtocolId:
+          type: string
+          format: uuid
+        pickupEvidenceId:
+          type: string
+          format: uuid
       required:
       - pickupAuthorizationId
+      - custodyProtocolId
+      - pickupEvidenceId
       description: Somente autorização específica verificada e vigente; não substitui prova exigida pela unidade.
     DeliveryCode:
       type: object
@@ -4285,13 +4789,31 @@ components:
           type: string
           minLength: 1
           maxLength: 50
+        destinationEvidenceId:
+          type: string
+          format: uuid
+        returnUnitId:
+          type: string
+          format: uuid
+        serviceEvidenceIds:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
       required:
       - action
       - reasonCode
       description: 'RETOMAR restaura apenas previousOrderStatus persistido pelo servidor: ACEITA exige retirada
         posterior, RETIRADA exige início posterior, EM_ENTREGA retoma deslocamento. Não admite salto de retirada.
         Custo novo exige política, concordância e cobertura; caso contrário 422 POLICY_UNDEFINED. ENCERRAR requer
-        resolução e remuneração apuradas.'
+        resolução e remuneração apuradas. ENCERRAR após retirada requer destinationEvidenceId e returnUnitId do
+        protocolo aceito: registrar devolução comprovada e encerramento de custódia; entrega ao destinatário usa
+        fluxo normal de código. Persistir prova/destino antes de concluir apuração na mesma transação, sem encerramento
+        parcial. Não fixar valores/multas/responsabilidades. RETOMAR não aceita esses campos. ENCERRAR requer serviceEvidenceIds;
+        comando cria ou conclui a apuração pelo mesmo serviço/guardas de reviewRemuneration e persiste sua trilha
+        na transação de resolução. Não exige chamar review antes de existir destino comprovado.'
     LocationInput:
       type: object
       additionalProperties: false
@@ -4325,6 +4847,9 @@ components:
       - latitude
       - longitude
       - accuracyMeters
+      description: 'Parâmetros D09 são hipóteses configuráveis para aparelho real: captura 15 s, stale 60 s, buffer
+        oito pontos/dois minutos, futuro 30 s, sinalizar imprecisão acima de 100 m. Nenhum ensaio de bateria, precisão
+        ou segundo plano realizado.'
     Location:
       type: object
       additionalProperties: false
@@ -4419,7 +4944,8 @@ components:
         reconciliationEvidenceId:
           type: string
           format: uuid
-          description: Evidência preservada da revisão; presente após CONFIRMADO/REJEITADO, com acesso restrito ao GF da instituição.
+          description: Evidência preservada da revisão; presente após CONFIRMADO/REJEITADO, com acesso restrito
+            ao GF da instituição.
         reviewedAt:
           type: string
           format: date-time
@@ -4450,7 +4976,8 @@ components:
         reconciliationEvidenceId:
           type: string
           format: uuid
-          description: Documento DISPONIVEL da mesma instituição, categoria FINANCIAMENTO/COMPROVANTE, autorizado ao revisor; preservado separadamente do comprovante original.
+          description: Documento DISPONIVEL da mesma instituição, categoria FINANCIAMENTO/COMPROVANTE, autorizado
+            ao revisor; preservado separadamente do comprovante original.
         reasonCode:
           type: string
           minLength: 1
@@ -4879,6 +5406,210 @@ components:
           maxLength: 4000
         version:
           $ref: '#/components/schemas/Version'
+    FamilyInvitationInput:
+      type: object
+      additionalProperties: false
+      properties:
+        recipientEmail:
+          type: string
+          format: email
+          maxLength: 254
+        scopes:
+          type: array
+          items:
+            type: string
+            enum:
+            - PEDIDOS
+            - BENEFICIOS
+            - RASTREAMENTO
+            - RECEBIMENTO
+          uniqueItems: true
+          minItems: 1
+      required:
+      - recipientEmail
+      - scopes
+      description: Paciente adulto titular verificado; nenhum escopo pré-selecionado. Expiração definida por política
+        validada, não pelo destinatário.
+    FamilyInvitation:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        patientId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - PENDENTE
+          - ACEITO
+          - CONFIRMADO
+          - REVOGADO
+          - EXPIRADO
+        scopes:
+          type: array
+          items:
+            type: string
+            enum:
+            - PEDIDOS
+            - BENEFICIOS
+            - RASTREAMENTO
+            - RECEBIMENTO
+          uniqueItems: true
+          minItems: 1
+        expiresAt:
+          type: string
+          format: date-time
+        version:
+          $ref: '#/components/schemas/Version'
+      required:
+      - id
+      - patientId
+      - status
+      - scopes
+      - expiresAt
+      - version
+      description: Visão mínima privada. Não retorna segredo nem enumera contas.
+    AcceptInvitation:
+      type: object
+      additionalProperties: false
+      properties:
+        token:
+          type: string
+          minLength: 32
+          maxLength: 512
+          writeOnly: true
+      required:
+      - token
+      description: Token em corpo, sem logs/URL; hash de uso único. Conta autenticada com e-mail verificado igual
+        ao destinatário; reuso conflitante recusado.
+    Verification:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+          - IDADE
+          - DEFICIENCIA
+          - RENDA
+        validUntil:
+          type: string
+          format: date-time
+        revoked:
+          type: boolean
+        policyId:
+          type: string
+          format: uuid
+      required:
+      - id
+      - type
+      - validUntil
+      - revoked
+      - policyId
+      description: Referência mínima; origem privada e analista auditados no servidor. Não atesta verificação oficial.
+    VerificationPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Verification'
+        nextCursor:
+          type: string
+          nullable: true
+      required:
+      - items
+      - nextCursor
+    CancellationTerms:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        number:
+          type: integer
+          minimum: 1
+        beforePickup:
+          type: string
+        afterPickup:
+          type: string
+        returnCoverage:
+          type: string
+      required:
+      - id
+      - number
+      - beforePickup
+      - afterPickup
+      - returnCoverage
+      description: Somente cláusulas validadas, sem dados de terceiros; não existem valores/multas aprovados nesta
+        etapa.
+    RemunerationAssessment:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        policyId:
+          type: string
+          format: uuid
+        phase:
+          type: string
+          enum:
+          - ANTES_RETIRADA
+          - DEPOIS_RETIRADA
+        status:
+          type: string
+          enum:
+          - PENDENTE
+          - CONCLUIDA
+        amountDue:
+          type: string
+          nullable: true
+          pattern: ^\d+\.\d{2}$
+        version:
+          $ref: '#/components/schemas/Version'
+      required:
+      - id
+      - orderId
+      - policyId
+      - phase
+      - status
+      - amountDue
+      - version
+      description: Valor null enquanto pendente, não zero presumido. Valor devido não comprova repasse; leituras
+        de parcelas financeiras seguem permissões próprias.
+    AssessmentReview:
+      type: object
+      additionalProperties: false
+      properties:
+        reasonCode:
+          type: string
+          maxLength: 50
+        evidenceIds:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+      required:
+      - reasonCode
+      - evidenceIds
+      description: AO atribuído; servidor apura por política aceita e evidências autorizadas de serviço/deslocamento.
+        GPS isolado insuficiente. Sem critérios/cobertura validados, 422; sem provedor, 503. Não aceita valor livre
+        ou multas inventadas.
   responses:
     Error400:
       description: Requisição inválida / cursor inválido.

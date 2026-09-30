@@ -12,3 +12,9 @@
 - [ ] Troca de foto/documento cria revisão pendente antes de nova oferta; histórico anterior permanece auditável.
 
 Proposta de backlog; não iniciado. Base de revisão documental: `4ff66bf2332de25e48aa2bc884825b12a8b35f11`.
+
+## Ajuste D01–D12 — 30/09/2026
+
+D01/D09–D11: revisão humana com evidência mínima, critérios profissionais validados, MFA e segregação. Download/foto via proxy com reautorização/no-store; revogação bloqueia novos acessos. Biometria adiada, integração oficial indisponível não se torna aprovação.
+
+- [ ] Verificar os comportamentos e bloqueios acima nas interfaces públicas da fatia, conforme [decisões](../../../docs/DECISOES-PENDENTES.md).

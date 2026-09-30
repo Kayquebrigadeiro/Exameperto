@@ -14,7 +14,11 @@ Vocabulário da retirada autorizada e entrega de resultados de exames em envelop
 
 **Administrador:** pessoa habilitada a gerir configuração e acessos; sua função não equivale a autorização irrestrita sobre documentos de pacientes.
 
-**Autorização de representação:** concessão revogável do paciente a um familiar para ações determinadas.
+**Autorização familiar:** concessão expressa, temporária e revogável do paciente adulto a um familiar para ações determinadas.
+
+**Representação legal:** atuação baseada em poderes legalmente reconhecidos, distinta da autorização familiar.
+
+**Convite familiar:** solicitação privada de vínculo que depende de aceite do destinatário e confirmação do paciente.
 
 **Autorização de retirada:** permissão específica para retirar um envelope na unidade de origem, distinta da representação familiar.
 
@@ -44,7 +48,13 @@ Vocabulário da retirada autorizada e entrega de resultados de exames em envelop
 
 **Orçamento:** proposta com rota, tempo, tarifa, validade e divisão de pagamento do frete.
 
-**Frete integral:** remuneração acordada com o entregador, coberta conjuntamente pelo paciente e pela instituição.
+**Frete integral:** preço acordado pela execução completa do serviço, coberto pelo paciente e eventual instituição. Não equivale à remuneração automaticamente devida em cancelamento.
+
+**Apuração de remuneração:** determinação do valor devido por deslocamento e serviço comprovados em cancelamento ou ocorrência.
+
+**Custódia:** responsabilidade operacional pela guarda do envelope fechado até destino autorizado comprovado.
+
+**Protocolo de retorno:** procedimento aceito pela unidade para devolver o envelope com custódia e cobertura financeira.
 
 **Designação:** atribuição exclusiva de um pedido a um entregador e seu vínculo de veículo.
 

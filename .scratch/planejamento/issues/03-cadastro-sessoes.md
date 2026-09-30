@@ -2,7 +2,7 @@
 
 **What to build:** Permitir que uma pessoa use a web para criar conta real, confirmar e-mail, entrar, sair e recuperar acesso.
 
-**Blocked by:** 02 — Definir privacidade, acesso privilegiado e provedores
+**Blocked by:** 03A — Cadastro local; 02 apenas para e-mail, privacidade e procedimentos de conta usados nesta fatia
 
 **Status:** ready-for-human
 
@@ -12,3 +12,9 @@
 - [ ] Dados sintéticos só em testes isolados; reinício preserva conta em ambiente de desenvolvimento autorizado, sem seeds predefinidos.
 
 Proposta de backlog; não iniciado. Base de revisão documental: `4ff66bf2332de25e48aa2bc884825b12a8b35f11`.
+
+## Ajuste D01–D12 — 30/09/2026
+
+D10–D12: cadastro e segurança independem de programa subsidiado. 03A cobre primeiro o bloqueio verificável; este ticket completa persistência de conta, confirmação por e-mail real, login/logout/recuperação e UI. Login básico não libera privilégios sem MFA. Habilitação de dados reais exige os itens pertinentes de 02; não exige concluir contratos de rotas/pagamentos.
+
+- [ ] Verificar os comportamentos e bloqueios acima nas interfaces públicas da fatia, conforme [decisões](../../../docs/DECISOES-PENDENTES.md).

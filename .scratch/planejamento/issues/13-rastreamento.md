@@ -14,3 +14,9 @@
 Proposta de backlog; não iniciado. Base de revisão documental: `4ff66bf2332de25e48aa2bc884825b12a8b35f11`.
 
 Pode avançar junto da execução, mas demonstração de encerramento completo usa o ticket 12.
+
+## Ajuste D01–D12 — 30/09/2026
+
+D09: hipóteses 15 s/60 s, oito pontos/dois minutos, futuro 30 s e precisão >100 m. Registrar aparelho/SO, permissões, duração, rede, bateria e resultados; sem afirmar adequação antes do ensaio. Ocorrência só mantém GPS se designação/custódia e finalidade ativas.
+
+- [ ] Verificar os comportamentos e bloqueios acima nas interfaces públicas da fatia, conforme [decisões](../../../docs/DECISOES-PENDENTES.md).

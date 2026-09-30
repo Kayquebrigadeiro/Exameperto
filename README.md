@@ -43,7 +43,7 @@ O GitHub renderiza os diagramas Mermaid presentes na documentação. Cada altera
 - Apoio econômico independente: desconto progressivo conforme renda familiar verificada.
 - Benefícios não se acumulam acima de 100% do frete.
 - Parcela do paciente + parcela da instituição = frete bruto acordado com o entregador.
-- Entregador recebe o frete integral, sem comissão oculta.
+- Serviço completo remunera o frete acordado, sem comissão oculta; cancelamento exige apuração conforme D06.
 - Subsídio só pode ser confirmado com instituição, programa e recursos realmente habilitados.
 - Cadastro não equivale a identidade verificada, CNH habilitada ou veículo aprovado.
 - Documentos pessoais são privados; destinatário autorizado vê foto aprovada e identificação operacional do entregador e veículo.
@@ -66,3 +66,7 @@ Consultas oficiais, biometria, pagamento, repasse, e-mail e mapas dependerão de
 7. Autorizar e realizar deploy da aplicação verificada. A documentação pode ser publicada antes, conforme o prompt desta etapa.
 
 Dados sintéticos poderão existir exclusivamente em testes automatizados isolados, sem criar contas ou registros no banco da aplicação.
+
+## Direções adotadas em 30/09/2026
+
+[D01–D12](docs/DECISOES-PENDENTES.md) distinguem arquitetura adotada, política operacional pendente e integração indisponível. Primeiro marco: versão funcional validada localmente, sem piloto presumido. Cadastro/segurança independem de programa subsidiado. Particular e subsidiado exigem habilitação real própria. Biometria adiada; seleção por requisitos/custo total, sem orçamento ou compra autorizada. Nenhuma unidade confirmada. Após retirada, custódia e retorno precisam de protocolo e cobertura; cancelamento não garante frete integral no aceite.

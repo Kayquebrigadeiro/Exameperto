@@ -1,6 +1,6 @@
 # Diagramas
 
-Planejamento técnico — 29/09/2026. As caixas representam componentes e capacidades planejados, não serviços já implementados, credenciados ou contratados. Integrações externas ficam indisponíveis até habilitação real.
+Planejamento técnico — 30/09/2026. As caixas representam componentes e capacidades planejados, não serviços já implementados, credenciados ou contratados. Integrações externas ficam indisponíveis até habilitação real.
 
 ## Componentes e comunicação
 
@@ -72,6 +72,9 @@ erDiagram
   direction TB
   USUARIO ||--o{ AUTORIZACAO_PACIENTE : recebe
   PACIENTE ||--o{ AUTORIZACAO_PACIENTE : concede
+  PACIENTE ||--o{ CONVITE_FAMILIAR : inicia
+  CONVITE_FAMILIAR ||--o| AUTORIZACAO_PACIENTE : confirma
+  VERIFICACAO_EVIDENCIA }o--o{ SOLICITACAO_BENEFICIO : reutiliza
   USUARIO ||--o| MOTORISTA : possui
   MOTORISTA ||--o{ VINCULO_VEICULO : possui
   VEICULO ||--o{ VINCULO_VEICULO : permite
@@ -90,6 +93,12 @@ erDiagram
   PROGRAMA ||--o{ RESERVA_SUBSIDIO : garante
   ORCAMENTO ||--o{ ORCAMENTO_BENEFICIO : aplica
   DECISAO_BENEFICIO ||--o{ ORCAMENTO_BENEFICIO : comprova
+  UNIDADE_RETIRADA ||--o{ PROTOCOLO_CUSTODIA : aceita
+  PROTOCOLO_CUSTODIA ||--o{ PEDIDO : orienta
+  PEDIDO ||--o| CUSTODIA : preserva
+  PEDIDO ||--o| APURACAO_REMUNERACAO : requer
+  POLITICA_CANCELAMENTO ||--o{ ORCAMENTO : regula
+  POLITICA_CANCELAMENTO ||--o{ APURACAO_REMUNERACAO : fundamenta
   PEDIDO ||--o{ DESIGNACAO : registra
   VINCULO_VEICULO ||--o{ DESIGNACAO : executa
   PEDIDO ||--o{ EVENTO_ENTREGA : registra
@@ -119,7 +128,7 @@ stateDiagram-v2
   DISPONIVEL --> CANCELADA
   ACEITA --> RETIRADA: Retirada autorizada
   ACEITA --> OCORRENCIA: Suspensao operacional
-  ACEITA --> CANCELADA: Regra de cancelamento
+  ACEITA --> CANCELADA: Abrir apuracao e reter cobertura
   RETIRADA --> EM_ENTREGA
   EM_ENTREGA --> ENTREGUE: Codigo de recebimento
   RETIRADA --> OCORRENCIA
@@ -127,14 +136,14 @@ stateDiagram-v2
   OCORRENCIA --> ACEITA: Retomar se origem ACEITA
   OCORRENCIA --> RETIRADA: Retomar se origem RETIRADA
   OCORRENCIA --> EM_ENTREGA: Retomar se origem EM_ENTREGA
-  OCORRENCIA --> ENCERRADA_COM_OCORRENCIA: Resolucao auditada
+  OCORRENCIA --> ENCERRADA_COM_OCORRENCIA: Destino comprovado e remuneracao apurada
   ENTREGUE --> [*]
   CANCELADA --> [*]
   NAO_ATENDIDA --> [*]
   ENCERRADA_COM_OCORRENCIA --> [*]
 ```
 
-Cancelamento e encerramento não estornam automaticamente serviço já prestado. Estado de pagamento, benefício e reserva é separado do estado da entrega. Reentrega não cria custo adicional sem autorização e cobertura.
+Cancelamento pré-retirada interrompe deslocamento, abre apuração quando houver designação e conserva cobertura; não gera integral nem libera tudo automaticamente. Depois da retirada, ocorrência mantém custódia/retorno até destino comprovado. Nenhuma unidade está confirmada; operação real bloqueada. Estado de pagamento, benefício e reserva é separado do estado da entrega. Reentrega não cria custo adicional sem autorização e cobertura.
 
 ## Aceite e liquidação
 
@@ -144,9 +153,9 @@ sequenceDiagram
   participant B as Backend
   participant D as PostgreSQL
   participant M as Entregador
-  C->>B: Aceitar orçamento vigente e parcelas
-  B->>D: Confirmar parcelas e reservar subsídio em transação
-  D-->>B: Reserva criada ou saldo indisponivel
+  C->>B: Aceitar orçamento, parcelas e politica versionada
+  B->>D: Confirmar parcelas e reservar somente subsidio positivo
+  D-->>B: Particular sem programa ou subsidio reservado ou insuficiente
   Note over B,D: Cobranca externa via outbox, fora da transacao
   Note over B,D: Parcela paciente positiva exige confirmacao real
   B->>D: Aplicar evento autenticado sem duplicacao
@@ -156,8 +165,10 @@ sequenceDiagram
     M->>B: Aceitar tarefa
     B->>D: Criar designação única e ativa
     D-->>B: Designação confirmada
-    B-->>M: Tarefa e frete integral acordado
-    M->>B: Confirmar retirada autorizada
+    B-->>M: Frete do servico completo e politica de cancelamento
+    Note over B,M: Aceite nao garante integral em cancelamento
+    M->>B: Confirmar retirada, protocolo e prova de custodia
+    Note over B,M: Exigir unidade e cobertura de retorno habilitadas
     M->>B: Confirmar entrega com código
     B->>D: Liquidar reserva e registrar repasse uma vez
     B-->>C: Entrega concluída
@@ -206,3 +217,49 @@ flowchart LR
 ```
 
 Timeout não confirma transferência. [Contrato HTTP](../contracts/openapi.yaml) e [permissões/STOMP](SEGURANCA.md) detalham comandos e participantes. O [backlog](../.scratch/planejamento/README.md) mantém as dependências por fatia funcional.
+
+## Convite e confirmação do adulto — D03
+
+```mermaid
+flowchart LR
+  P["Paciente adulto reautenticado"] --> C["Convite privado com escopos e expiração"]
+  C --> A["Destinatário autenticado aceita"]
+  A --> F["Paciente confirma expressamente"]
+  F --> G["Concessão vigente"]
+  G --> R["Expiração ou revogação bloqueia acesso"]
+  A --> N["Sem confirmação: nenhum acesso"]
+```
+
+Menores e representação legal permanecem fora da cobertura inicial. Documento/foto usa proxy autenticado que reautoriza cada acesso; cópias já recebidas não são apagadas por revogação.
+
+## Cancelamento e custódia — D06
+
+```mermaid
+flowchart TD
+  C["Interrupção solicitada"] --> F{"Já retirou?"}
+  F -->|"Não"| A["Parar deslocamento; apurar serviço se designado"]
+  F -->|"Sim"| O["Ocorrência: preservar custódia e cobertura de retorno"]
+  O --> D["Destino autorizado comprovado"]
+  D --> P["Apurar deslocamento e serviço por política aceita"]
+  A --> P
+  P --> V{"Critérios, evidência e cobertura válidos?"}
+  V -->|"Não"| B["Apuração pendente; preservar cobertura"]
+  V -->|"Sim"| L["Liquidar devido e liberar somente excedente"]
+  L --> R["Repasse sujeito à confirmação real"]
+```
+
+Sem designação/serviço não criar remuneração; reconciliar cobrança/reserva. Valores/multas/responsabilidades continuam pendentes. As hipóteses de GPS D09 ainda exigem ensaio real; nenhuma adequação declarada.
+
+## Marco local e habilitação — D12
+
+```mermaid
+flowchart LR
+  A["03A: formulário e bloqueio local verificável"] --> B["03: cadastro e segurança"]
+  B --> C["Versão funcional validada localmente"]
+  C --> P["Particular: políticas, unidade, rota e pagamento habilitados"]
+  C --> S["Subsidiado: mesmas dependências e programa com recursos reais"]
+  P --> O["Operação somente após habilitação real"]
+  S --> O
+```
+
+Não há piloto presumido, compra ou deploy autorizado. MFA/segregação são arquitetura adotada; políticas/responsáveis pendentes e integrações indisponíveis mantêm guardas independentes. Cadastro e segurança não dependem de programa subsidiado.

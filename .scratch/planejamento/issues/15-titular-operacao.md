@@ -12,3 +12,9 @@
 - [ ] Deploy continua etapa separada: apresentar evidências e pendências para autorização, sem transformar revisão documental em aprovação de produção.
 
 Proposta de backlog; não iniciado. Base de revisão documental: `4ff66bf2332de25e48aa2bc884825b12a8b35f11`.
+
+## Ajuste D01–D12 — 30/09/2026
+
+D07/D08/D12: primeiro marco é versão funcional local, sem piloto operacional presumido. Validar inventário, expurgo e backups com política de teste isolada; prazos propostos não viram retenção aprovada. Prazo financeiro e responsáveis continuam pendentes; evidência local não habilita operação particular/subsidiada ou deploy.
+
+- [ ] Verificar os comportamentos e bloqueios acima nas interfaces públicas da fatia, conforme [decisões](../../../docs/DECISOES-PENDENTES.md).

@@ -1,6 +1,6 @@
 # Segurança, permissões e privacidade
 
-Proposta técnica para revisão em 29/09/2026. Controles abaixo são requisitos a implementar; não representam auditoria aprovada, conformidade jurídica certificada ou integração contratada. [Modelo físico](MODELO-DADOS.md), [OpenAPI](../contracts/openapi.yaml), [backlog](../.scratch/planejamento/README.md).
+Planejamento revisto em 30/09/2026 conforme D01–D12. Controles abaixo são requisitos a implementar; não representam auditoria aprovada, conformidade jurídica certificada ou integração contratada. [Modelo físico](MODELO-DADOS.md), [OpenAPI](../contracts/openapi.yaml), [backlog](../.scratch/planejamento/README.md).
 
 ## Regra de autorização
 
@@ -12,17 +12,17 @@ Negar por padrão. Autenticação não concede identidade verificada nem aprova�
 
 | Ação / superfície | Quem pode | Restrição de registro, campos e estado |
 |---|---|---|
-| Cadastro, login, recuperação | Público; desafio autenticado para confirmação | Sem campo de papel; resposta genérica em cadastro/recuperação; rate limit; sem credencial/provedor, indisponível. |
+| Cadastro, login, recuperação | Público; desafio autenticado para confirmação | Sem campo de papel; resposta genérica em cadastro/recuperação; rate limit. Cadastro/recuperação dependentes de e-mail retornam indisponível sem provedor, sem conta/desafio parcial; autenticação de conta já habilitada não exige financiador. |
 | Perfil e sessões | Próprio usuário | Sem enumeração de contas, hashes/tokens nunca retornados em perfil. Logout revoga sessão; recuperação revoga todas. |
 | Criar perfil de paciente | Próprio usuário | CPF único, identidade PENDENTE; não atesta elegibilidade. |
-| Conceder/listar/revogar familiar | P verificado | Paciente da concessão deve ser o titular; F não delega nem promove; expiração e escopos explícitos. Sem descoberta pública de conta por CPF/e-mail; seleção/convite seguro do familiar ainda precisa de fluxo aprovado. |
+| Conceder/listar/revogar familiar | P verificado | Paciente da concessão deve ser o titular; F não delega nem promove; expiração e escopos explícitos. Convite privado ao destinatário, aceite autenticado e confirmação reautenticada do paciente adulto; aceite sozinho não concede acesso. Expiração/revogação efetivas. Menores e representação legal fora deste primeiro recorte. |
 | Upload de evidências | Dono; F BENEFICIOS/PEDIDOS conforme finalidade; GF para financiamento | Documento pertence ao paciente/programa autorizado. Upload não aprova conteúdo. Identidade do entregador não pode ser enviada por familiar de paciente. |
 | Ler/download de evidências | Dono, F com finalidade concedida, analista atribuído ou GF responsável pelo comprovante | Cada categoria exige finalidade. AO não lê renda/deficiência; AB não lê CNH; GF não lê laudo. AD sem atribuição não lê nenhum desses. |
 | Submeter entregador/veículo | E titular, mesmo antes da aprovação | Apenas documentos próprios e vínculo comprovado; sem autoaprovação. |
 | Revisar entregador/veículo | AO atribuído | Revisão fora da própria conta, com evidências; foto nova não herda aprovação anterior. |
 | Ver programas oferecidos | Conta autenticada | Somente programas habilitados; não expõe saldo, acordos ou lista de beneficiários. |
 | Solicitar/listar benefício | P ou F BENEFICIOS | Mesmo paciente; dimensões IDADE/DEFICIENCIA/RENDA independentes; recurso vinculado ao processo do mesmo paciente/programa. |
-| Analisar/decidir benefício | AB atribuído | Instituição deriva do programa, não de parâmetro livre; rejeitar autoanálise/conflito de interesse; percentual calculado por regra aprovada. |
+| Analisar/decidir benefício | AB atribuído | Instituição deriva do programa, não de parâmetro livre; rejeitar autoanálise/conflito de interesse; recurso exige outro analista real; revisão administrativa não diagnostica; percentual calculado por regra aprovada. |
 | Consultar fila/caso operacional | AO/AD conforme capacidade | AO somente casos atribuídos e documentos da finalidade; AD vê fila mínima para atribuir, sem documentos clínicos. |
 | Atribuir análise | AD com capacidade de gestão | Analista ativo e habilitado no escopo; auditoria contém alvo/ator, não laudo. |
 | Criar/consultar pedido, orçamento, aceite | P ou F PEDIDOS | Paciente da solicitação autorizado; destinatário válido; aceite explícito das parcelas; frete calculado no servidor. |
@@ -35,7 +35,7 @@ Negar por padrão. Autenticação não concede identidade verificada nem aprova�
 | Emitir código de recebimento | Destinatário registrado | Deve ser P ou F com RECEBIMENTO ainda vigente; rate limit; E não obtém código pela API. Troca de destinatário exige rever autorização, não editar silenciosamente. |
 | Cancelar | P/F PEDIDOS ou AO atribuído | Antes da retirada e conforme política aceita; depois abre ocorrência. Não implica estorno já confirmado. |
 | Abrir ocorrência | Participante autorizado ou AO atribuído | Pedido relacionado; texto livre privado e saneado; não publica diagnóstico. |
-| Resolver ocorrência | AO atribuído | Política, concordância e custeio verificados; retomada restaura apenas etapa de origem e nunca salta retirada; sem regra aprovada permanece pendente. |
+| Resolver ocorrência | AO atribuído | Política, concordância e custeio verificados; retomada restaura apenas etapa de origem e nunca salta retirada; sem regra aprovada permanece pendente. Depois da retirada, destino autorizado comprovado e cobertura de retorno são obrigatórios; não encerrar custódia por decisão meramente administrativa. |
 | Enviar GPS | E da designação ativa | Pedido e designação do mesmo vínculo; sequência/horário/precisão válidos; rejeitar terminal. |
 | Consultar/assinar GPS | P, F RASTREAMENTO ou E designado ativo | Só pedido ativo e concessão vigente; AO/AB/GF/AD sem participação não recebem GPS por padrão. |
 | Criar programa pendente | AD habilitado | Instituição existente; não habilita financiamento automaticamente. |
@@ -50,9 +50,9 @@ Negar por padrão. Autenticação não concede identidade verificada nem aprova�
 
 Senhas com Argon2id por biblioteca consolidada e custo medido, salt próprio da biblioteca, sem criptografia reversível. Parâmetros e versões serão fixados na implementação. Access token curto: validar assinatura, algoritmo permitido, emissor, audiência e expiração; consultar revogação/versão de autorização nas ações sensíveis. Refresh rotativo, hash no banco, revogação da família ao detectar reutilização. Tokens/IDs de sessão não entram em URL nem logs.
 
-Web: access em memória, refresh em cookie HttpOnly/Secure/SameSite; origem permitida e token CSRF em endpoints com cookie, incluindo refresh/logout. Login exige Origin permitido. Mobile: refresh no SecureStore; não aceitar cookie como substituto silencioso do modo mobile. Recuperação usa token aleatório de uso único, expiração e limite de tentativas; resposta não confirma existência de e-mail. Bootstrap administrativo por operador identificado, sem conta/senha padrão; MFA e requisitos de recuperação administrativa são pendências antes de operação privilegiada.
+Web: access em memória, refresh em cookie HttpOnly/Secure/SameSite; origem permitida e token CSRF em endpoints com cookie, incluindo refresh/logout. Login exige Origin permitido. Mobile: refresh no SecureStore; não aceitar cookie como substituto silencioso do modo mobile. Recuperação usa token aleatório de uso único, expiração e limite de tentativas; resposta não confirma existência de e-mail. Bootstrap administrativo por operador identificado, sem conta/senha padrão; MFA é obrigatório para AD/AO/AB/GF; protocolo de fatores e recuperação continuam pendentes. Bootstrap/recuperação exigem conferência independente. Sem segunda pessoa real, ações de dupla revisão ficam bloqueadas; nenhuma conta privilegiada padrão.
 
-Upload: limite técnico proposto de 10 MiB, tipos JPEG/PNG/PDF, inspeção por assinatura real e parser restrito, quarentena e varredura antes de DISPONIVEL. Nome/chave gerados no servidor; impedir path traversal, conteúdo ativo, descompressão excessiva e reuso de objeto; retirar metadados de fotos quando compatível com a finalidade. Verificar tamanho após upload e hash, sem confiar no Content-Type declarado. Criação de documento retorna metadados idempotentes; URL de upload vem de emissão separada autorizada, pode ser renovada para o mesmo registro e deixa de aceitar substituição após conclusão. Buckets privados; download reautoriza e gera URL curta específica. TTL definitivo deve ser aprovado e configura o limite de revogação de URLs já emitidas; revogação estrita exige proxy autenticado de download em vez de URL durável. URLs não aparecem em analytics, Referer ou logs.
+Upload: limite técnico proposto de 10 MiB, tipos JPEG/PNG/PDF, inspeção por assinatura real e parser restrito, quarentena e varredura antes de DISPONIVEL. Nome/chave gerados no servidor; impedir path traversal, conteúdo ativo, descompressão excessiva e reuso de objeto; retirar metadados de fotos quando compatível com a finalidade. Verificar tamanho após upload e hash, sem confiar no Content-Type declarado. Criação de documento retorna metadados idempotentes; URL de upload vem de emissão separada autorizada, pode ser renovada para o mesmo registro e deixa de aceitar substituição após conclusão. Buckets privados; download e foto operacional usam proxy autenticado, com nova autorização por acesso e Cache-Control: no-store, sem redirecionamento para URL portadora de credencial. Revogação bloqueia novos acessos; não apaga cópia já recebida. URLs não aparecem em analytics, Referer ou logs.
 
 Não armazenar conteúdo dos exames como requisito: transporte é de envelope fechado. Evidência de deficiência/renda continua sensível, mesmo sem arquivo do resultado clínico. Documentos em quarentena nunca aparecem em foto operacional.
 
@@ -78,7 +78,7 @@ OpenAPI cobre HTTP, não o protocolo STOMP. Contrato complementar proposto:
 | Webhook falso/reordenado | Assinatura dos bytes e reconciliação por referência/valor/moeda/destinatário | Assinatura inválida e hash divergente negados; evento antigo não regride estado. |
 | Assinatura indevida/GPS vazado | ACL por assinatura e despacho, encerramento por revogação | Usuário alheio, curinga, token expirado e revogação com mensagem no buffer não recebem ponto. |
 | Roubo de sessão/CSRF | Rotação, revogação, SecureStore/cookie, Origin/CSRF e rate limit | Refresh reutilizado revoga família; origem não permitida e CSRF ausente rejeitados. |
-| Vazamento por arquivo/log/cache | Quarentena, URL curta, objeto privado, logs saneados, no-store | MIME falso, traversal, excesso de tamanho; inspeção de logs/respostas para dados proibidos. |
+| Vazamento por arquivo/log/cache | Quarentena, proxy reautorizado, objeto privado, logs saneados, no-store | MIME falso, traversal, excesso de tamanho; inspeção de logs/respostas para dados proibidos. |
 | Fraude/conflito em análise | Atribuição, segregação, evidências e trilha | Analista fora do tenant ou julgando a própria solicitação negado; aporte exige outro revisor. |
 | Código de recebimento adivinhado | Hash, tentativas, validade e invalidação | Brute force limitado; código de outro pedido e reutilização rejeitados. |
 | Perda de dados/retorno de dado expurgado | Backup cifrado, restore testado e tombstone de exclusão | Restauração isolada e reaplicação de expurgos; acesso a backups auditado. |
@@ -98,8 +98,20 @@ OpenAPI cobre HTTP, não o protocolo STOMP. Contrato complementar proposto:
 
 Não há prazos legais presumidos. Antes de produção, cada categoria exige responsável, finalidade/base validada, período, gatilho, descarte, tratamento de bloqueio legal e destino em backups. Campo de prazo nulo significa configuração incompleta, não autorização de retenção indefinida. Sem política aprovada, manter a categoria/integração desabilitada para dados reais.
 
-Pendências materiais: comprovação e recurso de benefícios; faixas de renda; custeio/tarifas; cancelamento e remuneração em ocorrência; seleção/contratos de provedores; critérios profissionais de entregador; representação legal/incapacidade; recuperação e bootstrap privilegiado; convite seguro de familiares; limiares/retencão de GPS; política de exclusão; habilitação institucional e dupla revisão financeira. Registrar decisões com responsável antes de mover os tickets dependentes para execução.
+Pendências materiais de validação das direções adotadas: documentos/critério e prazos do recurso de benefícios; faixas de renda; custeio/tarifas; cancelamento e remuneração em ocorrência; seleção/contratos de provedores; critérios profissionais de entregador; representação legal/incapacidade; recuperação e bootstrap privilegiado; prazos do convite adulto já adotado; medição dos limiares/retenção de GPS; política de exclusão; habilitação institucional e dupla revisão financeira. Registrar decisões com responsável antes de mover os tickets dependentes para execução.
 
 ## Limites desta etapa
 
 Não foram executados testes de penetração, transações PostgreSQL, aparelhos Android, integração bancária ou varredura de infraestrutura. Foram planejados controles e cenários; validações documentais efetivas constam em [STATUS](STATUS.md). Segurança, escalabilidade e conformidade precisam de evidência posterior.
+
+## Habilitação e inventário D07–D12
+
+O inventário por categoria acima deve registrar base a validar, necessidade, compartilhamentos/operadores, política de retenção versionada e responsável real antes da habilitação. Responsáveis institucionais, controlador/operadores, encarregado quando aplicável e equipe continuam **pendentes**, sem pessoa jurídica presumida. Solicitações e incidentes exigem procedimento com registro, atribuição real, análise, execução e verificação; protocolo não equivale a atendimento concluído.
+
+[Prazos propostos D08](DECISOES-PENDENTES.md) são apenas insumos para validação. Retenção configurável trata banco, objetos/versionamento, temporários, filas, caches e backups. Expurgo distingue solicitado, autorizado, executado e verificado; restauração reaplica exclusões antes de acesso. GPS não pode persistir em backup geral por mais tempo que a janela validada da categoria. Prazo financeiro continua aberto; legal hold exige fundamento, escopo, responsável e revisão, sem ampliar acesso.
+
+D09 define hipóteses de ensaio (15 s captura, 60 s stale, oito pontos/dois minutos de buffer, 30 s de tolerância futura e sinalização acima de 100 m de imprecisão). Registrar aparelho/SO, permissões, duração, rede, bateria e resultados em aparelho real/development build antes de declarar adequação. Nenhum resultado de teste existe nesta etapa.
+
+Política ausente: `422 POLICY_UNDEFINED`; integração indisponível: `503 INTEGRATION_UNAVAILABLE`. Falta de MFA verificado: `403 MFA_REQUIRED`; dupla revisão sem responsável independente: `422 POLICY_UNDEFINED`, sem bypass. Biometria adiada, fornecedores avaliados por requisitos/custo total, sem compra autorizada. Operação real exige responsável e política, mesmo particular; particular dispensa programa subsidiado. Versão local e 03A usam testes sintéticos isolados sem habilitar dados reais.
+
+D04/D06: unidade deve aceitar procedimento e retorno; destinatário é paciente ou familiar RECEBIMENTO vigente. Antes da retirada, cancelamento registra interrupção e preserva cobertura para apurar serviço; após retirada mantém custódia e retorno com cobertura até destino comprovado. Valores, multas e responsabilidades continuam sem aprovação.
