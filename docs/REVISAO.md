@@ -57,3 +57,19 @@ P2 de conciliação encerrado: vínculo separado, revisor, data e motivo persist
 Zero novos achados. A correção atende à história de recursos comprovados, preserva as garantias anteriores e permanece no escopo documental.
 
 Resultado do conjunto até `84631aa`: **Standards 0 pendentes; Spec 0 pendentes**. Primeiro push desse conjunto concluído para `origin/docs/planejamento-tecnico`; sem implementação ou deploy. O commit de fechamento altera somente este relatório e o status, com conferência local do diff antes de envio.
+
+## Rodada D01–D12 — 30/09/2026
+
+Skill code-review da mesma fonte e SHA registrados acima, consultada em cópia temporária. Base capturada: `7a8077fa6a7b80e8ba642d3fe2838bd299859ba3`; diff `git diff 7a8077f...HEAD`. Commits `543279c` e `c498e90`. Dois revisores somente leitura, com diff, spec, decisões D01–D12 e normas pertinentes; delegação restrita à revisão autorizada.
+
+### Standards
+
+**P1 identificado e corrigido:** o primeiro commit exigia documento DISPONIVEL para encerrar qualquer custódia, mas entrega normal recebia somente código. Modelo/contrato não permitiam concluir a entrega mantendo a nova guarda. Correção em `c498e90`: ENTREGA usa prova estruturada de validação no evento ENTREGUE e encerra custódia/designação na mesma transação da liquidação; RETORNO exige documento do pedido e unidade autorizada. Sem código em claro ou documento fictício.
+
+Revisão local complementar explicitou vínculo de documentos operacionais ao pedido e upload E/AO por finalidade, exposição das verificações reutilizadas ao analista, aceite da versão da política pelo entregador e erros de versão nos comandos novos. Standards reconferiu correção e conjunto cumulativo: **zero achados materiais restantes**. Heurísticas de código não se aplicam a esta rodada documental.
+
+### Spec
+
+**Zero achados materiais** na primeira revisão e na conferência do conjunto corrigido. D01–D12 propagadas, particular separado de subsídio, cadastro/segurança sem financiador obrigatório, 03A com aceite verificável de validação/bloqueio local e sem alegar cadastro completo ou marco funcional inteiro. Sem autorização indevida de implementação/deploy ou dependências fictícias.
+
+Fechamento: Standards 1 P1 corrigido, 0 pendentes; Spec 0 achados. Validações documentais efetivas e publicação registradas em STATUS; nenhuma revisão substitui testes de aplicação ou operação real. Este registro e o status de fechamento recebem conferência local de diff/links antes do envio.
