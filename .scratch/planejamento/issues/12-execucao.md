@@ -18,3 +18,5 @@ Proposta de backlog; não iniciado. Base de revisão documental: `4ff66bf2332de2
 D04/D06: retirada registra custódia, prova mínima e cobertura de retorno. Antes da retirada, interrupção encerra deslocamento e abre apuração sem liberar toda reserva; após retirada, ocorrência mantém custódia até destino comprovado. Apurar deslocamento/serviço, consumir devido e liberar somente excedente. Testar cancelamento após designação, retorno sem cobertura, idempotência e conservação de parcelas; não inventar valores/multas/responsabilidades.
 
 - [ ] Verificar os comportamentos e bloqueios acima nas interfaces públicas da fatia, conforme [decisões](../../../docs/DECISOES-PENDENTES.md).
+
+- [ ] Entrega normal com código encerra custódia/designação com prova estruturada no evento, sem código em claro ou documento fictício; retorno exige prova documental DISPONIVEL do pedido e unidade autorizada.

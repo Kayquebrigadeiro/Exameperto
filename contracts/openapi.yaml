@@ -613,7 +613,9 @@ paths:
       - documents
       description: Dono ou familiar com BENEFICIOS/PEDIDOS conforme categoria; gestor financeiro só documentos de
         seu programa Criação idempotente retorna somente metadados. URL de upload é emitida separadamente com nova
-        autorização, sem duplicar documento.
+        autorização, sem duplicar documento. E designado ativo ou histórico com apuração pendente e AO atribuído
+        podem enviar evidência operacional RETIRADA/COMPROVANTE vinculada ao pedido; finalidade, paciente e relação
+        conferidos pelo servidor. Não amplia acesso clínico.
       x-permission: Dono ou familiar com BENEFICIOS/PEDIDOS conforme categoria; gestor financeiro só documentos
         de seu programa
       responses:
@@ -1849,7 +1851,9 @@ paths:
       tags:
       - orders
       description: Entregador aprovado; vínculo próprio aprovado; pedido DISPONIVEL. If-Match de orderVersion da
-        oferta. Duplo aceite 409 ALREADY_ASSIGNED; não expor identidade do vencedor.
+        oferta. Duplo aceite 409 ALREADY_ASSIGNED; não expor identidade do vencedor. Exigir aceite explícito de
+        acceptedCancellationPolicyId igual ao orçamento ofertado, protocolo/unidade/cobertura habilitados; registrar
+        versão aceita na designação. Não garante integral em cancelamento.
       x-permission: Entregador aprovado; vínculo próprio aprovado; pedido DISPONIVEL
       responses:
         '201':
@@ -2148,7 +2152,10 @@ paths:
       tags:
       - orders
       description: Entregador designado ativo; código válido do destinatário. Confirma entrega e liquidação local
-        uma vez; repasse permanece pendente até confirmação externa.
+        uma vez; repasse permanece pendente até confirmação externa. Na mesma transação do evento ENTREGUE/liquidação,
+        encerrar custódia com destino ENTREGA, destinatário vigente, data e referência do evento que comprova validação
+        do código. Invalidar código, sem persistir valor em claro; não exige upload de documento de recebimento.
+        RETORNO usa prova documental no fluxo de ocorrência.
       x-permission: Entregador designado ativo; código válido do destinatário
       responses:
         '200':
@@ -3281,6 +3288,10 @@ paths:
           $ref: '#/components/responses/Error429'
         '503':
           $ref: '#/components/responses/Error503'
+        '412':
+          $ref: '#/components/responses/Error412'
+        '428':
+          $ref: '#/components/responses/Error428'
       requestBody:
         required: true
         content:
@@ -3335,6 +3346,10 @@ paths:
           $ref: '#/components/responses/Error429'
         '503':
           $ref: '#/components/responses/Error503'
+        '412':
+          $ref: '#/components/responses/Error412'
+        '428':
+          $ref: '#/components/responses/Error428'
       requestBody:
         required: true
         content:
@@ -3535,6 +3550,10 @@ paths:
           $ref: '#/components/responses/Error429'
         '503':
           $ref: '#/components/responses/Error503'
+        '412':
+          $ref: '#/components/responses/Error412'
+        '428':
+          $ref: '#/components/responses/Error428'
       requestBody:
         required: true
         content:
@@ -3921,12 +3940,19 @@ components:
           type: integer
           minimum: 1
           maximum: 10485760
+        orderId:
+          type: string
+          format: uuid
       required:
       - category
       - contentType
       - sizeBytes
       description: 'Limite técnico proposto: 10 MiB. Escopos opcionais só aceitos com autorização; MIME declarado
-        não substitui inspeção real.'
+        não substitui inspeção real. Evidência operacional RETIRADA/COMPROVANTE de custódia/serviço deve indicar
+        orderId; servidor deriva paciente e recusa instituição/paciente conflitante. E designado ativo ou histórico
+        com apuração pendente e AO atribuído podem submeter apenas essas categorias no pedido, sem acesso a documentos
+        clínicos. Documento de autorização inicial do paciente pode anteceder pedido; vinculado pelo servidor na
+        criação do pedido.'
     Document:
       type: object
       additionalProperties: false
@@ -4624,8 +4650,12 @@ components:
         vehicleLinkId:
           type: string
           format: uuid
+        acceptedCancellationPolicyId:
+          type: string
+          format: uuid
       required:
       - vehicleLinkId
+      - acceptedCancellationPolicyId
     Assignment:
       type: object
       additionalProperties: false
@@ -4726,6 +4756,8 @@ components:
       required:
       - code
       description: Código obtido do destinatário; limite de tentativas e validade. Resposta nunca ecoa o código.
+        Validação bem-sucedida gera prova estruturada no evento ENTREGUE e encerra custódia atomicamente; não guarda
+        código em claro nem exige foto do resultado.
     ReceiptChallenge:
       type: object
       additionalProperties: false
@@ -5364,6 +5396,7 @@ components:
       required:
       - requestId
       - documentIds
+      - verifications
       properties:
         requestId:
           type: string
@@ -5373,6 +5406,10 @@ components:
           items:
             type: string
             format: uuid
+        verifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/Verification'
     PrivacyRequest:
       type: object
       additionalProperties: false

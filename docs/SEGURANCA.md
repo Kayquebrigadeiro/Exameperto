@@ -17,6 +17,7 @@ Negar por padrão. Autenticação não concede identidade verificada nem aprova�
 | Criar perfil de paciente | Próprio usuário | CPF único, identidade PENDENTE; não atesta elegibilidade. |
 | Conceder/listar/revogar familiar | P verificado | Paciente da concessão deve ser o titular; F não delega nem promove; expiração e escopos explícitos. Convite privado ao destinatário, aceite autenticado e confirmação reautenticada do paciente adulto; aceite sozinho não concede acesso. Expiração/revogação efetivas. Menores e representação legal fora deste primeiro recorte. |
 | Upload de evidências | Dono; F BENEFICIOS/PEDIDOS conforme finalidade; GF para financiamento | Documento pertence ao paciente/programa autorizado. Upload não aprova conteúdo. Identidade do entregador não pode ser enviada por familiar de paciente. |
+| Evidência operacional de retirada/retorno/serviço | E designado ativo ou histórico com apuração pendente; AO atribuído; P/F PEDIDOS quando pertinente | RETIRADA/COMPROVANTE vinculada ao mesmo pedido; leitura por finalidade/participação, sem acesso a documentos de benefício. Históricos só acessam prova mínima necessária à apuração, nunca endereço/GPS/código expirados. |
 | Ler/download de evidências | Dono, F com finalidade concedida, analista atribuído ou GF responsável pelo comprovante | Cada categoria exige finalidade. AO não lê renda/deficiência; AB não lê CNH; GF não lê laudo. AD sem atribuição não lê nenhum desses. |
 | Submeter entregador/veículo | E titular, mesmo antes da aprovação | Apenas documentos próprios e vínculo comprovado; sem autoaprovação. |
 | Revisar entregador/veículo | AO atribuído | Revisão fora da própria conta, com evidências; foto nova não herda aprovação anterior. |
@@ -31,7 +32,7 @@ Negar por padrão. Autenticação não concede identidade verificada nem aprova�
 | Aceitar oferta | E e vínculo próprios aprovados | Somente DISPONIVEL com cobertura; lock e índice único; versão da oferta e idempotência. |
 | Ver endereços/retirada | P, F PEDIDOS, E ativo; AO em ocorrência atribuída | Dados necessários à tarefa; E perde acesso operacional após encerramento. Histórico de remuneração continua mínimo. |
 | Ver identificação operacional | P ou F PEDIDOS/RECEBIMENTO | Tarefa ativa; nome operacional, foto aprovada temporária e veículo; nenhum CPF/CNH/CRLV. |
-| Confirmar retirada/início/entrega | E designado ativo | Autorização de retirada válida; ordem de estados; código do destinatário para conclusão. |
+| Confirmar retirada/início/entrega | E designado ativo | Autorização de retirada válida; ordem de estados; código do destinatário para conclusão; prova estruturada de validação no evento ENTREGUE encerra custódia atomicamente, sem guardar código em claro. Retorno usa prova documental mínima. |
 | Emitir código de recebimento | Destinatário registrado | Deve ser P ou F com RECEBIMENTO ainda vigente; rate limit; E não obtém código pela API. Troca de destinatário exige rever autorização, não editar silenciosamente. |
 | Cancelar | P/F PEDIDOS ou AO atribuído | Antes da retirada e conforme política aceita; depois abre ocorrência. Não implica estorno já confirmado. |
 | Abrir ocorrência | Participante autorizado ou AO atribuído | Pedido relacionado; texto livre privado e saneado; não publica diagnóstico. |

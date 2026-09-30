@@ -170,7 +170,8 @@ sequenceDiagram
     M->>B: Confirmar retirada, protocolo e prova de custodia
     Note over B,M: Exigir unidade e cobertura de retorno habilitadas
     M->>B: Confirmar entrega com código
-    B->>D: Liquidar reserva e registrar repasse uma vez
+    B->>D: Evento de recebimento e encerrar custodia
+    B->>D: Liquidar reserva e registrar repasse na mesma transacao
     B-->>C: Entrega concluída
   else Cobertura pendente ou indisponivel
     B-->>C: Aguardar ou aceitar outro orçamento
