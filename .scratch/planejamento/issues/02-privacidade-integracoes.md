@@ -14,3 +14,7 @@
 Proposta de backlog; não iniciado. Base de revisão documental: `4ff66bf2332de25e48aa2bc884825b12a8b35f11`.
 
 Decisão humana; contratações não estão autorizadas por este ticket.
+
+## Comments
+
+29/09/2026 — Proposta documental preparada a partir de `629ad36`: [decisões pendentes](../../../docs/DECISOES-PENDENTES.md), D07–D12. Perguntas, recomendações, impactos e dependências externas disponíveis para decisão humana. Nenhum critério marcado como aprovado; status e bloqueios preservados.

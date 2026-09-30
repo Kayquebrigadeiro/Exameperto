@@ -62,3 +62,7 @@ ADR-001 a ADR-006 permanecem neste documento como fonte original. Não duplicar 
 | ADR-007 — Transações e efeitos externos | Proposta para revisão | [0007-transacoes-financeiras](adr/0007-transacoes-financeiras.md) |
 
 Políticas em aberto e alternativas operacionais estão em [SEGURANCA](SEGURANCA.md) e nos tickets 01–02 do [backlog](../.scratch/planejamento/README.md). A inclusão de uma proposta técnica no contrato não representa aprovação das políticas comerciais.
+
+## Rodada de decisão dos tickets 01–02
+
+A [proposta de decisões pendentes](DECISOES-PENDENTES.md), baseada em `629ad36`, reúne perguntas, recomendações, impactos e dependências externas. Está `ready-for-human`; não altera os requisitos estabelecidos nem aprova políticas, fornecedores ou implementação.
