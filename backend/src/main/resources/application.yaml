@@ -1,0 +1,33 @@
+server:
+  address: 127.0.0.1
+  port: 8080
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+  forward-headers-strategy: none
+spring:
+  application:
+    name: exame-perto
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://127.0.0.1:5433/exameperto}
+    username: ${DATABASE_USER:exameperto}
+    password: ${DATABASE_PASSWORD}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+      fail-on-trailing-tokens: true
+    parser:
+      strict-duplicate-detection: true
+  servlet:
+    multipart:
+      enabled: false
+registration:
+  privacy-approved: false
+  allowed-origin: http://localhost:5173
+  attempts-per-minute: 5
+  global-attempts-per-minute: 100

@@ -4,7 +4,7 @@ Nome de trabalho de uma plataforma de retirada autorizada e entrega de resultado
 
 ## Estado do projeto
 
-**Planejamento técnico. A aplicação ainda não foi implementada.** A stack foi escolhida pelo autor em 29/09/2026. Não há contas predefinidas, dados de demonstração ou integrações simuladas no produto previsto.
+**Planejamento técnico com a fatia 03A implementada localmente.** A stack foi escolhida pelo autor em 29/09/2026. Não há contas predefinidas, dados de demonstração ou integrações simuladas no produto previsto; o cadastro permanece explicitamente indisponível sem e-mail real.
 
 O caso que motivou o projeto é o deslocamento de uma familiar entre Santana de Parnaíba e Barueri para realizar exames e, depois, buscar resultados. O primeiro escopo cobre a entrega de resultados/documentos em envelope fechado, não coleta de amostras ou transporte de pacientes.
 
@@ -36,6 +36,18 @@ Versões exatas e dependências serão fixadas na implementação. Hospedagem e 
 - [Progresso, validações e próxima ação](docs/STATUS.md)
 
 O GitHub renderiza os diagramas Mermaid presentes na documentação. Cada alteração de fluxo, entidade ou responsabilidade deve atualizar o diagrama correspondente no mesmo commit do código.
+
+## Executar a fatia 03A localmente
+
+Defina uma senha apenas no ambiente local e suba o PostgreSQL isolado:
+
+```sh
+export EXAME_PERTO_POSTGRES_PASSWORD='senha-local'
+docker compose -f infra/compose.yaml up -d
+export DATABASE_PASSWORD="$EXAME_PERTO_POSTGRES_PASSWORD"
+```
+
+O backend inicia com `mvn -f backend/pom.xml spring-boot:run`; a web inicia com `npm install && npm run dev --prefix web`. O cadastro permanece bloqueado até existir um adaptador de e-mail real e uma política de privacidade aprovada; não há conta de demonstração nem entrega simulada.
 
 ## Regras centrais
 

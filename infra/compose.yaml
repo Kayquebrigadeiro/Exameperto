@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:17.6
+    ports:
+      - "127.0.0.1:5433:5432"
+    environment:
+      POSTGRES_DB: exameperto
+      POSTGRES_USER: exameperto
+      POSTGRES_PASSWORD: ${EXAME_PERTO_POSTGRES_PASSWORD:?defina EXAME_PERTO_POSTGRES_PASSWORD somente no ambiente local}
+    volumes:
+      - exame_perto_postgres:/var/lib/postgresql/data
+
+volumes:
+  exame_perto_postgres:
