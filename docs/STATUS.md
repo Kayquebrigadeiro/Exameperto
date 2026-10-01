@@ -83,4 +83,6 @@ Verificações executadas: `mvn -f backend/pom.xml -Dmaven.repo.local=/tmp/exame
 
 Limitações: não há caminho de cadastro bem-sucedido, confirmação de e-mail, login ou recuperação nesta fatia; isso permanece no ticket 03. Teste de entrega real de e-mail não foi executado nem alegado. Docker/Testcontainers foi usado somente com dados sintéticos descartáveis. Não houve deploy.
 
-Próxima ação proposta: ticket 03 — completar confirmação de e-mail, sessão e recuperação com provedor real configurado e testes correspondentes, mediante nova autorização; não iniciado. Revisão e push desta implementação continuam pendentes neste fechamento.
+Próxima ação proposta: ticket 03 — completar confirmação de e-mail, sessão e recuperação com provedor real configurado e testes correspondentes, mediante nova autorização; não iniciado.
+
+Fechamento 03A: revisão em dois eixos contra `67f5e11` confirmou zero achados materiais após corrigir a confiança em `X-Forwarded-For`, restringir o Compose ao loopback, tornar a senha local configurável, aplicar limite antes das decisões e verificar o bloqueio de política pela fronteira REST. O conjunto foi commitado em `142f97f39f05e939abf33baec47a67fc3e21af87` e enviado para `origin/docs/planejamento-tecnico`; SHA remoto conferido. Sem deploy.
