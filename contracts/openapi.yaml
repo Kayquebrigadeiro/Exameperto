@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: Exame Perto — contrato de planejamento
-  version: 0.2.0
-  description: 'Proposta documental, sem servidor implementado. Autorizar cada ação por papel e registro. Integrações
+  version: 0.3.0
+  description: 'Autenticação implementada no ticket 03; demais operações permanecem planejamento. Autorizar cada ação por papel e registro. Integrações
     ausentes retornam 503 INTEGRATION_UNAVAILABLE; política material indefinida retorna 422 POLICY_UNDEFINED. Erros
     principais: INVALID_INPUT, UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, STATE_CONFLICT, FUNDING_INSUFFICIENT, IDEMPOTENCY_CONFLICT,
     ALREADY_ASSIGNED, VERSION_MISMATCH, RATE_LIMITED, LOCATION_STALE. Nomes de rotas em inglês e estados de domínio
@@ -29,7 +29,7 @@ paths:
       - auth
       description: Público; sem campos role/status. Resposta genérica, inclusive e-mail já existente. Sem provedor
         de e-mail real, 503. Sem e-mail habilitado não persistir conta/desafio/outbox de envio, nem retornar 202
-        ou token. 03A cobre essa indisponibilidade; cadastro bem-sucedido fica para 03. Responsáveis e retenção
+        ou token. 03A preserva essa indisponibilidade; 03 implementa cadastro pendente e confirmação. Responsáveis e retenção
         validados são necessários para dados reais (422).
       x-permission: Público; sem campos role/status
       responses:
@@ -118,7 +118,7 @@ paths:
       summary: Rotacionar sessão
       tags:
       - auth
-      description: Sessão válida; WEB cookie e CSRF, MOBILE refresh no corpo. Reutilização revoga família. Resposta
+      description: Sessão válida; WEB cookie e CSRF, MOBILE refresh no corpo. Reutilização revoga família, inclusive sob concorrência. Validade absoluta padrão de 30 dias sem extensão pela rotação. Resposta
         Cache-Control no-store; WEB retorna Set-Cookie, MOBILE recebe novo refresh no corpo. A alternativa vazia
         de security modela apenas MOBILE com credencial obrigatória no corpo; nunca permite refresh anônimo.
       x-permission: Sessão válida; WEB cookie e CSRF, MOBILE refresh no corpo
@@ -173,7 +173,7 @@ paths:
       summary: Revogar sessão atual
       tags:
       - auth
-      description: Conta autenticada WEB também limpa refresh com Set-Cookie expirado; revogação no servidor é obrigatória
+      description: Revoga a família atual, incluindo sucessor concorrente. Conta autenticada WEB também limpa refresh com Set-Cookie expirado; revogação no servidor é obrigatória
         mesmo se apagar o cookie falhar.
       x-permission: Conta autenticada
       responses:
@@ -203,7 +203,7 @@ paths:
       summary: Confirmar e-mail
       tags:
       - auth
-      description: Token de desafio de uso único
+      description: Token aleatório de 256 bits, uso único e prazo padrão de 30 minutos. Confirma somente o e-mail; não verifica identidade, elegibilidade ou entregador.
       x-permission: Token de desafio de uso único
       responses:
         '200':
@@ -235,13 +235,105 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/ChallengeInput'
+  /auth/verification/resend:
+    post:
+      operationId: resendVerification
+      summary: Solicitar novo código de confirmação
+      tags: [auth]
+      security: []
+      x-permission: Público; resposta genérica, sem revelar existência
+      description: 202 PENDENTE não confirma envio. Intervalo mínimo por conta de um minuto; pedido durante o intervalo tem a mesma resposta sem novo envio. Ausência de configuração retorna 503; falha posterior fica RECONCILIAR na fila interna. Novo desafio invalida o anterior.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailInput'
+      responses:
+        '202':
+          description: Solicitação recebida, sem confirmação de envio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Accepted'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+  /auth/csrf:
+    get:
+      operationId: getCsrf
+      summary: Obter token CSRF para cliente web
+      tags:
+      - auth
+      description: 'WEB: Origin permitido e cookie refresh obrigatório; token HMAC ligado ao refresh. Resposta no-store. POST oferece a mesma leitura para navegadores same-origin que omitem Origin no GET.'
+      x-permission: 'WEB: Origin permitido, token ligado ao contexto CSRF; resposta no-store. CORS só origem web
+        configurada.'
+      parameters: []
+      responses:
+        '200':
+          description: Obter token CSRF para cliente web
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfToken'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '422':
+          $ref: '#/components/responses/Error422'
+        '429':
+          $ref: '#/components/responses/Error429'
+        '503':
+          $ref: '#/components/responses/Error503'
+      security: []
+    post:
+      operationId: getCsrfToken
+      summary: Obter proteção CSRF vinculada ao refresh web
+      tags: [auth]
+      security:
+      - refreshCookie: []
+      x-permission: Origin permitido e cookie refresh obrigatório
+      description: HMAC do refresh com segredo de servidor; renovar após cada rotação. Exige Origin exato. Não autentica nem renova sessão. Resposta no-store.
+      responses:
+        '200':
+          description: Token CSRF para header X-CSRF-Token
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [token]
+                properties:
+                  token:
+                    type: string
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum: [no-store]
+        '403':
+          $ref: '#/components/responses/Error403'
+        '429':
+          $ref: '#/components/responses/Error429'
   /auth/recovery:
     post:
       operationId: requestRecovery
       summary: Solicitar recuperação
       tags:
       - auth
-      description: Público; resposta genérica independentemente de existência
+      description: Resposta genérica independentemente de existência. 202 PENDENTE acusa recebimento da solicitação, não envio ou entrega. Conta apta enfileira UUID sem token em claro; falha SMTP posterior fica RECONCILIAR. Sem configuração, 503 para qualquer endereço.
       x-permission: Público; resposta genérica independentemente de existência
       responses:
         '202':
@@ -2959,41 +3051,6 @@ paths:
           $ref: '#/components/responses/Error429'
         '503':
           $ref: '#/components/responses/Error503'
-  /auth/csrf:
-    get:
-      operationId: getCsrf
-      summary: Obter token CSRF para cliente web
-      tags:
-      - auth
-      description: 'WEB: Origin permitido, token ligado ao contexto CSRF; resposta no-store. CORS só origem web
-        configurada.'
-      x-permission: 'WEB: Origin permitido, token ligado ao contexto CSRF; resposta no-store. CORS só origem web
-        configurada.'
-      parameters: []
-      responses:
-        '200':
-          description: Obter token CSRF para cliente web
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CsrfToken'
-        '400':
-          $ref: '#/components/responses/Error400'
-        '401':
-          $ref: '#/components/responses/Error401'
-        '403':
-          $ref: '#/components/responses/Error403'
-        '404':
-          $ref: '#/components/responses/Error404'
-        '409':
-          $ref: '#/components/responses/Error409'
-        '422':
-          $ref: '#/components/responses/Error422'
-        '429':
-          $ref: '#/components/responses/Error429'
-        '503':
-          $ref: '#/components/responses/Error503'
-      security: []
   /reviews/benefits:
     get:
       operationId: listAssignedBenefits

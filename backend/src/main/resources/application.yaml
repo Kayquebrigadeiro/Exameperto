@@ -7,6 +7,16 @@ server:
     include-stacktrace: never
   forward-headers-strategy: none
 spring:
+  mail:
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
+      mail.smtp.ssl.checkserveridentity: true
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
+      mail.debug: false
   application:
     name: exame-perto
   datasource:
@@ -31,3 +41,15 @@ registration:
   allowed-origin: http://localhost:5173
   attempts-per-minute: 5
   global-attempts-per-minute: 100
+  email-token-ttl: PT30M
+  recovery-token-ttl: PT30M
+  session-ttl: PT15M
+  refresh-ttl: P30D
+  email-resend-window: PT1M
+security:
+  data-key: ${EXAME_PERTO_DATA_KEY:}
+  search-key: ${EXAME_PERTO_SEARCH_KEY:}
+  signing-key: ${EXAME_PERTO_SIGNING_KEY:}
+email:
+  enabled: ${EXAME_PERTO_EMAIL_ENABLED:false}
+  from: ${EXAME_PERTO_EMAIL_FROM:}

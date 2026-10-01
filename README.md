@@ -37,7 +37,7 @@ Versões exatas e dependências serão fixadas na implementação. Hospedagem e 
 
 O GitHub renderiza os diagramas Mermaid presentes na documentação. Cada alteração de fluxo, entidade ou responsabilidade deve atualizar o diagrama correspondente no mesmo commit do código.
 
-## Executar a fatia 03A localmente
+## Executar a conta básica localmente (03A/03)
 
 Defina uma senha apenas no ambiente local e suba o PostgreSQL isolado:
 
@@ -47,7 +47,9 @@ docker compose -f infra/compose.yaml up -d
 export DATABASE_PASSWORD="$EXAME_PERTO_POSTGRES_PASSWORD"
 ```
 
-O backend inicia com `mvn -f backend/pom.xml spring-boot:run`; a web prepara dependências com `npm ci --prefix web` e inicia com `npm run dev --prefix web`. O cadastro permanece bloqueado até existir um adaptador de e-mail real e uma política de privacidade aprovada; não há conta de demonstração nem entrega simulada.
+O backend inicia com `mvn -f backend/pom.xml spring-boot:run`; a web prepara dependências com `npm ci --prefix web` e inicia com `npm run dev --prefix web`. O cadastro permanece bloqueado até configurar o adaptador SMTP real e validar a política de privacidade; não há conta de demonstração nem entrega simulada.
+
+Configuração completa, comandos de teste e homologação pendente: [conta e e-mail](docs/CONTA-EMAIL.md). Confirmação, sessão e recuperação estão implementadas; entrega real de e-mail ainda não foi homologada.
 
 ## Regras centrais
 

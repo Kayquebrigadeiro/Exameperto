@@ -15,9 +15,9 @@ public class RegistrationController {
     RegistrationController(RegistrationService service) { this.service = service; }
 
     @PostMapping("/register")
-    ResponseEntity<Void> register(@Valid @RequestBody RegistrationRequest request, HttpServletRequest http) {
+    ResponseEntity<AcceptedResponse> register(@Valid @RequestBody RegistrationRequest request, HttpServletRequest http) {
         service.register(request, clientKey(http));
-        return ResponseEntity.accepted().build();
+        return ResponseEntity.accepted().body(new AcceptedResponse(java.util.UUID.randomUUID(), "PENDENTE"));
     }
 
     private String clientKey(HttpServletRequest request) {

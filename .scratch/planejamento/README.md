@@ -2,7 +2,7 @@
 
 [Spec](spec.md) · [Status da etapa](../../docs/STATUS.md)
 
-Todos os tickets estão `ready-for-human`, sem execução autorizada. Os tickets 01–02 são decisões; os demais são fatias completas com persistência, API, interface e verificações observáveis. Dependências técnicas não substituem autorização para implementar. Valores e fornecedores só entram após decisões reais; partes independentes podem ser desenvolvidas com integração explicitamente indisponível.
+03A foi implementado e 03 recebeu autorização posterior, com homologação externa pendente. Os demais tickets permanecem propostas `ready-for-human`, sem execução autorizada. Os tickets 01–02 são decisões; os demais são fatias completas com persistência, API, interface e verificações observáveis. Dependências técnicas não substituem autorização para implementar. Valores e fornecedores só entram após decisões reais; partes independentes podem ser desenvolvidas com integração explicitamente indisponível.
 
 Base recebida sem histórico. A base documental foi criada preservando os cinco arquivos originais: `4ff66bf2332de25e48aa2bc884825b12a8b35f11`, branch `docs/planejamento-tecnico`. Remoto confirmado pelo usuário: `https://github.com/Kayquebrigadeiro/Exameperto.git` (vazio na consulta inicial).
 

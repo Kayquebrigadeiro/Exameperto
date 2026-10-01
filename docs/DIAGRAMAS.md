@@ -264,3 +264,47 @@ flowchart LR
 ```
 
 Não há piloto presumido, compra ou deploy autorizado. MFA/segregação são arquitetura adotada; políticas/responsáveis pendentes e integrações indisponíveis mantêm guardas independentes. Cadastro e segurança não dependem de programa subsidiado.
+
+## Conta, sessão e recuperação — implementado no ticket 03
+
+```mermaid
+sequenceDiagram
+  actor U as Pessoa
+  participant W as Web
+  participant B as Backend
+  participant D as PostgreSQL
+  participant E as SMTP real configurado
+  U->>W: Solicitar cadastro
+  W->>B: POST register
+  B->>B: Política, configuração, limites
+  B->>D: Transação conta pendente e hash de desafio
+  B->>E: Código aleatório em memória
+  alt Falha SMTP
+    B->>D: Rollback
+    B-->>W: 503 sem conta parcial
+  else Aceitação SMTP
+    B->>D: Commit
+    B-->>W: 202 pendente de confirmação
+  end
+  U->>W: Informar código recebido
+  W->>B: POST verification
+  B->>D: Lock conta e consumo único antes do prazo
+  B-->>W: E-mail confirmado, demais verificações independentes
+  W->>B: Login WEB com Origin
+  B->>D: Validar senha e criar sessão
+  B-->>W: Access em memória e refresh HttpOnly Secure
+  W->>B: Obter CSRF e renovar sessão
+  B->>D: Lock conta e rotacionar refresh
+  Note over B,D: Replay revoga família e logout inclui sucessor
+  U->>W: Solicitar recuperação
+  W->>B: POST recovery
+  B->>D: Se conta apta, enfileirar apenas UUID
+  B-->>W: 202 genérico, sem afirmar envio
+  B->>D: Worker bloqueia fila e conta, grava hash
+  B->>E: Tentar envio do código em memória
+  B->>D: ENVIADO ou RECONCILIAR com desafio invalidado
+  W->>B: Código e nova senha
+  B->>D: Consumo único, senha e revogação de todas as sessões
+```
+
+SMTP aceito não prova chegada à caixa do destinatário. Queda entre envio e commit pode gerar código inválido; nova solicitação é necessária. O ensaio de navegador usa capturador de e-mail exclusivamente nos testes; integração real permanece não homologada.

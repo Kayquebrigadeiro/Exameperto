@@ -13,6 +13,9 @@ public class RegistrationErrorHandler {
     @ExceptionHandler(RegistrationService.RegistrationException.class)
     ResponseEntity<ApiError> registration(RegistrationService.RegistrationException ex) { return ResponseEntity.status(ex.getStatusCode()).body(ex.body()); }
 
+    @ExceptionHandler(AuthService.AuthException.class)
+    ResponseEntity<ApiError> auth(AuthService.AuthException ex) { return ResponseEntity.status(ex.getStatusCode()).header("Cache-Control", "no-store").body(ex.body()); }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ApiError> invalid(MethodArgumentNotValidException ignored) {
         return ResponseEntity.badRequest().body(new ApiError("INVALID_INPUT", "Confira os campos informados.", UUID.randomUUID(), false));
@@ -25,6 +28,6 @@ public class RegistrationErrorHandler {
 
     @ExceptionHandler(Exception.class)
     ResponseEntity<ApiError> unexpected(Exception ignored) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiError("INTERNAL_ERROR", "Não foi possível concluir o cadastro.", UUID.randomUUID(), true));
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiError("INTERNAL_ERROR", "Não foi possível concluir a solicitação.", UUID.randomUUID(), true));
     }
 }

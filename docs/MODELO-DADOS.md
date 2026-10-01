@@ -1,6 +1,6 @@
 # Modelo físico PostgreSQL — proposta para revisão
 
-30/09/2026. Direções D01–D12 incorporadas; políticas e integrações continuam pendentes. Especificação física para futuras migrações Flyway; não é banco implementado. [Glossário](../CONTEXT.md), [contrato HTTP](../contracts/openapi.yaml), [segurança](SEGURANCA.md), [estados e diagramas](DIAGRAMAS.md).
+30/09/2026. Direções D01–D12 incorporadas; políticas e integrações continuam pendentes. Especificação física; usuario, sessao, desafio_conta e outbox implementados nas migrações V1/V2 de 03A/03, demais tabelas ainda planejadas. [Glossário](../CONTEXT.md), [contrato HTTP](../contracts/openapi.yaml), [segurança](SEGURANCA.md), [estados e diagramas](DIAGRAMAS.md).
 
 ## Convenções físicas
 
@@ -26,7 +26,7 @@ Criar caso operacional junto à submissão correspondente, pedido ou ocorrência
 | Tabela | Campos específicos | Restrições / índices |
 |---|---|---|
 | `usuario` (mutável) | `email_cifrado bytea`, `email_busca bytea`, `senha_hash text`, `nome_cifrado bytea`, `telefone_cifrado bytea?`, `estado`, `email_verificado_em timestamptz?` | UNIQUE(email_busca); estado PENDENTE_EMAIL/ATIVO/BLOQUEADO/ENCERRADO. Cadastro público cria somente conta básica. |
-| `sessao` (mutável) | `usuario_id uuid FK usuario`, `familia_id uuid`, `refresh_hash bytea`, `substituida_por uuid? FK sessao`, `expira_em timestamptz`, `revogada_em timestamptz?`, `cliente varchar(10)` | UNIQUE(refresh_hash); índice(usuario_id, revogada_em); cliente WEB/MOBILE. Rotação e detecção de reutilização revogam família inteira. |
+| `sessao` (mutável) | `usuario_id uuid FK usuario`, `familia_id uuid`, `refresh_hash bytea`, `substituida_por uuid? FK sessao`, `expira_em timestamptz`, `revogada_em timestamptz?`, `cliente varchar(10)`, `access_hash bytea?`, `access_expira_em timestamptz?` | UNIQUE(refresh_hash); UNIQUE parcial(access_hash); CHECK access_hash/access_expira_em ambos nulos ou ambos preenchidos; índice(familia_id); índice(usuario_id, revogada_em); cliente WEB/MOBILE. Rotação e detecção de reutilização revogam família inteira. |
 | `desafio_conta` (mutável) | `usuario_id uuid FK usuario`, `tipo`, `token_hash bytea`, `expira_em timestamptz`, `consumido_em timestamptz?`, `tentativas smallint DEFAULT 0` | UNIQUE(token_hash); tipo EMAIL/RECUPERACAO; tentativas >=0. Consumo único atômico. |
 | `papel_global` | `usuario_id uuid FK usuario`, `papel varchar(20)`, `concedido_por uuid FK usuario`, `revogado_em timestamptz?`, `motivo text` | papel ADMIN/ANALISTA_OPERACIONAL; UNIQUE parcial(usuario_id,papel) WHERE revogado_em IS NULL. Bootstrap inicial por procedimento auditado separado, ainda pendente. |
 | `paciente` (mutável) | `usuario_id uuid FK usuario`, `cpf_cifrado bytea`, `cpf_busca bytea`, `nascimento date`, `identidade_estado`, `verificado_em timestamptz?` | UNIQUE(usuario_id), UNIQUE(cpf_busca); identidade_estado PENDENTE/VERIFICADA/REJEITADA. Nesta proposta, representação começa com paciente já titular de conta; incapacidade/representação legal pendente, sem criação silenciosa por familiar. |
@@ -165,3 +165,11 @@ Resolução pós-retirada recebe referências da prova de retorno e de serviço;
 
 
 Evidência operacional RETIRADA/COMPROVANTE de custódia/apuração referencia `documento.pedido_id`; paciente deriva do pedido, escopos conflitantes são recusados. Upload E designado ativo ou histórico com apuração pendente, ou AO atribuído, exige esse vínculo e não concede acesso a evidências de benefício. Autorização inicial submetida pelo paciente antes do pedido é vinculada durante sua criação. Prova de retirada/retorno/serviço tem que estar DISPONIVEL, pertencer ao mesmo pedido e ser autorizada à finalidade; referência arbitrária a documento alheio é rejeitada. A projeção de evidências do benefício inclui verificações reutilizadas, permitindo sua leitura mínima pelo AB atribuído sem reupload.
+
+## Implementação da conta — 03
+
+[Conta e e-mail](CONTA-EMAIL.md) detalha configuração e semântica executada. Dados pessoais cifrados em envelope versão 1, IV aleatório e AES-GCM; busca de e-mail por HMAC com chave separada. Access JWT assinado tem hash e validade no banco; refresh e desafios persistem somente SHA-256. Nenhuma concessão de papel é criada.
+
+Login, confirmação, recuperação, refresh e logout serializam pela linha de usuario; expiração de desafio é avaliada com clock_timestamp após adquirir o lock. Reutilização de refresh confirma revogação da família apesar do retorno 401. Recuperação invalida todos os desafios de recuperação e sessões na mesma transação; expiração absoluta de refresh não se estende em rotação.
+
+Outbox de conta usa tipos EMAIL/RECUPERACAO, chave por conta/tipo e payload apenas com usuarioId. O worker usa FOR UPDATE SKIP LOCKED na fila e na conta para não inverter locks com enfileiramento; token é gerado apenas em memória. Falha gera RECONCILIAR e invalidação do desafio. ENVIADO significa aceitação SMTP, não entrega. Intervalo persistido entre pedidos; nenhum token ou contato em payload. Processo reiniciado retoma pendências. Queda entre efeito SMTP e commit pode deixar código inválido, exigindo nova solicitação; não há exactly-once externo.

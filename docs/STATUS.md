@@ -1,4 +1,6 @@
-# Status — 29/09/2026
+# Status — atualizado em 30/09/2026
+
+Situação atual: 03A implementado; ticket 03 autorizado e implementado localmente, com entrega real de e-mail ainda não homologada. Registros abaixo preservam o histórico; ver a seção final para continuidade.
 
 ## Etapa e artefatos
 
@@ -86,3 +88,25 @@ Limitações: não há caminho de cadastro bem-sucedido, confirmação de e-mail
 Próxima ação proposta: ticket 03 — completar confirmação de e-mail, sessão e recuperação com provedor real configurado e testes correspondentes, mediante nova autorização; não iniciado.
 
 Fechamento 03A: revisão em dois eixos contra `67f5e11` confirmou zero achados materiais após corrigir a confiança em `X-Forwarded-For`, restringir o Compose ao loopback, tornar a senha local configurável, aplicar limite antes das decisões e verificar o bloqueio de política pela fronteira REST. O conjunto foi commitado em `142f97f39f05e939abf33baec47a67fc3e21af87` e enviado para `origin/docs/planejamento-tecnico`; SHA remoto conferido. Sem deploy.
+
+## Ticket 03 — implementação autorizada e retomada
+
+Base conferida: `604487b9040d78aff89a1e68c2edc6f079a39a89`, HEAD recebido nessa base, branch `docs/planejamento-tecnico`, remoto `https://github.com/Kayquebrigadeiro/Exameperto.git`; SHA remoto inicialmente igual. Havia alterações locais incompletas de autenticação, preservadas e corrigidas. Nenhum workflow de deploy local. Autorização atual abrange implementação, commits/revisão e push desta fatia; não autoriza deploy nem próximo ticket.
+
+Não havia provedor de e-mail configurado nas variáveis relevantes do processo ou arquivos locais de ambiente. Implementado adaptador SMTP real, desabilitado por padrão; requisitos exatos e procedimento de homologação em [CONTA-EMAIL](CONTA-EMAIL.md). Nenhuma mensagem real enviada, serviço contratado ou credencial incluída no Git/chat. Privacidade permanece bloqueada por padrão.
+
+Implementados confirmação/reenvio com tokens aleatórios de 256 bits, hash/prazo/consumo único; sessão JWT com consulta de revogação no banco, refresh rotativo e revogação da família em replay/logout; recuperação genérica em fila sem tokens persistidos e troca de senha com revogação de todas as sessões. Locks de conta serializam consumo/renovação/reset; revogação por replay persiste apesar do 401. Origin/CSRF web, separação mobile/cookie, limites de IP/conta, cifra e HMAC com chaves externas independentes. Cadastro preserva rollback sem efeitos parciais na ausência/falha SMTP e bloqueio por política de 03A. Web contém os fluxos e explicita que e-mail confirmado não equivale a identidade, elegibilidade ou entregador/veículo verificados.
+
+Verificações executadas nesta rodada:
+
+- Suíte `mvn -f backend/pom.xml test`: 16 testes executados, zero falhas; BrowserFlowTest é opt-in e fica ignorado nessa execução. PostgreSQL 17.6/Testcontainers real, bancos sintéticos descartáveis. Confirmação e recuperação concorrentes/expiradas/reutilizadas, refresh concorrente/reutilizado/expirado, access expirado, logout, reset versus refresh, CSRF inválido/ausente e Origin, reenvio limitado, rate limit e rejeição de privilégios. Falha de transporte e respostas genéricas verificadas; testes 03A preservados.
+- `PersistenceRestartTest`: encerrou e reiniciou aplicação contra o mesmo PostgreSQL isolado; conta confirmada continuou autenticável. `SmtpFailureTest`: adaptador JavaMail real contra conexão local indisponível retornou 503, sem conta/desafio/sessão/outbox parcial.
+- Build TypeScript/Vite passou. Dois testes Playwright de apresentação do erro e Axe passaram; o primeiro intercepta o POST e não comprova integração.
+- `mvn -f backend/pom.xml -Dtest=BrowserFlowTest -DbrowserTest=true test`: passou com um ensaio Chromium → Vite → backend HTTP real → PostgreSQL descartável, sem interceptar API. Cadastro, confirmação, login web, cookie Secure/HttpOnly, renovação, logout, recuperação, nova senha e indisponibilidade passaram. Fronteira de e-mail substituída exclusivamente em código de teste, com capturas temporárias removidas no fechamento. Não é homologação de entrega real.
+- OpenAPI válido; 79 operações, 925 referências internas resolvidas, YAML sem duplicatas, 94 links locais verificados. Diagramas Mermaid e revisão final registrados no fechamento. `git diff --check` passou.
+
+Durante a retomada foram corrigidos caminho duplicado no teste existente, rollback indevido da revogação, ausência de serialização e CSRF superficial. No primeiro ensaio de navegador, a herança de stdout do subprocesso corrompeu o protocolo do Surefire apesar do teste passar; saída foi redirecionada a artefato ignorado e a execução repetida com sucesso. Contextos Spring agora fecham antes de remover bancos de teste, evitando consultas do agendador após teardown. Nenhum desses ensaios utilizou dados de pessoas reais.
+
+Bloqueio externo: SMTP **ainda não homologado**. Faltam configuração privada, remetente autorizado, política pertinente validada, endereço controlado pelo autor e autorização específica para envios. 202 de recuperação/reenvio significa solicitação recebida, não e-mail enviado; falhas ficam RECONCILIAR. Aceitação SMTP tampouco comprova recebimento. Limites por processo, retenção/expurgo, rotação operacional de chaves e observação de bounces estão explicitados em CONTA-EMAIL; não há declaração de prontidão para produção.
+
+Próxima ação desta rodada: commit local, revisão code-review em Standards/Spec contra a base, correções e push na branch conferida. Depois, apenas configurar/autorizar o ensaio de e-mail real; não iniciar ticket seguinte ou deploy.

@@ -1,0 +1,54 @@
+import { test, expect } from '@playwright/test';
+import { readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
+test.skip(!process.env.TEST_MAILBOX, 'Run through BrowserFlowTest with disposable PostgreSQL and test email boundary.');
+
+test('navegador → backend → PostgreSQL: confirmação, sessão, recuperação e indisponibilidade', async ({ page, context }) => {
+  const mailbox = process.env.TEST_MAILBOX!;
+  const choose = async (name: string) => page.getByRole('button', { name, exact: true }).first().click();
+  const submit = async () => page.locator('button[type=submit]').click();
+  const message = async (name: string) => {
+    let token = '';
+    await expect.poll(async () => { token = await readFile(join(mailbox, name), 'utf8').catch(() => ''); return token.length; }).toBe(43);
+    return token;
+  };
+  await page.goto('/');
+  await page.getByLabel('Nome completo').fill('Conta Sintética Navegador');
+  await page.getByLabel('E-mail', { exact: true }).fill('browser@example.test');
+  await page.getByLabel('Senha', { exact: true }).fill('Senha-sintetica-123');
+  await submit();
+  await expect(page.getByRole('alert')).toContainText('Solicitação recebida');
+  await choose('Confirmar e-mail');
+  await page.getByLabel('Código recebido por e-mail').fill(await message('confirmation'));
+  await submit(); await expect(page.getByRole('alert')).toContainText('E-mail confirmado');
+  await choose('Entrar');
+  await page.getByLabel('E-mail', { exact: true }).fill('browser@example.test');
+  await page.getByLabel('Senha', { exact: true }).fill('Senha-sintetica-123');
+  await submit(); await expect(page.getByRole('alert')).toContainText('Sessão iniciada');
+  const cookie = (await context.cookies()).find(c => c.name === 'refresh');
+  expect(cookie?.httpOnly).toBe(true); expect(cookie?.secure).toBe(true);
+  expect(await page.evaluate(() => localStorage.length + sessionStorage.length)).toBe(0);
+  await page.getByRole('button', { name: 'Renovar sessão' }).click();
+  await expect(page.getByRole('alert')).toHaveText('Sessão renovada.');
+  await page.getByRole('button', { name: 'Sair', exact: true }).click();
+  await expect(page.getByRole('alert')).toHaveText('Sessão encerrada no servidor.');
+  await choose('Recuperar acesso');
+  await page.getByLabel('E-mail', { exact: true }).fill('browser@example.test');
+  await submit(); await expect(page.getByRole('alert')).toContainText('não confirma envio');
+  await choose('Trocar senha');
+  await page.getByLabel('Código recebido por e-mail').fill(await message('recovery'));
+  await page.getByLabel('Nova senha').fill('Nova-senha-sintetica-123');
+  await submit(); await expect(page.getByRole('alert')).toContainText('Todas as sessões foram revogadas');
+  await choose('Entrar');
+  await page.getByLabel('E-mail', { exact: true }).fill('browser@example.test');
+  await page.getByLabel('Senha', { exact: true }).fill('Nova-senha-sintetica-123');
+  await submit(); await expect(page.getByRole('alert')).toContainText('Sessão iniciada');
+  await writeFile(join(mailbox, 'unavailable'), 'test-only');
+  await choose('Solicitar cadastro');
+  await page.getByLabel('Nome completo').fill('Outro Cadastro Sintético');
+  await page.getByLabel('E-mail', { exact: true }).fill('blocked-browser@example.test');
+  await page.getByLabel('Senha', { exact: true }).fill('Senha-sintetica-123');
+  await submit(); await expect(page.getByRole('alert')).toContainText('indisponível');
+  await expect(page.getByRole('alert')).not.toContainText('Solicitação recebida');
+});

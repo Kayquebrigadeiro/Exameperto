@@ -1,6 +1,6 @@
 # Arquitetura
 
-Status: desenho inicial, anterior à implementação. Stack escolhida pelo autor em 29/09/2026.
+Status: conta básica implementada em 03A/03; demais módulos seguem como desenho inicial. Stack escolhida pelo autor em 29/09/2026.
 
 ## Organização
 
@@ -124,3 +124,7 @@ A publicação da documentação no GitHub está autorizada nesta etapa, em bran
 ## Direções adotadas em 30/09/2026
 
 [D01–D12](DECISOES-PENDENTES.md) distinguem arquitetura adotada, política operacional pendente e integração indisponível. Primeiro marco: versão funcional validada localmente, sem piloto presumido. Cadastro/segurança independem de programa subsidiado. Particular e subsidiado exigem habilitação real própria. Biometria adiada; seleção por requisitos/custo total, sem orçamento ou compra autorizada. Nenhuma unidade confirmada. Após retirada, custódia e retorno precisam de protocolo e cobertura; cancelamento não garante frete integral no aceite.
+
+## Fatia de conta implementada
+
+Backend/React, Flyway V1/V2 e PostgreSQL cobrem conta básica, confirmação, sessão e recuperação; [operação de e-mail](CONTA-EMAIL.md) descreve SMTP real, fila sem tokens persistidos e limitações. Não há adaptador simulado no código de produção. Integração real continua sem homologação. Nenhum próximo módulo ou deploy foi iniciado.

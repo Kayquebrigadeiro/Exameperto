@@ -116,3 +116,11 @@ D09 define hipóteses de ensaio (15 s captura, 60 s stale, oito pontos/dois minu
 Política ausente: `422 POLICY_UNDEFINED`; integração indisponível: `503 INTEGRATION_UNAVAILABLE`. Falta de MFA verificado: `403 MFA_REQUIRED`; dupla revisão sem responsável independente: `422 POLICY_UNDEFINED`, sem bypass. Biometria adiada, fornecedores avaliados por requisitos/custo total, sem compra autorizada. Operação real exige responsável e política, mesmo particular; particular dispensa programa subsidiado. Versão local e 03A usam testes sintéticos isolados sem habilitar dados reais.
 
 D04/D06: unidade deve aceitar procedimento e retorno; destinatário é paciente ou familiar RECEBIMENTO vigente. Antes da retirada, cancelamento registra interrupção e preserva cobertura para apurar serviço; após retirada mantém custódia e retorno com cobertura até destino comprovado. Valores, multas e responsabilidades continuam sem aprovação.
+
+## Evidência e limites do ticket 03
+
+Conta básica implementada; ver [configuração, controles e homologação](CONTA-EMAIL.md). Access HS256 com emissor/audiência/expiração e consulta de sessão/conta em cada requisição; refresh rotativo com revogação transacional, CSRF vinculado ao cookie e Origin exato. Papéis privilegiados continuam indisponíveis. Campos extras são rejeitados; limites de IP/rota, globais e por chave de conta precedem trabalho sensível. HMAC de busca e cifra têm chaves externas distintas; segredos não são logados.
+
+Respostas de recuperação/reenvio são genéricas: 202 apenas aceita a solicitação; envio ocorre em fila interna sem segredo persistido. Falha de transporte fica RECONCILIAR, sem alegar entrega. Ausência de configuração é 503 para qualquer endereço. Cadastro mantém rollback integral na falha SMTP. Confirmação não comprova identidade, benefício, entregador ou veículo.
+
+Limites técnicos: rate limit por processo, sem coordenação entre réplicas; rotação operacional de chaves, retenção validada, monitoramento/bounces e homologação do provedor ainda pendentes. Não declarar conformidade ou segurança universal com base nos testes desta fatia.

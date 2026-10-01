@@ -12,9 +12,9 @@ test('mostra indisponibilidade da API sem declarar cadastro ou envio concluído'
   await page.getByLabel('Nome completo').fill('Pessoa de Teste');
   await page.getByLabel('E-mail').fill('formulario@example.test');
   await page.getByLabel('Senha').fill('Somente-teste-123');
-  await page.getByRole('button', { name: 'Solicitar cadastro' }).click();
-  await expect(page.getByRole('alert')).toContainText('serviço de e-mail');
-  await expect(page.getByRole('alert')).toContainText('Nenhuma conta foi criada');
+  await page.locator('button[type=submit]').click();
+  await expect(page.getByRole('alert')).toContainText('e-mail');
+  await expect(page.getByRole('alert')).toContainText('Não foi possível concluir');
 });
 
 test('formulário não apresenta violações básicas de acessibilidade', async ({ page }) => {
