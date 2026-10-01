@@ -47,7 +47,7 @@ docker compose -f infra/compose.yaml up -d
 export DATABASE_PASSWORD="$EXAME_PERTO_POSTGRES_PASSWORD"
 ```
 
-O backend inicia com `mvn -f backend/pom.xml spring-boot:run`; a web inicia com `npm install && npm run dev --prefix web`. O cadastro permanece bloqueado até existir um adaptador de e-mail real e uma política de privacidade aprovada; não há conta de demonstração nem entrega simulada.
+O backend inicia com `mvn -f backend/pom.xml spring-boot:run`; a web prepara dependências com `npm ci --prefix web` e inicia com `npm run dev --prefix web`. O cadastro permanece bloqueado até existir um adaptador de e-mail real e uma política de privacidade aprovada; não há conta de demonstração nem entrega simulada.
 
 ## Regras centrais
 

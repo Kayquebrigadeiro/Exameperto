@@ -28,10 +28,10 @@ public class RegistrationService {
     }
 
     public void register(RegistrationRequest request, String clientKey) {
-        if (!privacyApproved) throw error(HttpStatus.UNPROCESSABLE_ENTITY, "POLICY_UNDEFINED",
-            "O cadastro está temporariamente indisponível enquanto a política de privacidade não estiver validada.", false);
         if (!allow(clientKey)) throw error(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMITED",
             "Tente novamente mais tarde.", true);
+        if (!privacyApproved) throw error(HttpStatus.UNPROCESSABLE_ENTITY, "POLICY_UNDEFINED",
+            "O cadastro está temporariamente indisponível enquanto a política de privacidade não estiver validada.", false);
         if (!emailGateway.configured()) throw error(HttpStatus.SERVICE_UNAVAILABLE, "INTEGRATION_UNAVAILABLE",
             "O serviço de e-mail não está disponível. Nenhuma conta foi criada.", true);
         // 03A intentionally has no success path: a real provider and the full account flow belong to ticket 03.
