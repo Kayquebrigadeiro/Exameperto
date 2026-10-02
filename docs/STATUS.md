@@ -109,4 +109,12 @@ Durante a retomada foram corrigidos caminho duplicado no teste existente, rollba
 
 Bloqueio externo: SMTP **ainda não homologado**. Faltam configuração privada, remetente autorizado, política pertinente validada, endereço controlado pelo autor e autorização específica para envios. 202 de recuperação/reenvio significa solicitação recebida, não e-mail enviado; falhas ficam RECONCILIAR. Aceitação SMTP tampouco comprova recebimento. Limites por processo, retenção/expurgo, rotação operacional de chaves e observação de bounces estão explicitados em CONTA-EMAIL; não há declaração de prontidão para produção.
 
-Próxima ação desta rodada: commit local, revisão code-review em Standards/Spec contra a base, correções e push na branch conferida. Depois, apenas configurar/autorizar o ensaio de e-mail real; não iniciar ticket seguinte ou deploy.
+### Fechamento do ticket 03 — 02/10/2026
+
+Revisão local contra `604487b` concluída sem achados materiais pendentes; critérios verificáveis do ticket foram marcados. A suíte Maven foi repetida em Java 21 com PostgreSQL 17.6/Testcontainers: 17 testes descobertos, 16 executados com sucesso e o `BrowserFlowTest` opt-in ignorado nessa execução. Build web passou; Playwright comum teve dois testes aprovados e o ensaio completo ignorado por desenho. O ensaio opt-in foi então executado separadamente e passou: Chromium → Vite → backend HTTP → PostgreSQL real descartável, sem interceptação da API da aplicação.
+
+OpenAPI 3.0.3 passou em `openapi-spec-validator 0.7.2`; YAML sem chaves duplicadas, 79 `operationId` únicos, 925 referências internas resolvidas e 96 links Markdown rastreados existentes. Onze blocos Mermaid passaram em `mermaid.parse` 12.0.0 com jsdom, sem inspeção visual. `git diff --check` passou. Todos os dados dos testes foram sintéticos e isolados.
+
+Bloqueio remanescente: entrega real de e-mail não homologada. Para o ensaio próprio ainda são necessários provedor SMTP escolhido, host/porta, credencial privada, remetente verificado, três chaves privadas independentes, política pertinente habilitada, origem web, PostgreSQL autorizado, endereço controlado pelo autor e autorização específica do envio. Valores permanecem fora do Git e do chat. Aceitação SMTP e recebimento devem ser comprovados separadamente conforme [CONTA-EMAIL](CONTA-EMAIL.md).
+
+Próxima ação permitida: somente configurar e autorizar o ensaio de e-mail real do ticket 03. Ticket 04 e deploy não foram iniciados.

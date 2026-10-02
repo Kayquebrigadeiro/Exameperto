@@ -73,3 +73,11 @@ Revisão local complementar explicitou vínculo de documentos operacionais ao pe
 **Zero achados materiais** na primeira revisão e na conferência do conjunto corrigido. D01–D12 propagadas, particular separado de subsídio, cadastro/segurança sem financiador obrigatório, 03A com aceite verificável de validação/bloqueio local e sem alegar cadastro completo ou marco funcional inteiro. Sem autorização indevida de implementação/deploy ou dependências fictícias.
 
 Fechamento: Standards 1 P1 corrigido, 0 pendentes; Spec 0 achados. Validações documentais efetivas e publicação registradas em STATUS; nenhuma revisão substitui testes de aplicação ou operação real. Este registro e o status de fechamento recebem conferência local de diff/links antes do envio.
+
+## Ticket 03 — revisão de implementação em 02/10/2026
+
+Base `604487b9040d78aff89a1e68c2edc6f079a39a89`; revisão local do conjunto até `84ce5c1cb106b6fa8af75d9b65d22eaf147a2ca7`, confrontando ticket, contrato OpenAPI, modelo, segurança e controles preservados de 03A. Nenhuma delegação foi usada nesta rodada.
+
+Foram conferidos token imprevisível com somente hash persistido, prazo e consumo único; serialização de confirmação, recuperação e refresh; revogação da família em replay/logout e de todas as sessões no reset; respostas genéricas; bloqueios de política/configuração; Origin/CSRF; limites; rejeição de propriedades extras; rollback diante da falha SMTP; e ausência de concessão de papéis ou verificações de identidade/elegibilidade/motorista/veículo.
+
+O ensaio Playwright opt-in foi repetido com Chromium, backend HTTP e PostgreSQL 17.6 reais, sem interceptação da API. A fronteira de e-mail permaneceu substituída apenas no teste. A falha do adaptador SMTP real foi exercitada separadamente contra conexão indisponível. Resultado: zero achados materiais pendentes na implementação local; entrega real continua sem homologação e não foi inferida desses testes.

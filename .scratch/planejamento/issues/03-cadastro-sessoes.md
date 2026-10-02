@@ -4,12 +4,12 @@
 
 **Blocked by:** 03A — Cadastro local; 02 apenas para e-mail, privacidade e procedimentos de conta usados nesta fatia
 
-**Status:** ready-for-human — implementação local em validação; homologação de e-mail pendente
+**Status:** ready-for-human — implementação local validada; homologação de e-mail pendente
 
-- [ ] Fatias incluem persistência/migração, REST e tela; fixar versões da stack e ambiente local reproduzível neste primeiro fluxo.
-- [ ] Cadastro não aceita promoção de papel; e-mail/provedor ausente retorna indisponível e UI explica o bloqueio.
-- [ ] Rotação/reutilização de refresh, logout e recuperação revogam sessões conforme contrato; CSRF/Origin e rate limit verificados pela interface pública.
-- [ ] Dados sintéticos só em testes isolados; reinício preserva conta em ambiente de desenvolvimento autorizado, sem seeds predefinidos.
+- [x] Fatias incluem persistência/migração, REST e tela; fixar versões da stack e ambiente local reproduzível neste primeiro fluxo.
+- [x] Cadastro não aceita promoção de papel; e-mail/provedor ausente retorna indisponível e UI explica o bloqueio.
+- [x] Rotação/reutilização de refresh, logout e recuperação revogam sessões conforme contrato; CSRF/Origin e rate limit verificados pela interface pública.
+- [x] Dados sintéticos só em testes isolados; reinício preserva conta no PostgreSQL isolado autorizado, sem seeds predefinidos.
 
 Implementação autorizada pelo autor sobre `604487b9040d78aff89a1e68c2edc6f079a39a89`; trabalho local preexistente retomado. Base de revisão documental: `4ff66bf2332de25e48aa2bc884825b12a8b35f11`.
 
@@ -17,7 +17,7 @@ Implementação autorizada pelo autor sobre `604487b9040d78aff89a1e68c2edc6f079a
 
 D10–D12: cadastro e segurança independem de programa subsidiado. 03A cobre primeiro o bloqueio verificável; este ticket completa persistência de conta, confirmação por e-mail real, login/logout/recuperação e UI. Login básico não libera privilégios sem MFA. Habilitação de dados reais exige os itens pertinentes de 02; não exige concluir contratos de rotas/pagamentos.
 
-- [ ] Verificar os comportamentos e bloqueios acima nas interfaces públicas da fatia, conforme [decisões](../../../docs/DECISOES-PENDENTES.md).
+- [x] Verificar os comportamentos e bloqueios acima nas interfaces públicas da fatia, conforme [decisões](../../../docs/DECISOES-PENDENTES.md).
 
 ## Comments — implementação 03
 
