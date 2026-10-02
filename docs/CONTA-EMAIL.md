@@ -37,6 +37,7 @@ Cookie web: HttpOnly, Secure, SameSite=Lax, Path `/api/v1/auth`. Desenvolvimento
 - Refresh: 256 bits, hash no banco, validade absoluta da família de 30 dias; rotação não estende esse limite. Login/refresh/logout/reset usam lock da conta; reutilização revoga toda a família e esse efeito é commitado mesmo com resposta 401. Logout revoga a família, inclusive sucessor concorrente. Troca de senha revoga todas as sessões e demais desafios de recuperação da conta.
 - CSRF: login WEB exige Origin exato. `GET /auth/csrf` (ou POST equivalente para web same-origin) retorna HMAC associado ao refresh HttpOnly após conferir Origin; refresh/logout WEB exigem esse token em `X-CSRF-Token` e Origin. Valor inventado ou anterior à rotação não serve. MOBILE não aceita cookies nem Origin, e não pode renovar refresh WEB pelo corpo. API não usa sessão HTTP implícita.
 - Limites: 5 pedidos/minuto por IP/rota, 100 globais/minuto e 5 tentativas de login por chave de conta/minuto por processo; caches limitados a 10 mil entradas e sem endereço em claro. Cadastro conserva seu limite próprio de 03A. Os limites em memória reiniciam com o processo e não coordenam réplicas; implantação distribuída permanece fora desta fatia. Reenvio tem limite persistido adicional.
+- Convite familiar: usa o mesmo SMTP real como canal privado. O endereço do destinatário é persistido somente como HMAC; o token aleatório de 256 bits existe em memória durante a chamada e somente seu SHA-256 fica no banco. Sem configuração ou em falha de transporte, a API retorna 503 e toda a transação do convite é revertida. A resposta e as listagens nunca contêm token ou link. Aceitação SMTP continua sem provar recebimento.
 
 Os prazos acima são parâmetros técnicos, não prazos legais de retenção. Política de retenção/expurgo e fatores MFA para privilégios continuam pendentes. Nenhuma rota privilegiada foi habilitada; rotas não implementadas são negadas por padrão.
 
@@ -64,6 +65,8 @@ O capturador é um `@MockBean EmailGateway` compilado somente em `backend/src/te
 Os demais testes Maven usam PostgreSQL descartável e dados sintéticos. `SmtpFailureTest` usa o adaptador JavaMail real contra a porta local indisponível. `PersistenceRestartTest` encerra e reinicia a aplicação contra o mesmo banco isolado e autentica a conta persistida.
 
 O teste de UI original intercepta o POST somente para verificar apresentação do erro; seu resultado não é evidência de integração. O par `BrowserFlowTest` + `account-real.spec.ts` forma a evidência navegador → HTTP → PostgreSQL. Nenhum deles comprova entrega real de e-mail. Logs/resultados gerados ficam em `backend/target` e `web/test-results`, ignorados pelo Git.
+
+O ticket 04 tem verificação completa própria em `./scripts/verify-ticket-04.sh`. `FamilyBrowserFlowTest` orquestra `family-real.spec.ts` com outro diretório temporário (`TEST_FAMILY_MAILBOX`) e captura exclusivamente em `src/test` confirmação e convite. O ensaio percorre duas contas, perfil, convite, aceite, confirmação reautenticada e revogação pelo navegador, backend e PostgreSQL reais. A caixa é removida no fechamento e o JAR recebe a mesma inspeção; isso não homologa entrega externa.
 
 ## Homologação de e-mail pendente
 

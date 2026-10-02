@@ -24,11 +24,11 @@ public class SecurityConfig {
             .addFilterBefore(new br.com.exameperto.identity.AuthRateFilter(limit, globalLimit), UsernamePasswordAuthenticationFilter.class)
             .exceptionHandling(e -> e.authenticationEntryPoint((req,res,ex) -> { res.setStatus(401); res.setContentType("application/json"); res.getWriter().write("{\"code\":\"UNAUTHENTICATED\",\"message\":\"Sessão inválida.\",\"correlationId\":\""+java.util.UUID.randomUUID()+"\",\"retryable\":false}"); }))
             .addFilterBefore(new AccessTokenFilter(auth), UsernamePasswordAuthenticationFilter.class)
-            .authorizeHttpRequests(a -> a.requestMatchers(HttpMethod.GET, "/api/v1/auth/csrf").permitAll().requestMatchers(HttpMethod.POST, "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/verification", "/api/v1/auth/verification/resend", "/api/v1/auth/recovery", "/api/v1/auth/recovery/complete", "/api/v1/auth/refresh", "/api/v1/auth/csrf").permitAll().requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").authenticated().anyRequest().denyAll());
+            .authorizeHttpRequests(a -> a.requestMatchers(HttpMethod.GET, "/api/v1/auth/csrf").permitAll().requestMatchers(HttpMethod.POST, "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/verification", "/api/v1/auth/verification/resend", "/api/v1/auth/recovery", "/api/v1/auth/recovery/complete", "/api/v1/auth/refresh", "/api/v1/auth/csrf").permitAll().requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").authenticated().requestMatchers("/api/v1/me/**", "/api/v1/patients/**", "/api/v1/family-invitations/**").authenticated().anyRequest().denyAll());
         return http.build();
     }
     @Bean CorsConfigurationSource cors(@Value("${registration.allowed-origin:http://localhost:5173}") String origin) {
-        CorsConfiguration config = new CorsConfiguration(); config.setAllowedOrigins(java.util.List.of(origin)); config.setAllowedMethods(java.util.List.of("POST","GET")); config.setAllowedHeaders(java.util.List.of("Content-Type","Authorization","X-CSRF-Token","X-Requested-With","Origin")); config.setAllowCredentials(true);
+        CorsConfiguration config = new CorsConfiguration(); config.setAllowedOrigins(java.util.List.of(origin)); config.setAllowedMethods(java.util.List.of("POST","GET","PUT","DELETE")); config.setAllowedHeaders(java.util.List.of("Content-Type","Authorization","X-CSRF-Token","X-Requested-With","Origin","If-Match","Idempotency-Key")); config.setExposedHeaders(java.util.List.of("ETag")); config.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource(); source.registerCorsConfiguration("/api/**", config); return source;
     }
 }

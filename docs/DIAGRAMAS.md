@@ -110,7 +110,7 @@ erDiagram
   OPERACAO_FINANCEIRA o|--o{ EVENTO_EXTERNO : concilia
 ```
 
-Visão resumida do [modelo físico](MODELO-DADOS.md), ainda sem migração. Restrições planejadas: uma designação ativa por pedido; um orçamento aceito vigente; vínculo de veículo e motorista aprovados; decisão de benefício atribuída ao paciente; programa e reserva da mesma instituição; idempotência dos lançamentos. Pedido pode não usar subsídio, então lançamentos particulares não dependem de reserva. Evidências clínicas e financeiras precisam de acesso restrito e retenção própria.
+Visão resumida do [modelo físico](MODELO-DADOS.md). Conta, sessão, paciente, convite e concessão possuem migrações V1–V3; as demais relações continuam planejadas. Restrições planejadas: uma designação ativa por pedido; um orçamento aceito vigente; vínculo de veículo e motorista aprovados; decisão de benefício atribuída ao paciente; programa e reserva da mesma instituição; idempotência dos lançamentos. Pedido pode não usar subsídio, então lançamentos particulares não dependem de reserva. Evidências clínicas e financeiras precisam de acesso restrito e retenção própria.
 
 ## Estados da entrega
 
@@ -219,19 +219,22 @@ flowchart LR
 
 Timeout não confirma transferência. [Contrato HTTP](../contracts/openapi.yaml) e [permissões/STOMP](SEGURANCA.md) detalham comandos e participantes. O [backlog](../.scratch/planejamento/README.md) mantém as dependências por fatia funcional.
 
-## Convite e confirmação do adulto — D03
+## Convite e confirmação do adulto — D03, implementado no ticket 04
 
 ```mermaid
 flowchart LR
-  P["Paciente adulto reautenticado"] --> C["Convite privado com escopos e expiração"]
-  C --> A["Destinatário autenticado aceita"]
-  A --> F["Paciente confirma expressamente"]
-  F --> G["Concessão vigente"]
-  G --> R["Expiração ou revogação bloqueia acesso"]
+  P["Paciente adulto titular"] --> C["Convite privado: somente hash no PostgreSQL"]
+  C --> E["Canal de e-mail habilitado"]
+  E --> A["Destinatário autenticado aceita uma vez"]
+  A --> F["Paciente reautentica e confirma escopos e prazo"]
+  F --> G["Concessão vigente no PostgreSQL"]
+  G --> Q["Cada operação consulta titular, escopo e vigência"]
+  Q --> R["Expiração ou revogação bloqueia acesso"]
   A --> N["Sem confirmação: nenhum acesso"]
+  C --> X["Canal ausente ou falha: 503 e rollback"]
 ```
 
-Menores e representação legal permanecem fora da cobertura inicial. Documento/foto usa proxy autenticado que reautoriza cada acesso; cópias já recebidas não são apagadas por revogação.
+O perfil permanece com identidade PENDENTE; e-mail, CPF, parentesco, idade ou deficiência não o tornam verificado nem concedem acesso. Menores e representação legal permanecem fora da cobertura inicial. Documento/foto e STOMP são integrações futuras que deverão reautorizar cada acesso/despacho; não foram presumidos nesta implementação.
 
 ## Cancelamento e custódia — D06
 

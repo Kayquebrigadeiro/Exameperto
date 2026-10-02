@@ -1,6 +1,6 @@
 # Segurança, permissões e privacidade
 
-Planejamento revisto em 30/09/2026 conforme D01–D12. Controles abaixo são requisitos a implementar; não representam auditoria aprovada, conformidade jurídica certificada ou integração contratada. [Modelo físico](MODELO-DADOS.md), [OpenAPI](../contracts/openapi.yaml), [backlog](../.scratch/planejamento/README.md).
+Planejamento revisto em 02/10/2026 conforme D01–D12. Conta, sessão e autorização familiar já têm implementação local; os demais controles continuam requisitos. Isso não representa auditoria aprovada, conformidade jurídica certificada ou integração contratada. [Modelo físico](MODELO-DADOS.md), [OpenAPI](../contracts/openapi.yaml), [backlog](../.scratch/planejamento/README.md).
 
 ## Regra de autorização
 
@@ -15,7 +15,7 @@ Negar por padrão. Autenticação não concede identidade verificada nem aprova�
 | Cadastro, login, recuperação | Público; desafio autenticado para confirmação | Sem campo de papel; resposta genérica em cadastro/recuperação; rate limit. Cadastro/recuperação dependentes de e-mail retornam indisponível sem provedor, sem conta/desafio parcial; autenticação de conta já habilitada não exige financiador. |
 | Perfil e sessões | Próprio usuário | Sem enumeração de contas, hashes/tokens nunca retornados em perfil. Logout revoga sessão; recuperação revoga todas. |
 | Criar perfil de paciente | Próprio usuário | CPF único, identidade PENDENTE; não atesta elegibilidade. |
-| Conceder/listar/revogar familiar | P verificado | Paciente da concessão deve ser o titular; F não delega nem promove; expiração e escopos explícitos. Convite privado ao destinatário, aceite autenticado e confirmação reautenticada do paciente adulto; aceite sozinho não concede acesso. Expiração/revogação efetivas. Menores e representação legal fora deste primeiro recorte. |
+| Conceder/listar/revogar familiar | P adulto titular | O perfil pode manter identidade PENDENTE, sem converter e-mail, CPF ou nascimento em verificação. F não delega nem promove; expiração e escopos são explícitos. Convite privado ao destinatário, aceite autenticado e confirmação reautenticada do paciente; aceite sozinho não concede acesso. Expiração/revogação efetivas. Menores e representação legal fora deste primeiro recorte. |
 | Upload de evidências | Dono; F BENEFICIOS/PEDIDOS conforme finalidade; GF para financiamento | Documento pertence ao paciente/programa autorizado. Upload não aprova conteúdo. Identidade do entregador não pode ser enviada por familiar de paciente. |
 | Evidência operacional de retirada/retorno/serviço | E designado ativo ou histórico com apuração pendente; AO atribuído; P/F PEDIDOS quando pertinente | RETIRADA/COMPROVANTE vinculada ao mesmo pedido; leitura por finalidade/participação, sem acesso a documentos de benefício. Históricos só acessam prova mínima necessária à apuração, nunca endereço/GPS/código expirados. |
 | Ler/download de evidências | Dono, F com finalidade concedida, analista atribuído ou GF responsável pelo comprovante | Cada categoria exige finalidade. AO não lê renda/deficiência; AB não lê CNH; GF não lê laudo. AD sem atribuição não lê nenhum desses. |
@@ -67,6 +67,8 @@ OpenAPI cobre HTTP, não o protocolo STOMP. Contrato complementar proposto:
 - Autorizar CONNECT, cada SUBSCRIBE e cada despacho. Sessão expirada/revogada, familiar revogado e tarefa encerrada invalidam assinaturas; descartar mensagens enfileiradas que perderam autorização. Evento terminal pode ser emitido uma vez para participante ainda autorizado antes de encerrar; nenhum GPS após o ponto efetivo de encerramento.
 - Reconnect faz GET autorizado do estado/última posição; eventos duplicados são deduplicados por ID/sequence. Não oferecer histórico irrestrito de GPS. Última posição indica idade/stale; sem ponto real, mostrar indisponível. Limiares de idade, frequência e buffer dependem de medição real e são obrigatórios para habilitar rastreamento.
 - Suspeita de GPS falsificado, precisão ruim ou salto impossível sinaliza revisão; a assinatura do usuário não prova localização física. O sistema não deve declarar prevenção absoluta de spoofing.
+
+Ticket 04 implementa a fronteira HTTP que consulta `autorizacao_paciente` e `autorizacao_escopo` em cada leitura concedida. Módulos futuros de pedidos, benefícios, documentos e rastreamento devem chamar essa mesma decisão dentro da própria operação, após carregar o registro, sem copiar escopos para sessão/JWT. O servidor STOMP ainda não existe; quando implementado, SUBSCRIBE e cada despacho deverão repetir a consulta e encerrar a assinatura após revogação/expiração. Não há alegação de cobertura STOMP nesta fatia.
 
 ## Ameaças e evidências exigidas
 

@@ -53,3 +53,6 @@ security:
 email:
   enabled: ${EXAME_PERTO_EMAIL_ENABLED:false}
   from: ${EXAME_PERTO_EMAIL_FROM:}
+family:
+  invitation-ttl: PT48H
+  maximum-grant-ttl: P90D

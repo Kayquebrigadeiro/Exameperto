@@ -16,6 +16,9 @@ public class RegistrationErrorHandler {
     @ExceptionHandler(AuthService.AuthException.class)
     ResponseEntity<ApiError> auth(AuthService.AuthException ex) { return ResponseEntity.status(ex.getStatusCode()).header("Cache-Control", "no-store").body(ex.body()); }
 
+    @ExceptionHandler(RepresentationService.RepresentationException.class)
+    ResponseEntity<ApiError> representation(RepresentationService.RepresentationException ex) { return ResponseEntity.status(ex.getStatusCode()).header("Cache-Control", "no-store").body(ex.body()); }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ApiError> invalid(MethodArgumentNotValidException ignored) {
         return ResponseEntity.badRequest().body(new ApiError("INVALID_INPUT", "Confira os campos informados.", UUID.randomUUID(), false));

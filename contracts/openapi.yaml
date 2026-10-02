@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: Exame Perto — contrato de planejamento
-  version: 0.3.0
-  description: 'Autenticação implementada no ticket 03; demais operações permanecem planejamento. Autorizar cada ação por papel e registro. Integrações
+  version: 0.4.0
+  description: 'Autenticação e autorização familiar implementadas nos tickets 03–04; demais operações permanecem planejamento. Autorizar cada ação por papel e registro. Integrações
     ausentes retornam 503 INTEGRATION_UNAVAILABLE; política material indefinida retorna 422 POLICY_UNDEFINED. Erros
     principais: INVALID_INPUT, UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, STATE_CONFLICT, FUNDING_INSUFFICIENT, IDEMPOTENCY_CONFLICT,
     ALREADY_ASSIGNED, VERSION_MISMATCH, RATE_LIMITED, LOCATION_STALE. Nomes de rotas em inglês e estados de domínio
@@ -475,8 +475,6 @@ paths:
           $ref: '#/components/responses/Error429'
         '503':
           $ref: '#/components/responses/Error503'
-      parameters:
-      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -518,6 +516,82 @@ paths:
           $ref: '#/components/responses/Error429'
         '503':
           $ref: '#/components/responses/Error503'
+    put:
+      operationId: updatePatient
+      summary: Atualizar o perfil de paciente próprio
+      tags:
+      - me
+      description: Somente titular. Alterar CPF ou nascimento mantém a identidade PENDENTE; não concede elegibilidade.
+      x-permission: Paciente titular
+      parameters:
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatientInput'
+      responses:
+        '200':
+          description: Perfil atualizado
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Patient'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '412':
+          $ref: '#/components/responses/Error412'
+        '428':
+          $ref: '#/components/responses/Error428'
+  /patients/{patientId}:
+    get:
+      operationId: getAccessiblePatient
+      summary: Consultar perfil mínimo próprio ou concedido
+      tags:
+      - patients
+      description: Titular ou familiar com concessão vigente para o escopo informado. A concessão é consultada a cada chamada; terceiro recebe 404.
+      x-permission: Titular ou familiar com escopo vigente
+      parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: scope
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/FamilyScope'
+        description: Obrigatório para familiar; o titular pode omitir.
+      responses:
+        '200':
+          description: Perfil mínimo autorizado
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Patient'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '404':
+          $ref: '#/components/responses/Error404'
   /me/privacy-requests:
     post:
       operationId: requestPrivacy
@@ -564,11 +638,10 @@ paths:
       summary: Conceder representação
       tags:
       - patients
-      description: Somente paciente titular verificado Paciente adulto reautenticado confirma invitationId ACEITO,
-        não expirado, do próprio paciente. Destinatário e escopos derivam do convite; scopes deve coincidir, expiresAt
-        depende de política validada. Consumo único e concessão atômicos. Sem fluxo de representação legal/menores.
-        Aceite sozinho não concede acesso.
-      x-permission: Somente paciente titular verificado
+      description: Paciente adulto titular reautentica com senha e confirma invitationId ACEITO não expirado. Destinatário
+        e escopos derivam do convite; scopes deve coincidir e expiresAt deve ficar no limite configurado. Identidade
+        do perfil permanece independente e pode estar PENDENTE. Consumo e concessão são atômicos. Aceite sozinho não concede acesso.
+      x-permission: Somente paciente titular reautenticado
       responses:
         '201':
           description: Conceder representação
@@ -604,7 +677,6 @@ paths:
         schema:
           type: string
           format: uuid
-      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -695,7 +767,6 @@ paths:
         schema:
           type: string
           format: uuid
-      - $ref: '#/components/parameters/IdempotencyKey'
       - $ref: '#/components/parameters/IfMatch'
   /documents:
     post:
@@ -3205,11 +3276,10 @@ paths:
       operationId: inviteFamily
       summary: Convidar familiar sem conceder acesso
       tags:
-      - planning
-      description: Paciente adulto titular verificado, reautenticado; enviar segredo somente por canal privado habilitado.
-        Sem canal, 503 e nenhum convite emitido. Prazo não configurado, 422.
-      x-permission: Paciente adulto titular verificado, reautenticado; enviar segredo somente por canal privado
-        habilitado. Sem canal, 503 e nenhum convite emitido. Prazo não configurado, 422.
+      - patients
+      description: Paciente adulto titular. O endereço fica protegido e o segredo imprevisível existe só em memória até
+        o envio pelo canal privado. A resposta nunca contém segredo ou link. Sem canal ou em falha, 503 e rollback integral.
+      x-permission: Paciente adulto titular; identidade PENDENTE não é convertida em verificada
       parameters:
       - name: patientId
         in: path
@@ -3217,9 +3287,8 @@ paths:
         schema:
           type: string
           format: uuid
-      - $ref: '#/components/parameters/IdempotencyKey'
       responses:
-        '200':
+        '201':
           description: Convidar familiar sem conceder acesso
           content:
             application/json:
@@ -3253,12 +3322,75 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/FamilyInvitationInput'
+    get:
+      operationId: listFamilyInvitations
+      summary: Listar convites do perfil próprio
+      tags:
+      - patients
+      description: Somente paciente titular. Retorna visão mínima e estado efetivo, sem endereço ou token.
+      x-permission: Paciente titular
+      parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Convites do perfil
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FamilyInvitation'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '404':
+          $ref: '#/components/responses/Error404'
+  /me/family-invitations:
+    get:
+      operationId: listReceivedFamilyInvitations
+      summary: Listar convites vinculados ao e-mail confirmado da conta
+      tags:
+      - me
+      description: Visão privada mínima; não retorna token nem endereço do destinatário.
+      x-permission: Destinatário autenticado
+      responses:
+        '200':
+          description: Convites recebidos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FamilyInvitation'
+        '401':
+          $ref: '#/components/responses/Error401'
+  /me/family-authorizations:
+    get:
+      operationId: listEffectiveFamilyAuthorizations
+      summary: Listar concessões familiares vigentes da conta
+      tags:
+      - me
+      description: Consulta PostgreSQL em cada chamada; exclui revogadas e expiradas mesmo com sessão ainda válida.
+      x-permission: Familiar destinatário da concessão vigente
+      responses:
+        '200':
+          description: Concessões vigentes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrantPage'
+        '401':
+          $ref: '#/components/responses/Error401'
   /family-invitations/{invitationId}:
     get:
       operationId: getFamilyInvitation
       summary: Consultar convite privado
       tags:
-      - planning
+      - patients
       description: Paciente titular ou destinatário autenticado de e-mail verificado; terceiro recebe 404.
       x-permission: Paciente titular ou destinatário autenticado de e-mail verificado; terceiro recebe 404.
       parameters:
@@ -3302,7 +3434,7 @@ paths:
       operationId: acceptFamilyInvitation
       summary: Aceitar convite sem ativar concessão
       tags:
-      - planning
+      - patients
       description: Somente destinatário autenticado, e-mail verificado e token válido. If-Match do convite; expiração
         checada sob lock. Paciente ainda deve confirmar em grants.
       x-permission: Somente destinatário autenticado, e-mail verificado e token válido. If-Match do convite; expiração
@@ -3314,7 +3446,6 @@ paths:
         schema:
           type: string
           format: uuid
-      - $ref: '#/components/parameters/IdempotencyKey'
       - $ref: '#/components/parameters/IfMatch'
       responses:
         '200':
@@ -3360,7 +3491,7 @@ paths:
       operationId: revokeFamilyInvitation
       summary: Revogar convite pendente
       tags:
-      - planning
+      - patients
       description: Paciente titular; If-Match do convite PENDENTE/ACEITO. Convite CONFIRMADO exige revogar grant
         correspondente; não deixa concessão ativa silenciosamente.
       x-permission: Paciente titular; If-Match do convite PENDENTE/ACEITO. Convite CONFIRMADO exige revogar grant
@@ -3372,7 +3503,6 @@ paths:
         schema:
           type: string
           format: uuid
-      - $ref: '#/components/parameters/IdempotencyKey'
       - $ref: '#/components/parameters/IfMatch'
       responses:
         '200':
@@ -3861,6 +3991,13 @@ components:
       - email
       - status
       - version
+    FamilyScope:
+      type: string
+      enum:
+      - PEDIDOS
+      - BENEFICIOS
+      - RASTREAMENTO
+      - RECEBIMENTO
     PatientInput:
       type: object
       additionalProperties: false
@@ -3915,10 +4052,16 @@ components:
         invitationId:
           type: string
           format: uuid
+        password:
+          type: string
+          format: password
+          maxLength: 128
+          writeOnly: true
       required:
       - scopes
       - expiresAt
       - invitationId
+      - password
     Grant:
       type: object
       additionalProperties: false
@@ -5522,8 +5665,7 @@ components:
       required:
       - recipientEmail
       - scopes
-      description: Paciente adulto titular verificado; nenhum escopo pré-selecionado. Expiração definida por política
-        validada, não pelo destinatário.
+      description: Paciente adulto titular; nenhum escopo pré-selecionado. A identidade do perfil continua separada.
     FamilyInvitation:
       type: object
       additionalProperties: false
@@ -5572,8 +5714,8 @@ components:
       properties:
         token:
           type: string
-          minLength: 32
-          maxLength: 512
+          minLength: 43
+          maxLength: 43
           writeOnly: true
       required:
       - token

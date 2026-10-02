@@ -1,6 +1,6 @@
 # Arquitetura
 
-Status: conta básica implementada em 03A/03; demais módulos seguem como desenho inicial. Stack escolhida pelo autor em 29/09/2026.
+Status: conta básica e autorização familiar implementadas em 03A/03/04; demais módulos seguem como desenho inicial. Stack escolhida pelo autor em 29/09/2026.
 
 ## Organização
 
@@ -125,6 +125,6 @@ A publicação da documentação no GitHub está autorizada nesta etapa, em bran
 
 [D01–D12](DECISOES-PENDENTES.md) distinguem arquitetura adotada, política operacional pendente e integração indisponível. Primeiro marco: versão funcional validada localmente, sem piloto presumido. Cadastro/segurança independem de programa subsidiado. Particular e subsidiado exigem habilitação real própria. Biometria adiada; seleção por requisitos/custo total, sem orçamento ou compra autorizada. Nenhuma unidade confirmada. Após retirada, custódia e retorno precisam de protocolo e cobertura; cancelamento não garante frete integral no aceite.
 
-## Fatia de conta implementada
+## Fatias de identidade implementadas
 
-Backend/React, Flyway V1/V2 e PostgreSQL cobrem conta básica, confirmação, sessão e recuperação; [operação de e-mail](CONTA-EMAIL.md) descreve SMTP real, fila sem tokens persistidos e limitações. Não há adaptador simulado no código de produção. Integração real continua sem homologação. Nenhum próximo módulo ou deploy foi iniciado.
+Backend/React, Flyway V1–V3 e PostgreSQL cobrem conta básica, confirmação, sessão, recuperação, perfil mínimo do paciente, convite privado, aceite, confirmação reautenticada, expiração e revogação familiar. [Operação de e-mail](CONTA-EMAIL.md) descreve SMTP real e limitações. Não há adaptador simulado no código de produção. Integração real continua sem homologação; convite também retorna 503 e faz rollback sem esse canal. Pedidos, benefícios, documentos e STOMP ainda não foram implementados e devem integrar a consulta de concessão por registro/escopo quando forem autorizados. Nenhum deploy ou próximo ticket foi iniciado.
