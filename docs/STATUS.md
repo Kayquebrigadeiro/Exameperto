@@ -134,3 +134,19 @@ Próximo ticket lido, sem implementação: [04 — paciente concede e revoga rep
 Critérios previstos: persistência/API/UI do perfil e das concessões; expiração e seleção segura da conta; negação de paciente alheio, autoconcessão, delegação e concessão expirada/revogada; ponto efetivo e teste PostgreSQL da revogação concorrente; consumo único do convite e perda de acesso REST/STOMP após revogação. Dependências: ticket 03 localmente validado, decisão humana do ticket 01 sobre responsável e prazos do convite/concessão, política de dados reais e canal privado habilitado para a entrega do convite.
 
 Sem SMTP homologado podem avançar, após autorização própria do ticket 04: migrações e estado do perfil/convite/concessão; autorização por titular/registro/escopo; listagem e revogação; bloqueios por política/canal ausente; UI; e testes isolados de expiração, uso único, aceite sem concessão e concorrência. O envio real do convite e sua homologação permanecem bloqueados pelo canal privado. Nenhuma parte do ticket 04 foi implementada nesta rodada.
+
+## Ticket 04 — implementação autorizada e fechamento — 02/10/2026
+
+Autorização recebida para implementar a partir de `b33acfa19655cc77fd20315c429e732994813732`, na branch `docs/planejamento-tecnico`, sem deploy e sem iniciar o ticket 05. A implementação local foi concluída preservando `referencia.md` fora do Git.
+
+Implementados perfil mínimo de paciente com identidade pendente e atualização exclusiva do titular; convite privado vinculado ao destinatário por HMAC, token aleatório com somente o hash persistido, expiração e uso único; aceite pela própria conta autenticada; confirmação do paciente com reautenticação; escopos explícitos, prazo máximo, revogação imediata e reavaliação no banco em cada operação protegida. A interface web permite consultar e administrar perfil, convites e concessões com mensagens acessíveis, sem expor token/link. Falha ou indisponibilidade do canal retorna `503 INTEGRATION_UNAVAILABLE` e não deixa convite utilizável nem concessão ativa.
+
+Os pontos de integração futuros (pedidos, benefícios, documentos e assinaturas/STOMP) estão documentados em arquitetura, segurança e diagramas; nenhum módulo futuro foi presumido como implementado. Parentesco, idade, deficiência, menores e representação legal não concedem acesso neste recorte.
+
+Evidências de validação:
+
+- `./scripts/verify-ticket-04.sh` passou integralmente: suíte Maven com 25 testes descobertos (23 na execução principal e 2 opt-in executados separadamente), zero falhas; build web; dois testes Playwright de UI; fluxo integrado do ticket 03; fluxo integrado do ticket 04; empacotamento e inspeção do JAR sem classes/identificadores do capturador.
+- `RepresentationFlowTest` passou com 7 testes, incluindo acesso indevido, destinatário divergente, convite expirado/reutilizado/encaminhado, concorrência, escopos e revogação com sessão aberta. O fluxo de navegador usou Chromium → Vite → backend HTTP real → PostgreSQL 17.6/Testcontainers, com dados sintéticos e sem interceptação da API.
+- `contracts/openapi.yaml` passou em `openapi-spec-validator 0.9.0`; `bash -n` dos scripts e `git diff --check` passaram. O capturador de convite/confirmação existe somente em `src/test`, usa caixa temporária descartável e não homologa entrega externa de e-mail.
+
+Limitações e bloqueios: SMTP real continua desabilitado e não homologado; não houve envio externo, deploy ou uso de dados pessoais reais. A próxima ação humana, se desejada, é revisar/homologar o canal privado de e-mail conforme `docs/CONTA-EMAIL.md`; não iniciar o ticket 05.
