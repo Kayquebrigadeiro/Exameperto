@@ -24,3 +24,5 @@ D10–D12: cadastro e segurança independem de programa subsidiado. 03A cobre pr
 Implementados conta pendente, desafios de confirmação/reenvio, login, access JWT, refresh rotativo, logout, recuperação e telas. Mantidos bloqueios de política/integração e rejeição de privilégios de 03A. Sem concessão de identidade/elegibilidade/entregador verificados. Contrato, modelo e diagrama atualizados juntos.
 
 Evidências e resultados finais: [STATUS](../../../docs/STATUS.md). Configuração e limites: [conta e e-mail](../../../docs/CONTA-EMAIL.md). Provedor não configurado no ambiente recebido; SMTP implementado, mas entrega real ainda não homologada. Ensaio real depende de configuração privada, endereço controlado pelo autor e autorização de envio. Não iniciar o ticket 04 nem deploy.
+
+02/10/2026 — Fechamento de validação: `./scripts/verify-ticket-03.sh` reúne suíte Maven, build web, Playwright de UI, ensaio integrado opt-in e conferência do JAR; o comando passou nesta rodada. `BrowserFlowTest` orquestra o `account-real.spec.ts`; o capturador de códigos existe somente no código de teste. SMTP externo permanece separado, sem execução nesta rodada.

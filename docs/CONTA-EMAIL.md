@@ -43,16 +43,27 @@ Os prazos acima são parâmetros técnicos, não prazos legais de retenção. Po
 ## Verificação reproduzível
 
 ```sh
-mvn -f backend/pom.xml test
-npm ci --prefix web
-npm run build --prefix web
-npm run test --prefix web -- tests/registration.spec.ts
-mvn -f backend/pom.xml -Dtest=BrowserFlowTest -DbrowserTest=true test
+./scripts/verify-ticket-03.sh
 ```
 
-Java 21, Docker e Chromium do Playwright são pré-requisitos. Instale o navegador com `cd web` e `npx playwright install chromium` se necessário. Os testes Maven usam PostgreSQL 17.6 descartável e dados sintéticos. O teste `BrowserFlowTest` cria backend real em porta aleatória, inicia Vite na porta 5187 e executa o Playwright; usa capturador de e-mail só no código de teste e remove seu diretório temporário ao terminar. A API da aplicação não é interceptada. `SmtpFailureTest` usa o adaptador SMTP real contra porta local indisponível. `PersistenceRestartTest` encerra e reinicia a aplicação contra o mesmo banco isolado e autentica a conta persistida.
+Java 21, Maven, Docker, Node.js 22.12 ou superior, npm e Chromium do Playwright são pré-requisitos. Instale o navegador com `cd web` e `npx playwright install chromium` se necessário. O script instala exatamente as dependências do lockfile, executa a suíte Maven, build web, os dois testes Playwright de UI, o ensaio integrado e empacota a aplicação. Ao final, confere que classes e identificadores do capturador de teste não entraram no JAR. Ele remove do próprio processo as variáveis SMTP antes de testar; a única conexão SMTP exercitada aponta para `127.0.0.1:1` e comprova indisponibilidade sem envio externo.
 
-O teste de UI original intercepta o POST somente para verificar apresentação do erro; seu resultado não é evidência de integração. O ensaio `account-real.spec.ts` é a evidência navegador → HTTP → PostgreSQL. Nenhum dos dois comprova entrega real de e-mail. Logs/resultados gerados ficam em `backend/target` e `web/test-results`, ignorados pelo Git.
+### Dois níveis opt-in do ensaio integrado
+
+`BrowserFlowTest` é o teste Maven opt-in, ignorado na suíte comum pela condição `@EnabledIfSystemProperty`. Sua finalidade é orquestrar a evidência navegador → backend → PostgreSQL: cria PostgreSQL 17.6 descartável com Testcontainers, inicia o Spring Boot em porta aleatória, disponibiliza uma fronteira de e-mail exclusiva de teste e chama o processo Playwright. Dependências adicionais: Docker acessível, dependências de `web` instaladas, Chromium e porta loopback 5187 livre. Execução isolada:
+
+```sh
+mvn -f backend/pom.xml -Dmaven.repo.local=/tmp/exame-m2 \
+  -Dtest=BrowserFlowTest -DbrowserTest=true test
+```
+
+`web/tests/account-real.spec.ts` é o Playwright opt-in chamado pelo teste Maven. Ele se ignora quando `TEST_MAILBOX` não existe. Quando chamado pelo orquestrador, recebe `API_TARGET` apontando para o backend real e `TEST_MAILBOX` apontando para o diretório temporário. O Vite somente encaminha `/api`; não há interceptação da API. Rodar esse spec diretamente não cria backend, PostgreSQL ou caixa de captura e, por isso, não substitui o comando Maven acima.
+
+O capturador é um `@MockBean EmailGateway` compilado somente em `backend/src/test`. Ele extrai os códigos das chamadas internas do gateway e grava arquivos `confirmation` e `recovery` no diretório temporário; o Playwright apenas os lê para preencher a tela. O teste apaga arquivos e diretório no fechamento. `TEST_MAILBOX`, nomes dos arquivos e código do mock não existem em `backend/src/main` ou `web/src`; nenhum endpoint auxiliar expõe token ou caixa. Na configuração normal, existe somente `MailEmailGateway`, desabilitado por padrão, e sem SMTP configurado os fluxos permanecem indisponíveis. Assim o ensaio comprova o fluxo da aplicação, mas não entrega de e-mail.
+
+Os demais testes Maven usam PostgreSQL descartável e dados sintéticos. `SmtpFailureTest` usa o adaptador JavaMail real contra a porta local indisponível. `PersistenceRestartTest` encerra e reinicia a aplicação contra o mesmo banco isolado e autentica a conta persistida.
+
+O teste de UI original intercepta o POST somente para verificar apresentação do erro; seu resultado não é evidência de integração. O par `BrowserFlowTest` + `account-real.spec.ts` forma a evidência navegador → HTTP → PostgreSQL. Nenhum deles comprova entrega real de e-mail. Logs/resultados gerados ficam em `backend/target` e `web/test-results`, ignorados pelo Git.
 
 ## Homologação de e-mail pendente
 
