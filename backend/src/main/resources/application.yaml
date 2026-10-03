@@ -35,7 +35,9 @@ spring:
       strict-duplicate-detection: true
   servlet:
     multipart:
-      enabled: false
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 11MB
 registration:
   privacy-approved: false
   allowed-origin: http://localhost:5173
@@ -56,3 +58,7 @@ email:
 family:
   invitation-ttl: PT48H
   maximum-grant-ttl: P90D
+storage:
+  private-root: ${EXAME_PERTO_PRIVATE_ROOT:${java.io.tmpdir}/exame-perto-private}
+review:
+  mfa-verifier-enabled: false

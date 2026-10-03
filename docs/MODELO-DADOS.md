@@ -1,6 +1,6 @@
 # Modelo físico PostgreSQL — proposta para revisão
 
-Atualizado em 02/10/2026. Direções D01–D12 incorporadas; políticas e integrações continuam pendentes. `usuario`, `sessao`, `desafio_conta`, `outbox`, `paciente`, `convite_familiar` e tabelas de escopos/concessão estão implementados nas migrações V1–V3; as demais tabelas seguem planejadas. [Glossário](../CONTEXT.md), [contrato HTTP](../contracts/openapi.yaml), [segurança](SEGURANCA.md), [estados e diagramas](DIAGRAMAS.md).
+Atualizado em 02/10/2026. Direções D01–D12 incorporadas; políticas e integrações continuam pendentes. `usuario`, `sessao`, `desafio_conta`, `outbox`, `paciente`, `convite_familiar` e tabelas de escopos/concessão, além da fatia local de `entregador`/`documento`/`revisao_entregador`, estão implementados nas migrações V1–V4; relações operacionais futuras seguem planejadas. [Glossário](../CONTEXT.md), [contrato HTTP](../contracts/openapi.yaml), [segurança](SEGURANCA.md), [estados e diagramas](DIAGRAMAS.md).
 
 ## Convenções físicas
 

@@ -7,6 +7,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
 public class RegistrationErrorHandler {
@@ -19,6 +20,9 @@ public class RegistrationErrorHandler {
     @ExceptionHandler(RepresentationService.RepresentationException.class)
     ResponseEntity<ApiError> representation(RepresentationService.RepresentationException ex) { return ResponseEntity.status(ex.getStatusCode()).header("Cache-Control", "no-store").body(ex.body()); }
 
+    @ExceptionHandler(DelivererService.DelivererException.class)
+    ResponseEntity<ApiError> deliverer(DelivererService.DelivererException ex) { return ResponseEntity.status(ex.getStatusCode()).header("Cache-Control", "no-store").body(ex.body()); }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ApiError> invalid(MethodArgumentNotValidException ignored) {
         return ResponseEntity.badRequest().body(new ApiError("INVALID_INPUT", "Confira os campos informados.", UUID.randomUUID(), false));
@@ -27,6 +31,12 @@ public class RegistrationErrorHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     ResponseEntity<ApiError> malformed(HttpMessageNotReadableException ignored) {
         return ResponseEntity.badRequest().body(new ApiError("INVALID_INPUT", "O corpo da requisição é inválido.", UUID.randomUUID(), false));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    ResponseEntity<ApiError> uploadTooLarge(MaxUploadSizeExceededException ignored) {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).header("Cache-Control", "no-store")
+            .body(new ApiError("FILE_TOO_LARGE", "Arquivo acima do limite permitido.", UUID.randomUUID(), false));
     }
 
     @ExceptionHandler(Exception.class)

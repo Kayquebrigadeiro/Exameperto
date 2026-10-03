@@ -3747,6 +3747,110 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AssessmentReview'
+  /me/deliverer:
+    post:
+      operationId: createDelivererProfile
+      summary: Criar cadastro de entregador
+      description: Cadastro básico persistido como RASCUNHO; não habilita entregas nem aprova identidade profissional.
+      x-permission: Conta autenticada
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/DelivererInput'}}}
+      responses:
+        '201': {description: Cadastro criado, content: {application/json: {schema: {$ref: '#/components/schemas/Deliverer'}}}}
+        '400': {$ref: '#/components/responses/Error400'}
+        '401': {$ref: '#/components/responses/Error401'}
+        '409': {$ref: '#/components/responses/Error409'}
+    put:
+      operationId: updateDelivererProfile
+      summary: Atualizar cadastro de entregador
+      description: Atualização versionada; qualquer alteração volta o cadastro para RASCUNHO.
+      x-permission: Conta autenticada; versão obrigatória
+      security: [{bearerAuth: []}]
+      parameters: [{in: query, name: version, required: true, schema: {type: integer, minimum: 0}}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/DelivererInput'}}}}
+      responses:
+        '200': {description: Cadastro atualizado, content: {application/json: {schema: {$ref: '#/components/schemas/Deliverer'}}}}
+        '400': {$ref: '#/components/responses/Error400'}
+        '401': {$ref: '#/components/responses/Error401'}
+        '412': {$ref: '#/components/responses/Error412'}
+    get:
+      operationId: getOwnDeliverer
+      summary: Consultar cadastro do entregador
+      x-permission: Conta autenticada; próprio cadastro
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Cadastro, content: {application/json: {schema: {$ref: '#/components/schemas/Deliverer'}}}}
+        '404': {$ref: '#/components/responses/Error404'}
+  /me/deliverer/documents:
+    post:
+      operationId: uploadDelivererDocument
+      summary: Enviar comprovação privada
+      description: Multipart limitado a 10 MiB; tipo real PDF/JPEG/PNG validado; objeto recebe nome gerado e entra em QUARENTENA.
+      x-permission: Conta autenticada; próprio entregador
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: {type: object, required: [category, file], properties: {category: {type: string, enum: [IDENTIDADE, HABILITACAO, VEICULO, FOTO_OPERACIONAL]}, file: {type: string, format: binary}}}
+      responses:
+        '201': {description: Documento em quarentena, content: {application/json: {schema: {$ref: '#/components/schemas/Document'}}}}
+        '413': {$ref: '#/components/responses/Error413'}
+        '415': {$ref: '#/components/responses/Error415'}
+        '422': {$ref: '#/components/responses/Error422'}
+    get:
+      operationId: listOwnDelivererDocuments
+      summary: Consultar histórico mínimo de documentos
+      x-permission: Conta autenticada; próprio entregador
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Histórico, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Document'}}}}}
+  /documents/{id}/download:
+    get:
+      operationId: downloadApprovedDocument
+      summary: Baixar documento aprovado por proxy
+      description: Somente o proprietário autorizado; inspeção aprovada obrigatória; resposta no-store e nunca URL direta do objeto.
+      x-permission: Conta autenticada; proprietário e documento aprovado
+      security: [{bearerAuth: []}]
+      parameters: [{in: path, name: id, required: true, schema: {type: string, format: uuid}}]
+      responses:
+        '200': {description: Conteúdo aprovado, headers: {Cache-Control: {schema: {type: string, enum: [no-store]}}}, content: {application/octet-stream: {schema: {type: string, format: binary}}}}
+        '404': {$ref: '#/components/responses/Error404'}
+  /analyst/reviews:
+    get:
+      operationId: listAssignedDelivererReviews
+      summary: Listar fila de revisão
+      description: Metadados mínimos para analista com papel atribuído; documentos permanecem atrás de proxy e reautorização.
+      x-permission: ANALISTA_OPERACIONAL atribuído
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Fila, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Review'}}}}}
+        '403': {$ref: '#/components/responses/Error403'}
+  /analyst/reviews/{id}/assign:
+    post:
+      operationId: assignDelivererReview
+      summary: Atribuir revisão
+      description: Permanece bloqueado até mecanismo MFA validado e analista real; não há conta fictícia ou autoatribuição.
+      x-permission: ANALISTA_OPERACIONAL + MFA
+      security: [{bearerAuth: []}]
+      parameters: [{in: path, name: id, required: true, schema: {type: string, format: uuid}}]
+      responses:
+        '403': {$ref: '#/components/responses/Error403'}
+        '503': {$ref: '#/components/responses/Error503'}
+  /analyst/reviews/{id}/decision:
+    post:
+      operationId: decideDelivererReview
+      summary: Decidir revisão profissional
+      description: Não habilitado sem critérios profissionais, inspeção oficial e MFA verificado no servidor.
+      x-permission: ANALISTA_OPERACIONAL atribuído + MFA + critérios publicados
+      security: [{bearerAuth: []}]
+      parameters: [{in: path, name: id, required: true, schema: {type: string, format: uuid}}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ReviewDecision'}}}}
+      responses:
+        '403': {$ref: '#/components/responses/Error403'}
+        '503': {$ref: '#/components/responses/Error503'}
 components:
   securitySchemes:
     bearerAuth:
@@ -3810,6 +3914,50 @@ components:
       description: Obrigatório em requisições WEB com cookie, além de Origin permitido; omitido em MOBILE sem cookie.
         Falha 403.
   schemas:
+    DelivererInput:
+      type: object
+      additionalProperties: false
+      properties:
+        birthDate: {type: string, format: date}
+      required: [birthDate]
+    Deliverer:
+      type: object
+      additionalProperties: false
+      properties:
+        id: {type: string, format: uuid}
+        status: {type: string, enum: [RASCUNHO, EM_ANALISE, APROVADO, REJEITADO, SUSPENSO]}
+        version: {type: integer, minimum: 0}
+      required: [id, status, version]
+    Document:
+      type: object
+      additionalProperties: false
+      properties:
+        id: {type: string, format: uuid}
+        category: {type: string, enum: [IDENTIDADE, HABILITACAO, VEICULO, FOTO_OPERACIONAL]}
+        mime: {type: string}
+        size: {type: integer, minimum: 1, maximum: 10485760}
+        status: {type: string, enum: [QUARENTENA, INSPECAO_PENDENTE, INSPECAO_APROVADA, REJEITADO, EXPURGADO]}
+        version: {type: integer, minimum: 0}
+      required: [id, category, mime, size, status, version]
+    Review:
+      type: object
+      additionalProperties: false
+      properties:
+        id: {type: string, format: uuid}
+        delivererId: {type: string, format: uuid}
+        documentId: {type: string, format: uuid}
+        analystId: {type: string, format: uuid, nullable: true}
+        status: {type: string, enum: [PENDENTE, ATRIBUIDA, CONCLUIDA, BLOQUEADA]}
+        decision: {type: string, nullable: true}
+        reason: {type: string, nullable: true}
+      required: [id, delivererId, status]
+    ReviewDecision:
+      type: object
+      additionalProperties: false
+      properties:
+        decision: {type: string, enum: [APROVAR, REJEITAR]}
+        reason: {type: string, minLength: 1, maxLength: 80}
+      required: [decision, reason]
     Money:
       type: string
       pattern: ^(0|[1-9][0-9]{0,11})\.[0-9]{2}$

@@ -110,7 +110,24 @@ erDiagram
   OPERACAO_FINANCEIRA o|--o{ EVENTO_EXTERNO : concilia
 ```
 
-Visão resumida do [modelo físico](MODELO-DADOS.md). Conta, sessão, paciente, convite e concessão possuem migrações V1–V3; as demais relações continuam planejadas. Restrições planejadas: uma designação ativa por pedido; um orçamento aceito vigente; vínculo de veículo e motorista aprovados; decisão de benefício atribuída ao paciente; programa e reserva da mesma instituição; idempotência dos lançamentos. Pedido pode não usar subsídio, então lançamentos particulares não dependem de reserva. Evidências clínicas e financeiras precisam de acesso restrito e retenção própria.
+Visão resumida do [modelo físico](MODELO-DADOS.md). Conta, sessão, paciente, convite, concessão e a fatia local de entregador/documento possuem migrações V1–V4; as demais relações continuam planejadas. Restrições planejadas: uma designação ativa por pedido; um orçamento aceito vigente; vínculo de veículo e motorista aprovados; decisão de benefício atribuída ao paciente; programa e reserva da mesma instituição; idempotência dos lançamentos. Pedido pode não usar subsídio, então lançamentos particulares não dependem de reserva. Evidências clínicas e financeiras precisam de acesso restrito e retenção própria.
+
+## Entregador, quarentena e revisão — ticket 05 parcial
+
+```mermaid
+flowchart LR
+  M[App Expo do entregador] -->|sessão MOBILE| A[API autenticada]
+  A --> P[(PostgreSQL V4)]
+  A --> Q[(Armazenamento privado/quarentena)]
+  P --> R[Revisão atribuída]
+  R --> X{MFA + critérios + inspeção oficial}
+  X -->|indisponível| B[BLOQUEADA / sem aprovação]
+  X -->|habilitado futuramente| D[Decisão profissional]
+  A -->|proxy no-store| M
+  W[Painel web do analista] --> R
+```
+
+O armazenamento local privado foi exercitado com dados sintéticos. A inspeção oficial, critérios profissionais, MFA verificável e integração de objeto externo não estão habilitados; portanto o arquivo permanece bloqueado em quarentena e o cadastro não habilita entregas. Foto operacional só poderá ser projeção de documento aprovado, nunca aprovação automática.
 
 ## Estados da entrega
 
