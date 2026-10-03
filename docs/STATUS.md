@@ -150,3 +150,20 @@ Evidências de validação:
 - `contracts/openapi.yaml` passou em `openapi-spec-validator 0.9.0`; `bash -n` dos scripts e `git diff --check` passaram. O capturador de convite/confirmação existe somente em `src/test`, usa caixa temporária descartável e não homologa entrega externa de e-mail.
 
 Limitações e bloqueios: SMTP real continua desabilitado e não homologado; não houve envio externo, deploy ou uso de dados pessoais reais. A próxima ação humana, se desejada, é revisar/homologar o canal privado de e-mail conforme `docs/CONTA-EMAIL.md`; não iniciar o ticket 05.
+
+## Ticket 05 — implementação parcial e fechamento da rodada — 02/10/2026
+
+Autorização recebida a partir de `966c0b2ef74e3bc0dbbaa1e1ebd3cc38f9a02354`, na branch `docs/planejamento-tecnico`, preservando `referencia.md`, sem deploy e sem iniciar o ticket 06.
+
+Implementados: app Expo/React Native do entregador; cadastro persistido em `RASCUNHO`; migração V4 para entregador, documentos, histórico e revisões; API multipart autenticada; armazenamento privado local configurável; quarentena, nomes/chaves gerados, SHA-256, limite de 10 MiB e validação por assinatura real de PDF/JPEG/PNG; substituição com nova revisão e histórico mínimo; download apenas por proxy autenticado, `no-store`, após estado `INSPECAO_APROVADA`; painel web para cadastro, upload e acompanhamento. Cadastro, inspeção e aprovação profissional permanecem estados distintos.
+
+O analista só consulta a fila com papel nominal `ANALISTA_OPERACIONAL`; atribuição/decisão exigem MFA verificado no servidor. Como o verificador MFA, a inspeção oficial, os critérios profissionais e integrações externas não estão disponíveis, essas ações permanecem bloqueadas (`MFA_REQUIRED`/`POLICY_UNDEFINED`), sem aprovação simulada, conta administrativa padrão ou revisor fictício. Foto operacional não é promovida automaticamente.
+
+Evidências:
+
+- `mvn -f backend/pom.xml -Dmaven.repo.local=/tmp/exame-m2 test`: 25 testes existentes, zero falhas, 2 opt-in ignorados; migração V4 validada em PostgreSQL 17.6/Testcontainers.
+- `DelivererEvidenceFlowTest` passou com PostgreSQL/Testcontainers, HTTP real e armazenamento temporário isolado: cadastro, upload real, quarentena, proxy bloqueado/aprovado, acesso indevido por ID, tipo inválido, arquivo excessivo, substituição, fila e bloqueio MFA.
+- `PrivateObjectStoreTest` passou escrevendo, lendo e removendo objeto real com chave gerada. `npm run build --prefix web`, compilação Maven, OpenAPI 3.0.3 e `git diff --check` passaram.
+- Não houve execução em emulador Expo nem aparelho físico; o app foi compilado/inspecionado como código, e não se declara validação mobile ponta a ponta. Dados de documentos foram sintéticos e isolados.
+
+Conclusão: ticket 05 **parcial**, não pronto para aprovação operacional. Dependências para concluir: armazenamento oficial escolhido/homologado, mecanismo de inspeção, critérios profissionais publicados, analista real atribuído, MFA verificável e política de retenção/expurgo. Não apresentar a análise local como consulta oficial. Não iniciar ticket 06 nem deploy.
