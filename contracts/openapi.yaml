@@ -3896,7 +3896,7 @@ paths:
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ReviewDecision'}}}}
       responses:
         '403': {$ref: '#/components/responses/Error403'}
-        '503': {$ref: '#/components/responses/Error503'}
+        '422': {$ref: '#/components/responses/Error422'}
   /analyst/reviews/{id}/inspection:
     post:
       operationId: inspectDelivererFileSafety

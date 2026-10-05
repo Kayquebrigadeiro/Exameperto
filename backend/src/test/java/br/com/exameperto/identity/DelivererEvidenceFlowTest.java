@@ -63,7 +63,7 @@ class DelivererEvidenceFlowTest {
         assertThat(request(analyst,"POST","/analyst/reviews/"+reviewId+"/inspection",null,"application/json").statusCode()).isEqualTo(200);
         var downloaded=request(owner,"GET","/documents/"+id+"/download",null,"application/octet-stream"); assertThat(downloaded.statusCode()).isEqualTo(200); assertThat(downloaded.headers().firstValue("Cache-Control")).contains("no-store"); assertThat(downloaded.body()).isEqualTo(new String(pdf));
         assertThat(request(other,"GET","/documents/"+id+"/download",null,"application/octet-stream").statusCode()).isEqualTo(404);
-        var decision=request(analyst,"POST","/analyst/reviews/"+reviewId+"/decision","{\"decision\":\"APROVAR\",\"reason\":\"synthetic\"}","application/json"); assertThat(decision.statusCode()).isEqualTo(503); assertThat(decision.body()).contains("POLICY_UNDEFINED");
+        var decision=request(analyst,"POST","/analyst/reviews/"+reviewId+"/decision","{\"decision\":\"APROVAR\",\"reason\":\"synthetic\"}","application/json"); assertThat(decision.statusCode()).isEqualTo(422); assertThat(decision.body()).contains("POLICY_UNDEFINED");
         assertThat(request(owner,"POST","/analyst/reviews/"+reviewId+"/decision","{\"decision\":\"APROVAR\"}","application/json").statusCode()).isEqualTo(403);
         var refresh=publicPost("refresh",Map.of("refreshToken",analyst.refresh)); assertThat(refresh.statusCode()).isEqualTo(200);
         Account rotated=new Account(analyst.email,body(refresh).get("accessToken").toString(),body(refresh).get("refreshToken").toString());

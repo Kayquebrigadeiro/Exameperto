@@ -115,7 +115,7 @@ class DelivererService {
     @Transactional
     ReviewView decide(AuthService.SessionPrincipal principal, UUID reviewId, String decision, String reason) {
         UUID analystId=principal.userId(); requireAnalyst(analystId); mfa.requireVerified(principal); assignedReview(reviewId,analystId);
-        throw error(HttpStatus.SERVICE_UNAVAILABLE,"POLICY_UNDEFINED","A aprovação profissional permanece bloqueada até critérios e responsáveis reais serem habilitados.");
+        throw error(HttpStatus.UNPROCESSABLE_ENTITY,"POLICY_UNDEFINED","A aprovação profissional permanece bloqueada até critérios e responsáveis reais serem habilitados.");
     }
 
     InputStream open(String key) { return store.open(key); }
