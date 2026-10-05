@@ -192,3 +192,5 @@ Evidências desta rodada:
 - Opt-in familiar: `mvn -f backend/pom.xml -Dmaven.repo.local=/tmp/exame-m2 -Dtest=FamilyBrowserFlowTest -DbrowserTest=true test`; finalidade autorização/revogação com sessão aberta pelo mesmo caminho; 1 executado, 0 falhas, 0 ignorados.
 
 Não havia `adb`, `emulator` ou `xcrun` no ambiente. O app passou em TypeScript e export Android, mas não foi instalado/executado; o roteiro reproduzível está em `mobile/README.md` e a validação mobile → API → PostgreSQL → armazenamento permanece pendente. O fluxo API → PostgreSQL → armazenamento foi exercitado separadamente e não será apresentado como ponta a ponta móvel.
+
+Fechamento: implementação, testes, contrato e documentação foram revisados no commit `d632eeb698cdbb29612972a837b77c3c744b6fa4`, enviado para `origin/docs/planejamento-tecnico`; o SHA remoto foi conferido. Sem force push ou deploy. Próxima ação técnica do ticket 05: migrar as dependências Expo/React Native com os alertas do audit e executar o roteiro em emulador/aparelho. A conclusão operacional continua dependente de critérios profissionais e responsáveis reais; manter a decisão bloqueada. Não iniciar o ticket 06.
