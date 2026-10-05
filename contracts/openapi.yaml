@@ -3747,6 +3747,50 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AssessmentReview'
+  /me/mfa:
+    get:
+      operationId: getOwnMfaStatus
+      summary: Consultar MFA da sessão privilegiada
+      x-permission: Conta autenticada; próprio fator
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Estado sem segredo, content: {application/json: {schema: {$ref: '#/components/schemas/MfaStatus'}}}}
+        '401': {$ref: '#/components/responses/Error401'}
+  /me/mfa/totp/enrollment:
+    post:
+      operationId: enrollOwnTotp
+      summary: Iniciar configuração TOTP
+      description: Exige capacidade privilegiada nominal e reautenticação por senha. O segredo é retornado uma vez; nova configuração invalida elevações anteriores. Não cria papel nem conta privilegiada.
+      x-permission: Capacidade privilegiada nominal implementada (nesta fatia, AO); própria conta; senha atual
+      security: [{bearerAuth: []}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/MfaPassword'}}}}
+      responses:
+        '200': {description: Segredo pendente e URI de provisionamento, content: {application/json: {schema: {$ref: '#/components/schemas/MfaEnrollment'}}}}
+        '401': {$ref: '#/components/responses/Error401'}
+        '403': {$ref: '#/components/responses/Error403'}
+  /me/mfa/totp/confirmation:
+    post:
+      operationId: confirmOwnTotp
+      summary: Confirmar fator TOTP e elevar a sessão
+      description: Código de uso único por passo, tolerância de um passo e limite de tentativas. Elevação curta fica vinculada à sessão no servidor.
+      x-permission: Capacidade privilegiada nominal implementada (nesta fatia, AO); próprio fator
+      security: [{bearerAuth: []}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/MfaCode'}}}}
+      responses:
+        '200': {description: Fator confirmado, content: {application/json: {schema: {$ref: '#/components/schemas/MfaStatus'}}}}
+        '403': {$ref: '#/components/responses/Error403'}
+        '429': {$ref: '#/components/responses/Error429'}
+  /me/mfa/verification:
+    post:
+      operationId: verifyOwnTotp
+      summary: Elevar sessão com TOTP
+      x-permission: Capacidade privilegiada nominal implementada (nesta fatia, AO); próprio fator confirmado
+      security: [{bearerAuth: []}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/MfaCode'}}}}
+      responses:
+        '200': {description: Sessão elevada, content: {application/json: {schema: {$ref: '#/components/schemas/MfaStatus'}}}}
+        '403': {$ref: '#/components/responses/Error403'}
+        '429': {$ref: '#/components/responses/Error429'}
   /me/deliverer:
     post:
       operationId: createDelivererProfile
@@ -3832,24 +3876,40 @@ paths:
     post:
       operationId: assignDelivererReview
       summary: Atribuir revisão
-      description: Permanece bloqueado até mecanismo MFA validado e analista real; não há conta fictícia ou autoatribuição.
+      description: Exige AO nominal, sessão elevada por MFA e impede revisão do próprio cadastro. O provisionamento do papel permanece fora da API; não há conta fictícia ou promoção pelo cliente.
       x-permission: ANALISTA_OPERACIONAL + MFA
       security: [{bearerAuth: []}]
       parameters: [{in: path, name: id, required: true, schema: {type: string, format: uuid}}]
       responses:
+        '200': {description: Revisão atribuída ao AO autenticado, content: {application/json: {schema: {$ref: '#/components/schemas/Review'}}}}
         '403': {$ref: '#/components/responses/Error403'}
-        '503': {$ref: '#/components/responses/Error503'}
+        '404': {$ref: '#/components/responses/Error404'}
+        '409': {$ref: '#/components/responses/Error409'}
   /analyst/reviews/{id}/decision:
     post:
       operationId: decideDelivererReview
       summary: Decidir revisão profissional
-      description: Não habilitado sem critérios profissionais, inspeção oficial e MFA verificado no servidor.
+      description: Mesmo com MFA e inspeção estrutural concluídos, permanece bloqueado sem critérios profissionais publicados e responsável real. A inspeção do arquivo não autentica o documento.
       x-permission: ANALISTA_OPERACIONAL atribuído + MFA + critérios publicados
       security: [{bearerAuth: []}]
       parameters: [{in: path, name: id, required: true, schema: {type: string, format: uuid}}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ReviewDecision'}}}}
       responses:
         '403': {$ref: '#/components/responses/Error403'}
+        '503': {$ref: '#/components/responses/Error503'}
+  /analyst/reviews/{id}/inspection:
+    post:
+      operationId: inspectDelivererFileSafety
+      summary: Executar inspeção estrutural local do arquivo
+      description: AO nominal atribuído com MFA. Verifica estrutura mínima e bloqueia conteúdo ativo conhecido; não comprova autenticidade documental, habilitação atual nem aprovação profissional.
+      x-permission: ANALISTA_OPERACIONAL atribuído + MFA
+      security: [{bearerAuth: []}]
+      parameters: [{in: path, name: id, required: true, schema: {type: string, format: uuid}}]
+      responses:
+        '200': {description: Inspeção registrada, content: {application/json: {schema: {$ref: '#/components/schemas/Review'}}}}
+        '403': {$ref: '#/components/responses/Error403'}
+        '404': {$ref: '#/components/responses/Error404'}
+        '409': {$ref: '#/components/responses/Error409'}
         '503': {$ref: '#/components/responses/Error503'}
 components:
   securitySchemes:
@@ -3914,6 +3974,30 @@ components:
       description: Obrigatório em requisições WEB com cookie, além de Origin permitido; omitido em MOBILE sem cookie.
         Falha 403.
   schemas:
+    MfaPassword:
+      type: object
+      additionalProperties: false
+      properties: {password: {type: string, minLength: 1, maxLength: 128, writeOnly: true}}
+      required: [password]
+    MfaCode:
+      type: object
+      additionalProperties: false
+      properties: {code: {type: string, pattern: '^[0-9]{6}$', writeOnly: true}}
+      required: [code]
+    MfaEnrollment:
+      type: object
+      additionalProperties: false
+      properties:
+        secret: {type: string, pattern: '^[A-Z2-7]{32}$', writeOnly: true}
+        provisioningUri: {type: string, writeOnly: true}
+      required: [secret, provisioningUri]
+    MfaStatus:
+      type: object
+      additionalProperties: false
+      properties:
+        enrolled: {type: boolean}
+        verifiedForSession: {type: boolean}
+      required: [enrolled, verifiedForSession]
     DelivererInput:
       type: object
       additionalProperties: false

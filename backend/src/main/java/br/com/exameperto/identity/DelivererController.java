@@ -35,8 +35,10 @@ class DelivererController {
     @GetMapping("/me/deliverer/documents") List<DocumentView> documents(Authentication a){return service.documents(user(a));}
     @GetMapping("/documents/{id}/download") ResponseEntity<InputStreamResource> download(Authentication a,@PathVariable UUID id){DelivererService.Download d=service.authorizedDownload(user(a),id);InputStream in=service.open(d.key());return ResponseEntity.ok().contentType(MediaType.parseMediaType(d.mime())).contentLength(d.size()).header(HttpHeaders.CACHE_CONTROL,"no-store").header(HttpHeaders.CONTENT_DISPOSITION,"attachment; filename=arquivo-"+id).body(new InputStreamResource(in));}
     @GetMapping("/analyst/reviews") List<ReviewView> reviews(Authentication a){return service.queue(user(a));}
-    @PostMapping("/analyst/reviews/{id}/assign") ReviewView assign(Authentication a,HttpServletRequest r,@PathVariable UUID id){mutation(a,r);return service.assign(user(a),id);}
-    @PostMapping("/analyst/reviews/{id}/decision") ReviewView decision(Authentication a,HttpServletRequest r,@PathVariable UUID id,@RequestBody Map<String,String> body){mutation(a,r);return service.decide(user(a),id,body.get("decision"),body.get("reason"));}
+    @PostMapping("/analyst/reviews/{id}/assign") ReviewView assign(Authentication a,HttpServletRequest r,@PathVariable UUID id){mutation(a,r);return service.assign(principal(a),id);}
+    @PostMapping("/analyst/reviews/{id}/inspection") ReviewView inspect(Authentication a,HttpServletRequest r,@PathVariable UUID id){mutation(a,r);return service.inspect(principal(a),id);}
+    @PostMapping("/analyst/reviews/{id}/decision") ReviewView decision(Authentication a,HttpServletRequest r,@PathVariable UUID id,@RequestBody Map<String,String> body){mutation(a,r);return service.decide(principal(a),id,body.get("decision"),body.get("reason"));}
     private UUID user(Authentication a){return ((AuthService.SessionPrincipal)a.getDetails()).userId();}
+    private AuthService.SessionPrincipal principal(Authentication a){return (AuthService.SessionPrincipal)a.getDetails();}
     private void mutation(Authentication a,HttpServletRequest r){if("WEB".equals(((AuthService.SessionPrincipal)a.getDetails()).client())&&!origin.equals(r.getHeader("Origin")))throw DelivererService.error(HttpStatus.FORBIDDEN,"FORBIDDEN","Origem inválida.");}
 }

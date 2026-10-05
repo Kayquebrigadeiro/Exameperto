@@ -1,6 +1,6 @@
-# Status — atualizado em 30/09/2026
+# Status — atualizado em 05/10/2026
 
-Situação atual: 03A implementado; ticket 03 autorizado e implementado localmente, com entrega real de e-mail ainda não homologada. Registros abaixo preservam o histórico; ver a seção final para continuidade.
+Situação atual: tickets 03–04 implementados localmente e ticket 05 em continuidade técnica parcial; entrega real de e-mail e aprovação profissional continuam não homologadas. Registros abaixo preservam o histórico; ver a seção final para continuidade.
 
 ## Etapa e artefatos
 
@@ -167,3 +167,28 @@ Evidências:
 - Não houve execução em emulador Expo nem aparelho físico; o app foi compilado/inspecionado como código, e não se declara validação mobile ponta a ponta. Dados de documentos foram sintéticos e isolados.
 
 Conclusão: ticket 05 **parcial**, não pronto para aprovação operacional. Dependências para concluir: armazenamento oficial escolhido/homologado, mecanismo de inspeção, critérios profissionais publicados, analista real atribuído, MFA verificável e política de retenção/expurgo. Não apresentar a análise local como consulta oficial. Não iniciar ticket 06 nem deploy.
+
+## Ticket 05 — continuidade técnica autorizada — 05/10/2026
+
+Base `fd670c8` confirmada em `docs/planejamento-tecnico`, inicialmente igual a `origin/docs/planejamento-tecnico`; remoto do aplicativo confirmado. `referencia.md` permaneceu fora do Git. Ticket 06 não foi iniciado; não houve deploy, contratação ou envio externo de mensagens.
+
+Entregas técnicas: migração V5 e TOTP do AO com segredo cifrado, confirmação/anti-reuso, cinco falhas em 15 minutos, elevação de cinco minutos vinculada à sessão e revogação efetiva; atribuição e inspeção estrutural exigem MFA na própria API. O teste cobre chamada direta sem MFA (403), acesso por conta comum (403), decisão pelo proprietário (403), bloqueio profissional (503) e chamada após logout (401). Não existe bypass, recuperação automática, conta privilegiada padrão ou analista criado em produção; contas/papéis sintéticos aparecem somente no banco descartável de teste.
+
+A inspeção estrutural local verifica fechamento mínimo de PDF/JPEG/PNG e recursos ativos conhecidos de PDF. Ela é uma inspeção limitada de segurança do **arquivo**, não comprovação de autenticidade do **documento** e não aprovação **profissional**. A decisão profissional continua invariavelmente em `503 POLICY_UNDEFINED` até existirem critérios publicados e responsável real. Um fornecedor de autenticidade não foi presumido: integração externa só passa a ser obrigatória se um requisito concreto for aprovado.
+
+Armazenamento local: raiz/quarentena isoladas, chave gerada e caminho normalizado, traversal/symlink recusados, diretórios `0700` e objetos `0600` em POSIX, proxy com autorização por proprietário e `no-store`, além de exclusão física testada. O ensaio local comprova esse adaptador, não operação externa, backups/restauração, retenção/expurgo ou varredura antimalware abrangente. Ausência de objeto externo não invalida o teste local.
+
+Classificação das pendências:
+
+- **Implementação ausente:** decisão profissional/transições de aprovação, projeção de foto aprovada, processo de autenticidade documental e orquestração de retenção/expurgo; provisionamento/recuperação independente de papéis privilegiados.
+- **Implementação existente, não testada em dispositivo:** app Expo, SecureStore/refresh, seleção e upload nativos, erros de rede, quarentena e acompanhamento visual. Typecheck/export não substituem esse ensaio. `npm audit --omit=dev --prefix mobile` encontrou 29 alertas transitivos (21 altos, 8 moderados, 0 críticos); as correções sugeridas implicam mudanças incompatíveis de Expo/React Native, portanto não foram aplicadas sem migração e ensaio em dispositivo.
+- **Dependência externa para operação real:** critérios profissionais aprovados e responsáveis reais; infraestrutura/backup/restauração/antimalware conforme requisitos de deploy; eventual fonte oficial de autenticidade apenas se formalmente exigida. SMTP continua dependência do cadastro real, sem afetar os ensaios sintéticos.
+
+Evidências desta rodada:
+
+- `./scripts/verify-ticket-05.sh`: passou integralmente. A suíte comum descobriu 28 testes, executou 26 com sucesso e ignorou os 2 opt-in; esses dois foram então executados explicitamente, 1/1 aprovado em cada comando, sem skips. Também passaram build web, 2 testes Playwright, typecheck móvel, export Android (568 módulos, bundle de 1,77 MB) e package Maven.
+- `mvn -f backend/pom.xml -Dtest=DelivererEvidenceFlowTest test`: 2 testes, 0 falhas/erros/skips, com PostgreSQL 17.6, API HTTP e filesystem reais isolados; inclui limite persistente de MFA, sessão/revogação, upload/erros/quarentena/inspeção/acesso e bloqueio profissional.
+- Opt-in de conta: `mvn -f backend/pom.xml -Dmaven.repo.local=/tmp/exame-m2 -Dtest=BrowserFlowTest -DbrowserTest=true test`; finalidade Chromium → Vite → API → PostgreSQL para conta/sessão; 1 executado, 0 falhas, 0 ignorados.
+- Opt-in familiar: `mvn -f backend/pom.xml -Dmaven.repo.local=/tmp/exame-m2 -Dtest=FamilyBrowserFlowTest -DbrowserTest=true test`; finalidade autorização/revogação com sessão aberta pelo mesmo caminho; 1 executado, 0 falhas, 0 ignorados.
+
+Não havia `adb`, `emulator` ou `xcrun` no ambiente. O app passou em TypeScript e export Android, mas não foi instalado/executado; o roteiro reproduzível está em `mobile/README.md` e a validação mobile → API → PostgreSQL → armazenamento permanece pendente. O fluxo API → PostgreSQL → armazenamento foi exercitado separadamente e não será apresentado como ponta a ponta móvel.

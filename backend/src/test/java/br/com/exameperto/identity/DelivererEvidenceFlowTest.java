@@ -44,28 +44,53 @@ class DelivererEvidenceFlowTest {
     final HttpClient client=HttpClient.newHttpClient(); final java.util.concurrent.ConcurrentHashMap<String,String> mail=new java.util.concurrent.ConcurrentHashMap<>(); static final String PASS="Senha-sintetica-123";
     @BeforeEach void setup(){when(email.configured()).thenReturn(true);doAnswer(i->{mail.put(i.getArgument(0),i.getArgument(2));return null;}).when(email).send(anyString(),anyString(),anyString());}
     @Test void quarantineReplacementProxyAndReviewerGuards() throws Exception {
-        Account owner=active("deliverer"), other=active("other");
+        Account owner=active("deliverer"), other=active("other"), analyst=active("analyst");
         var created=request(owner,"POST","/me/deliverer",json.writeValueAsString(Map.of("birthDate","1990-01-01")),"application/json"); assertThat(created.statusCode()).isEqualTo(201);
-        byte[] pdf="%PDF-synthetic-file".getBytes(); var upload=multipart(owner,"HABILITACAO","doc.pdf","application/pdf",pdf); assertThat(upload.statusCode()).isEqualTo(201); UUID id=UUID.fromString(body(upload).get("id").toString());
+        byte[] pdf="%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n%%EOF".getBytes(); var upload=multipart(owner,"HABILITACAO","doc.pdf","application/pdf",pdf); assertThat(upload.statusCode()).isEqualTo(201); UUID id=UUID.fromString(body(upload).get("id").toString());
         assertThat(request(owner,"GET","/documents/"+id+"/download",null,"application/json").statusCode()).isEqualTo(404);
         assertThat(multipart(owner,"HABILITACAO","fake.pdf","application/pdf","not-a-pdf".getBytes()).statusCode()).isEqualTo(422);
         assertThat(multipart(owner,"HABILITACAO","huge.pdf","application/pdf",new byte[10*1024*1024+1]).statusCode()).isEqualTo(413);
         var replacement=multipart(owner,"HABILITACAO","new.pdf","application/pdf",pdf); assertThat(replacement.statusCode()).isEqualTo(201); assertThat(jdbc.queryForObject("SELECT count(*) FROM documento WHERE proprietario_id=(SELECT id FROM usuario WHERE email_busca=? )",Long.class,new DataProtectorTestLookup().lookup(owner.email))).isEqualTo(2);
-        jdbc.update("UPDATE documento SET estado='INSPECAO_APROVADA' WHERE id=?",id);
+        assertThat(request(owner,"GET","/analyst/reviews",null,"application/json").statusCode()).isEqualTo(403);
+        jdbc.update("INSERT INTO papel_global(usuario_id,papel) SELECT id,'ANALISTA_OPERACIONAL' FROM usuario WHERE email_busca=?",new DataProtectorTestLookup().lookup(analyst.email));
+        var queue=request(analyst,"GET","/analyst/reviews",null,"application/json"); assertThat(queue.statusCode()).isEqualTo(200);
+        UUID reviewId=UUID.fromString(((java.util.List<Map<String,Object>>)json.readValue(queue.body(),new TypeReference<java.util.List<Map<String,Object>>>(){})).stream().filter(x->id.toString().equals(x.get("documentId"))).findFirst().orElseThrow().get("id").toString());
+        assertThat(request(analyst,"POST","/analyst/reviews/"+reviewId+"/assign",null,"application/json").statusCode()).isEqualTo(403);
+        var enrollment=request(analyst,"POST","/me/mfa/totp/enrollment",json.writeValueAsString(Map.of("password",PASS)),"application/json"); assertThat(enrollment.statusCode()).isEqualTo(200);
+        String secret=body(enrollment).get("secret").toString(); String code=MfaService.totp(MfaService.decodeBase32(secret),java.time.Instant.now().getEpochSecond()/30);
+        assertThat(request(analyst,"POST","/me/mfa/totp/confirmation",json.writeValueAsString(Map.of("code",code)),"application/json").statusCode()).isEqualTo(200);
+        assertThat(request(analyst,"POST","/analyst/reviews/"+reviewId+"/assign",null,"application/json").statusCode()).isEqualTo(200);
+        assertThat(request(analyst,"POST","/analyst/reviews/"+reviewId+"/inspection",null,"application/json").statusCode()).isEqualTo(200);
         var downloaded=request(owner,"GET","/documents/"+id+"/download",null,"application/octet-stream"); assertThat(downloaded.statusCode()).isEqualTo(200); assertThat(downloaded.headers().firstValue("Cache-Control")).contains("no-store"); assertThat(downloaded.body()).isEqualTo(new String(pdf));
         assertThat(request(other,"GET","/documents/"+id+"/download",null,"application/octet-stream").statusCode()).isEqualTo(404);
-        assertThat(request(owner,"GET","/analyst/reviews",null,"application/json").statusCode()).isEqualTo(403);
-        jdbc.update("INSERT INTO papel_global(usuario_id,papel) SELECT id,'ANALISTA_OPERACIONAL' FROM usuario WHERE email_busca=?",new DataProtectorTestLookup().lookup(owner.email));
-        assertThat(request(owner,"GET","/analyst/reviews",null,"application/json").statusCode()).isEqualTo(200);
-        assertThat(request(owner,"POST","/analyst/reviews/"+UUID.randomUUID()+"/decision","{\"decision\":\"APROVAR\",\"reason\":\"synthetic\"}","application/json").statusCode()).isEqualTo(403);
+        var decision=request(analyst,"POST","/analyst/reviews/"+reviewId+"/decision","{\"decision\":\"APROVAR\",\"reason\":\"synthetic\"}","application/json"); assertThat(decision.statusCode()).isEqualTo(503); assertThat(decision.body()).contains("POLICY_UNDEFINED");
+        assertThat(request(owner,"POST","/analyst/reviews/"+reviewId+"/decision","{\"decision\":\"APROVAR\"}","application/json").statusCode()).isEqualTo(403);
+        var refresh=publicPost("refresh",Map.of("refreshToken",analyst.refresh)); assertThat(refresh.statusCode()).isEqualTo(200);
+        Account rotated=new Account(analyst.email,body(refresh).get("accessToken").toString(),body(refresh).get("refreshToken").toString());
+        assertThat(request(analyst,"POST","/analyst/reviews/"+reviewId+"/decision","{\"decision\":\"APROVAR\"}","application/json").statusCode()).isEqualTo(401);
+        assertThat(request(rotated,"POST","/analyst/reviews/"+reviewId+"/decision","{\"decision\":\"APROVAR\"}","application/json").statusCode()).isEqualTo(403);
+        assertThat(request(rotated,"POST","/auth/logout",null,"application/json").statusCode()).isEqualTo(204);
+        assertThat(request(rotated,"POST","/analyst/reviews/"+reviewId+"/decision","{\"decision\":\"APROVAR\"}","application/json").statusCode()).isEqualTo(401);
         assertThat(Files.exists(TEST_ROOT.resolve("quarantine"))).isTrue();
     }
-    private Account active(String prefix)throws Exception{String e=prefix+UUID.randomUUID()+"@example.test";var reg=publicPost("register",Map.of("name","Sintético","email",e,"password",PASS));assertThat(reg.statusCode()).isEqualTo(202);String token=mail.get(e).substring(mail.get(e).lastIndexOf(':')+2).trim();assertThat(publicPost("verification",Map.of("token",token)).statusCode()).isEqualTo(200);var login=publicPost("login",Map.of("email",e,"password",PASS,"client","MOBILE"));return new Account(e,body(login).get("accessToken").toString());}
+    @Test void repeatedInvalidMfaCodesArePersistedAndRateLimited() throws Exception {
+        Account analyst=active("mfa-rate");
+        jdbc.update("INSERT INTO papel_global(usuario_id,papel) SELECT id,'ANALISTA_OPERACIONAL' FROM usuario WHERE email_busca=?",new DataProtectorTestLookup().lookup(analyst.email));
+        var enrollment=request(analyst,"POST","/me/mfa/totp/enrollment",json.writeValueAsString(Map.of("password",PASS)),"application/json");
+        assertThat(enrollment.statusCode()).isEqualTo(200);
+        String secret=body(enrollment).get("secret").toString();
+        String valid=MfaService.totp(MfaService.decodeBase32(secret),java.time.Instant.now().getEpochSecond()/30);
+        String invalid=(valid.charAt(0)=='0'?'1':'0')+valid.substring(1);
+        for(int attempt=0;attempt<5;attempt++)
+            assertThat(request(analyst,"POST","/me/mfa/totp/confirmation",json.writeValueAsString(Map.of("code",invalid)),"application/json").statusCode()).isEqualTo(403);
+        assertThat(request(analyst,"POST","/me/mfa/totp/confirmation",json.writeValueAsString(Map.of("code",invalid)),"application/json").statusCode()).isEqualTo(429);
+    }
+    private Account active(String prefix)throws Exception{String e=prefix+UUID.randomUUID()+"@example.test";var reg=publicPost("register",Map.of("name","Sintético","email",e,"password",PASS));assertThat(reg.statusCode()).isEqualTo(202);String token=mail.get(e).substring(mail.get(e).lastIndexOf(':')+2).trim();assertThat(publicPost("verification",Map.of("token",token)).statusCode()).isEqualTo(200);var login=publicPost("login",Map.of("email",e,"password",PASS,"client","MOBILE"));return new Account(e,body(login).get("accessToken").toString(),body(login).get("refreshToken").toString());}
     private HttpResponse<String> publicPost(String p,Object b)throws Exception{return request(null,"POST","/auth/"+p,json.writeValueAsString(b),"application/json");}
     private HttpResponse<String> request(Account a,String m,String p,String b,String ct)throws Exception{var x=HttpRequest.newBuilder(URI.create("http://127.0.0.1:"+port+"/api/v1"+p)).header("Content-Type",ct);if(a!=null)x.header("Authorization","Bearer "+a.access);return client.send(x.method(m,b==null?HttpRequest.BodyPublishers.noBody():HttpRequest.BodyPublishers.ofString(b)).build(),HttpResponse.BodyHandlers.ofString());}
     private HttpResponse<String> multipart(Account a,String category,String name,String mime,byte[] bytes)throws Exception{String boundary="----synthetic"+UUID.randomUUID();String pre="--"+boundary+"\r\nContent-Disposition: form-data; name=\"category\"\r\n\r\n"+category+"\r\n--"+boundary+"\r\nContent-Disposition: form-data; name=\"file\"; filename=\""+name+"\"\r\nContent-Type: "+mime+"\r\n\r\n";byte[] p=pre.getBytes(),end=("\r\n--"+boundary+"--\r\n").getBytes();byte[] all=new byte[p.length+bytes.length+end.length];System.arraycopy(p,0,all,0,p.length);System.arraycopy(bytes,0,all,p.length,bytes.length);System.arraycopy(end,0,all,p.length+bytes.length,end.length);var x=HttpRequest.newBuilder(URI.create("http://127.0.0.1:"+port+"/api/v1/me/deliverer/documents")).header("Content-Type","multipart/form-data; boundary="+boundary).header("Authorization","Bearer "+a.access);return client.send(x.POST(HttpRequest.BodyPublishers.ofByteArray(all)).build(),HttpResponse.BodyHandlers.ofString());}
     private Map<String,Object> body(HttpResponse<String> r)throws Exception{return json.readValue(r.body(),new TypeReference<>(){});}
-    record Account(String email,String access){}
+    record Account(String email,String access,String refresh){}
     // Test-only HMAC helper uses the same configured key; no value is persisted outside the synthetic database.
     static final class DataProtectorTestLookup { byte[] lookup(String email){ try{var mac=javax.crypto.Mac.getInstance("HmacSHA256");mac.init(new javax.crypto.spec.SecretKeySpec(java.util.Base64.getDecoder().decode("AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="),"HmacSHA256"));return mac.doFinal(email.getBytes(java.nio.charset.StandardCharsets.UTF_8));}catch(Exception e){throw new RuntimeException(e);} } }
 }

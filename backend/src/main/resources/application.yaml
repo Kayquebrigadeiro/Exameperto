@@ -52,6 +52,7 @@ security:
   data-key: ${EXAME_PERTO_DATA_KEY:}
   search-key: ${EXAME_PERTO_SEARCH_KEY:}
   signing-key: ${EXAME_PERTO_SIGNING_KEY:}
+  mfa-elevation-ttl: PT5M
 email:
   enabled: ${EXAME_PERTO_EMAIL_ENABLED:false}
   from: ${EXAME_PERTO_EMAIL_FROM:}
@@ -61,4 +62,4 @@ family:
 storage:
   private-root: ${EXAME_PERTO_PRIVATE_ROOT:${java.io.tmpdir}/exame-perto-private}
 review:
-  mfa-verifier-enabled: false
+  file-safety-inspection-enabled: true

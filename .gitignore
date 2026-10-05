@@ -7,5 +7,7 @@ web/dist/
 web/test-results/
 *.tsbuildinfo
 web/playwright-report/
+mobile/node_modules/
+mobile/dist/
 *.log
 .DS_Store

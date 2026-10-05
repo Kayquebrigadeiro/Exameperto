@@ -1,6 +1,7 @@
 package br.com.exameperto.identity;
 
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.sql.Timestamp;
 import java.time.LocalDate;
@@ -22,10 +23,11 @@ class DelivererService {
     private static final long MAX = 10L * 1024 * 1024;
     private final JdbcTemplate jdbc;
     private final PrivateObjectStore store;
-    private final boolean mfaVerifierEnabled;
-    DelivererService(JdbcTemplate jdbc, PrivateObjectStore store,
-        @Value("${review.mfa-verifier-enabled:false}") boolean mfaVerifierEnabled) {
-        this.jdbc = jdbc; this.store = store; this.mfaVerifierEnabled = mfaVerifierEnabled;
+    private final MfaService mfa;
+    private final boolean fileSafetyInspectionEnabled;
+    DelivererService(JdbcTemplate jdbc, PrivateObjectStore store, MfaService mfa,
+        @Value("${review.file-safety-inspection-enabled:true}") boolean fileSafetyInspectionEnabled) {
+        this.jdbc=jdbc; this.store=store; this.mfa=mfa; this.fileSafetyInspectionEnabled=fileSafetyInspectionEnabled;
     }
 
     @Transactional
@@ -85,14 +87,35 @@ class DelivererService {
     List<ReviewView> queue(UUID userId) { requireAnalyst(userId); return jdbc.query("SELECT id,entregador_id,documento_id,analista_id,estado,decisao,motivo_codigo FROM revisao_entregador WHERE estado IN ('PENDENTE','ATRIBUIDA') ORDER BY criado_em,id", (rs,n)->new ReviewView(rs.getObject(1,UUID.class),rs.getObject(2,UUID.class),rs.getObject(3,UUID.class),rs.getObject(4,UUID.class),rs.getString(5),rs.getString(6),rs.getString(7))); }
 
     @Transactional
-    ReviewView assign(UUID analystId, UUID reviewId) {
-        requireAnalyst(analystId); requireMfa();
-        throw error(HttpStatus.SERVICE_UNAVAILABLE,"MFA_UNAVAILABLE","A verificação MFA do analista não está configurada.");
+    ReviewView assign(AuthService.SessionPrincipal principal, UUID reviewId) {
+        UUID analystId=principal.userId(); requireAnalyst(analystId); mfa.requireVerified(principal);
+        Map<String,Object> row=reviewForUpdate(reviewId);
+        if (!"PENDENTE".equals(row.get("estado"))) throw error(HttpStatus.CONFLICT,"REVIEW_CONFLICT","A revisão já foi atribuída.");
+        UUID owner=jdbc.queryForObject("SELECT e.usuario_id FROM entregador e WHERE e.id=?",UUID.class,row.get("entregador_id"));
+        if (analystId.equals(owner)) throw error(HttpStatus.FORBIDDEN,"FORBIDDEN","O analista não pode revisar o próprio cadastro.");
+        jdbc.update("UPDATE revisao_entregador SET analista_id=?,estado='ATRIBUIDA',atribuido_em=clock_timestamp() WHERE id=?",analystId,reviewId);
+        return review(reviewId);
     }
     @Transactional
-    ReviewView decide(UUID analystId, UUID reviewId, String decision, String reason) {
-        requireAnalyst(analystId); requireMfa();
-        throw error(HttpStatus.SERVICE_UNAVAILABLE,"POLICY_UNDEFINED","Critérios profissionais e mecanismo de inspeção não estão habilitados.");
+    ReviewView inspect(AuthService.SessionPrincipal principal, UUID reviewId) {
+        UUID analystId=principal.userId(); requireAnalyst(analystId); mfa.requireVerified(principal);
+        Map<String,Object> row=assignedReview(reviewId,analystId);
+        if (!fileSafetyInspectionEnabled) throw error(HttpStatus.SERVICE_UNAVAILABLE,"INTEGRATION_UNAVAILABLE","A inspeção de segurança do arquivo não está habilitada.");
+        UUID documentId=(UUID)row.get("documento_id");
+        Map<String,Object> document=jdbc.queryForMap("SELECT objeto_chave,mime,estado FROM documento WHERE id=? FOR UPDATE",documentId);
+        if (!"QUARENTENA".equals(document.get("estado")) && !"INSPECAO_PENDENTE".equals(document.get("estado")))
+            throw error(HttpStatus.CONFLICT,"REVIEW_CONFLICT","O arquivo não está aguardando inspeção.");
+        boolean safe;
+        try(InputStream input=store.open((String)document.get("objeto_chave"))){safe=safeStructure(input.readAllBytes(),(String)document.get("mime"));}
+        catch(Exception ex){throw error(HttpStatus.SERVICE_UNAVAILABLE,"STORAGE_UNAVAILABLE","Não foi possível inspecionar o arquivo privado.");}
+        jdbc.update("UPDATE documento SET estado=?,inspeccionado_em=clock_timestamp(),updated_at=clock_timestamp(),version=version+1 WHERE id=?",safe?"INSPECAO_APROVADA":"REJEITADO",documentId);
+        if(!safe) jdbc.update("UPDATE revisao_entregador SET estado='BLOQUEADA',motivo_codigo='ARQUIVO_ESTRUTURALMENTE_INSEGURO' WHERE id=?",reviewId);
+        return review(reviewId);
+    }
+    @Transactional
+    ReviewView decide(AuthService.SessionPrincipal principal, UUID reviewId, String decision, String reason) {
+        UUID analystId=principal.userId(); requireAnalyst(analystId); mfa.requireVerified(principal); assignedReview(reviewId,analystId);
+        throw error(HttpStatus.SERVICE_UNAVAILABLE,"POLICY_UNDEFINED","A aprovação profissional permanece bloqueada até critérios e responsáveis reais serem habilitados.");
     }
 
     InputStream open(String key) { return store.open(key); }
@@ -110,7 +133,16 @@ class DelivererService {
     }
     private void active(UUID id) { try { if (!"ATIVO".equals(jdbc.queryForObject("SELECT estado FROM usuario WHERE id=?",String.class,id))) throw AuthService.unauthorized(); } catch (EmptyResultDataAccessException ex) { throw AuthService.unauthorized(); } }
     private void requireAnalyst(UUID id) { active(id); if (jdbc.queryForObject("SELECT count(*) FROM papel_global WHERE usuario_id=? AND papel='ANALISTA_OPERACIONAL' AND revogado_em IS NULL",Long.class,id)==0) throw error(HttpStatus.FORBIDDEN,"FORBIDDEN","Analista atribuído não encontrado."); }
-    private void requireMfa() { if (!mfaVerifierEnabled) throw error(HttpStatus.FORBIDDEN,"MFA_REQUIRED","A ação exige MFA validado no servidor."); }
+    private Map<String,Object> reviewForUpdate(UUID id){try{return jdbc.queryForMap("SELECT id,entregador_id,documento_id,analista_id,estado FROM revisao_entregador WHERE id=? FOR UPDATE",id);}catch(EmptyResultDataAccessException ex){throw error(HttpStatus.NOT_FOUND,"NOT_FOUND","Revisão não encontrada.");}}
+    private Map<String,Object> assignedReview(UUID id,UUID analyst){Map<String,Object> row=reviewForUpdate(id);if(!analyst.equals(row.get("analista_id")) || !"ATRIBUIDA".equals(row.get("estado")))throw error(HttpStatus.NOT_FOUND,"NOT_FOUND","Revisão atribuída não encontrada.");return row;}
+    private ReviewView review(UUID id){return jdbc.queryForObject("SELECT id,entregador_id,documento_id,analista_id,estado,decisao,motivo_codigo FROM revisao_entregador WHERE id=?",(rs,n)->new ReviewView(rs.getObject(1,UUID.class),rs.getObject(2,UUID.class),rs.getObject(3,UUID.class),rs.getObject(4,UUID.class),rs.getString(5),rs.getString(6),rs.getString(7)),id);}
+    private boolean safeStructure(byte[] bytes,String mime){
+        if(bytes.length==0||bytes.length>MAX)return false;
+        if("application/pdf".equals(mime)){String value=new String(bytes,StandardCharsets.ISO_8859_1);return value.startsWith("%PDF-")&&value.stripTrailing().endsWith("%%EOF")&&!List.of("/JavaScript","/JS","/Launch","/EmbeddedFile","/OpenAction","/RichMedia").stream().anyMatch(value::contains);}
+        if("image/jpeg".equals(mime))return bytes.length>=4&&(bytes[bytes.length-2]&255)==0xff&&(bytes[bytes.length-1]&255)==0xd9;
+        if("image/png".equals(mime)){byte[] end={(byte)0x49,(byte)0x45,(byte)0x4e,(byte)0x44,(byte)0xae,(byte)0x42,(byte)0x60,(byte)0x82};if(bytes.length<end.length)return false;for(int i=0;i<end.length;i++)if(bytes[bytes.length-end.length+i]!=end[i])return false;return true;}
+        return false;
+    }
     private DelivererView deliverer(UUID id) { return jdbc.queryForObject("SELECT id,estado,version FROM entregador WHERE id=?",(rs,n)->new DelivererView(rs.getObject(1,UUID.class),rs.getString(2),rs.getLong(3)),id); }
     private DocumentView document(UUID id) { return jdbc.queryForObject("SELECT id,categoria,mime,tamanho,estado,version FROM documento WHERE id=?",(rs,n)->new DocumentView(rs.getObject(1,UUID.class),rs.getString(2),rs.getString(3),rs.getLong(4),rs.getString(5),rs.getLong(6)),id); }
     record Download(String key,String mime,long size) {}

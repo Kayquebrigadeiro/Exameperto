@@ -110,7 +110,7 @@ erDiagram
   OPERACAO_FINANCEIRA o|--o{ EVENTO_EXTERNO : concilia
 ```
 
-Visão resumida do [modelo físico](MODELO-DADOS.md). Conta, sessão, paciente, convite, concessão e a fatia local de entregador/documento possuem migrações V1–V4; as demais relações continuam planejadas. Restrições planejadas: uma designação ativa por pedido; um orçamento aceito vigente; vínculo de veículo e motorista aprovados; decisão de benefício atribuída ao paciente; programa e reserva da mesma instituição; idempotência dos lançamentos. Pedido pode não usar subsídio, então lançamentos particulares não dependem de reserva. Evidências clínicas e financeiras precisam de acesso restrito e retenção própria.
+Visão resumida do [modelo físico](MODELO-DADOS.md). Conta, sessão, paciente, convite, concessão, a fatia local de entregador/documento e o MFA de sessão do AO possuem migrações V1–V5; as demais relações continuam planejadas. Restrições planejadas: uma designação ativa por pedido; um orçamento aceito vigente; vínculo de veículo e motorista aprovados; decisão de benefício atribuída ao paciente; programa e reserva da mesma instituição; idempotência dos lançamentos. Pedido pode não usar subsídio, então lançamentos particulares não dependem de reserva. Evidências clínicas e financeiras precisam de acesso restrito e retenção própria.
 
 ## Entregador, quarentena e revisão — ticket 05 parcial
 
@@ -119,15 +119,17 @@ flowchart LR
   M[App Expo do entregador] -->|sessão MOBILE| A[API autenticada]
   A --> P[(PostgreSQL V4)]
   A --> Q[(Armazenamento privado/quarentena)]
-  P --> R[Revisão atribuída]
-  R --> X{MFA + critérios + inspeção oficial}
-  X -->|indisponível| B[BLOQUEADA / sem aprovação]
+  P --> R[Revisão atribuída com MFA]
+  R --> S[Inspeção estrutural local]
+  S -->|estrutura recusada| B[BLOQUEADA / sem aprovação]
+  S -->|estrutura aceita| X{Autenticidade + critérios + responsável real}
+  X -->|pendente| B
   X -->|habilitado futuramente| D[Decisão profissional]
   A -->|proxy no-store| M
   W[Painel web do analista] --> R
 ```
 
-O armazenamento local privado foi exercitado com dados sintéticos. A inspeção oficial, critérios profissionais, MFA verificável e integração de objeto externo não estão habilitados; portanto o arquivo permanece bloqueado em quarentena e o cadastro não habilita entregas. Foto operacional só poderá ser projeção de documento aprovado, nunca aprovação automática.
+O armazenamento local privado, a atribuição com TOTP e a inspeção estrutural limitada foram exercitados com dados sintéticos. A inspeção trata segurança básica do arquivo; não prova autenticidade do documento, situação profissional nem elegibilidade. Critérios profissionais e responsável real continuam ausentes, portanto nenhuma decisão aprova o cadastro ou habilita entregas. Armazenamento externo só será dependência quando os requisitos de operação/deploy o exigirem; sua ausência não invalida o ensaio local. Foto operacional só poderá ser projeção de documento profissionalmente aprovado, nunca aprovação automática.
 
 ## Estados da entrega
 
