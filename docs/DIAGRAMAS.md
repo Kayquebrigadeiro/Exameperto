@@ -110,7 +110,28 @@ erDiagram
   OPERACAO_FINANCEIRA o|--o{ EVENTO_EXTERNO : concilia
 ```
 
-Visão resumida do [modelo físico](MODELO-DADOS.md). Conta, sessão, paciente, convite, concessão, a fatia local de entregador/documento e o MFA de sessão do AO possuem migrações V1–V5; as demais relações continuam planejadas. Restrições planejadas: uma designação ativa por pedido; um orçamento aceito vigente; vínculo de veículo e motorista aprovados; decisão de benefício atribuída ao paciente; programa e reserva da mesma instituição; idempotência dos lançamentos. Pedido pode não usar subsídio, então lançamentos particulares não dependem de reserva. Evidências clínicas e financeiras precisam de acesso restrito e retenção própria.
+Visão resumida do [modelo físico](MODELO-DADOS.md). Conta, sessão, paciente, convite, concessão, a fatia local de entregador/documento, MFA de sessão do AO e vínculo de veículo possuem migrações V1–V6; as demais relações continuam planejadas. Restrições planejadas: uma designação ativa por pedido; um orçamento aceito vigente; vínculo de veículo e motorista aprovados; decisão de benefício atribuída ao paciente; programa e reserva da mesma instituição; idempotência dos lançamentos. Pedido pode não usar subsídio, então lançamentos particulares não dependem de reserva. Evidências clínicas e financeiras precisam de acesso restrito e retenção própria.
+
+### Ticket 06 — vínculo e revisão versionada
+
+```mermaid
+flowchart LR
+  A[Entregador autenticado] --> B[POST/PUT veículo + vínculo]
+  B --> C{versão corrente?}
+  C -- não --> X[412 VERSION_MISMATCH]
+  C -- sim --> D[veiculo + vinculo_veiculo]
+  D --> E[CRLV / FOTO / autorização em QUARENTENA]
+  E --> F[vinculo_documento corrente]
+  F --> G[revisao_vinculo snapshot da versão]
+  G --> H{AO atribuído + MFA}
+  H -- não --> I[403 MFA_REQUIRED ou fila pendente]
+  H -- sim --> J[inspeção estrutural limitada]
+  J --> K{substituição ou versão mudou?}
+  K -- sim --> L[bloqueia revisão antiga e cria snapshot novo]
+  K -- não --> M[decisão continua 422 POLICY_UNDEFINED]
+```
+
+O fluxo não consulta fonte oficial, não libera ofertas e não trata inspeção de estrutura como autenticidade documental ou varredura antimalware.
 
 ## Entregador, quarentena e revisão — ticket 05 parcial
 

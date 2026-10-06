@@ -1053,8 +1053,8 @@ paths:
       summary: Submeter veículo e vínculo
       tags:
       - me
-      description: Entregador titular; documentos próprios
-      x-permission: Entregador titular; documentos próprios
+      description: Cria veículo e vínculo próprio, alugado ou autorizado em RASCUNHO. Não consulta fonte oficial nem concede aprovação.
+      x-permission: Entregador titular
       responses:
         '201':
           description: Submeter veículo e vínculo
@@ -1083,8 +1083,6 @@ paths:
           $ref: '#/components/responses/Error429'
         '503':
           $ref: '#/components/responses/Error503'
-      parameters:
-      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -1104,7 +1102,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VehicleLinkPage'
+                type: array
+                items:
+                  $ref: '#/components/schemas/VehicleLink'
         '400':
           $ref: '#/components/responses/Error400'
         '401':
@@ -1121,9 +1121,6 @@ paths:
           $ref: '#/components/responses/Error429'
         '503':
           $ref: '#/components/responses/Error503'
-      parameters:
-      - $ref: '#/components/parameters/Cursor'
-      - $ref: '#/components/parameters/Limit'
   /reviews/drivers/{driverId}:
     post:
       operationId: reviewDriver
@@ -1168,63 +1165,6 @@ paths:
           $ref: '#/components/responses/Error428'
       parameters:
       - name: driverId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      - $ref: '#/components/parameters/IdempotencyKey'
-      - $ref: '#/components/parameters/IfMatch'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ReviewInput'
-  /reviews/vehicle-links/{linkId}:
-    post:
-      operationId: reviewVehicle
-      summary: Revisar veículo e vínculo
-      tags:
-      - reviews
-      description: ANALISTA_OPERACIONAL com atribuição; sem autoaprovação Para capacidade privilegiada AD/AO/AB/GF,
-        exigir MFA validado no servidor; ausência retorna 403 MFA_REQUIRED. Sem procedimento/fatores habilitados,
-        negar ação privilegiada.
-      x-permission: ANALISTA_OPERACIONAL com atribuição; sem autoaprovação
-      responses:
-        '200':
-          description: Revisar veículo e vínculo
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/VehicleLink'
-          headers:
-            ETag:
-              schema:
-                type: string
-              description: Versão entre aspas para If-Match.
-        '400':
-          $ref: '#/components/responses/Error400'
-        '401':
-          $ref: '#/components/responses/Error401'
-        '403':
-          $ref: '#/components/responses/Error403'
-        '404':
-          $ref: '#/components/responses/Error404'
-        '409':
-          $ref: '#/components/responses/Error409'
-        '422':
-          $ref: '#/components/responses/Error422'
-        '429':
-          $ref: '#/components/responses/Error429'
-        '503':
-          $ref: '#/components/responses/Error503'
-        '412':
-          $ref: '#/components/responses/Error412'
-        '428':
-          $ref: '#/components/responses/Error428'
-      parameters:
-      - name: linkId
         in: path
         required: true
         schema:
@@ -3911,6 +3851,113 @@ paths:
         '404': {$ref: '#/components/responses/Error404'}
         '409': {$ref: '#/components/responses/Error409'}
         '503': {$ref: '#/components/responses/Error503'}
+  /me/vehicle-links/{id}:
+    get:
+      operationId: getOwnVehicleLink
+      summary: Consultar veículo e vínculo próprio
+      x-permission: Entregador titular; próprio vínculo
+      security: [{bearerAuth: []}]
+      parameters: [{in: path, name: id, required: true, schema: {type: string, format: uuid}}]
+      responses:
+        '200': {description: Vínculo, content: {application/json: {schema: {$ref: '#/components/schemas/VehicleLink'}}}}
+        '401': {$ref: '#/components/responses/Error401'}
+        '404': {$ref: '#/components/responses/Error404'}
+    put:
+      operationId: updateOwnVehicleLink
+      summary: Alterar veículo e vínculo
+      description: Atualização otimista por versão; altera o estado para pendente e invalida revisão anterior.
+      x-permission: Entregador titular; próprio vínculo; versão obrigatória
+      security: [{bearerAuth: []}]
+      parameters:
+      - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+      - {in: query, name: version, required: true, schema: {type: integer, format: int64, minimum: 0}}
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/VehicleInput'}}}}
+      responses:
+        '200': {description: Vínculo atualizado, content: {application/json: {schema: {$ref: '#/components/schemas/VehicleLink'}}}}
+        '401': {$ref: '#/components/responses/Error401'}
+        '404': {$ref: '#/components/responses/Error404'}
+        '412': {$ref: '#/components/responses/Error412'}
+  /me/vehicle-links/{id}/documents:
+    post:
+      operationId: uploadVehicleEvidence
+      summary: Enviar evidência privada do vínculo
+      description: Multipart em quarentena; substituição preserva histórico e cria snapshot de revisão novo.
+      x-permission: Entregador titular; próprio vínculo; versão obrigatória
+      security: [{bearerAuth: []}]
+      parameters:
+      - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+      - {in: query, name: version, required: true, schema: {type: integer, format: int64, minimum: 0}}
+      - {in: query, name: purpose, required: true, schema: {type: string, enum: [CRLV, FOTO, USO_AUTORIZADO]}}
+      requestBody: {required: true, content: {multipart/form-data: {schema: {type: object, required: [file], properties: {file: {type: string, format: binary}}}}}}
+      responses:
+        '200': {description: Vínculo com histórico de evidências, content: {application/json: {schema: {$ref: '#/components/schemas/VehicleLink'}}}}
+        '401': {$ref: '#/components/responses/Error401'}
+        '404': {$ref: '#/components/responses/Error404'}
+        '412': {$ref: '#/components/responses/Error412'}
+        '413': {$ref: '#/components/responses/Error413'}
+  /me/vehicle-links/{id}/documents/reuse:
+    post:
+      operationId: reuseOwnVehicleEvidence
+      summary: Reutilizar documento privado próprio
+      description: Reutiliza referência de documento da mesma conta; documento de outra conta não é aceito.
+      x-permission: Entregador titular; documento próprio; versão obrigatória
+      security: [{bearerAuth: []}]
+      parameters: [{in: path, name: id, required: true, schema: {type: string, format: uuid}}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/VehicleDocumentReuse'}}}}
+      responses:
+        '200': {description: Vínculo atualizado, content: {application/json: {schema: {$ref: '#/components/schemas/VehicleLink'}}}}
+        '401': {$ref: '#/components/responses/Error401'}
+        '404': {$ref: '#/components/responses/Error404'}
+        '412': {$ref: '#/components/responses/Error412'}
+  /analyst/vehicle-reviews:
+    get:
+      operationId: listVehicleReviews
+      summary: Listar revisões de vínculo
+      x-permission: ANALISTA_OPERACIONAL
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Fila, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/VehicleReview'}}}}}
+        '403': {$ref: '#/components/responses/Error403'}
+  /analyst/vehicle-reviews/{id}/assign:
+    post:
+      operationId: assignVehicleReview
+      summary: Atribuir revisão de veículo
+      description: Exige MFA e impede autoanálise.
+      x-permission: ANALISTA_OPERACIONAL + MFA
+      security: [{bearerAuth: []}]
+      parameters: [{in: path, name: id, required: true, schema: {type: string, format: uuid}}]
+      responses: {'200': {description: Revisão atribuída, content: {application/json: {schema: {$ref: '#/components/schemas/VehicleReview'}}}}, '403': {$ref: '#/components/responses/Error403'}, '409': {$ref: '#/components/responses/Error409'}}
+  /analyst/vehicle-reviews/{id}/documents/{documentId}/inspection:
+    post:
+      operationId: inspectVehicleEvidence
+      summary: Inspecionar estrutura da evidência
+      description: Não verifica autenticidade e não é varredura antimalware.
+      x-permission: ANALISTA_OPERACIONAL atribuído + MFA
+      security: [{bearerAuth: []}]
+      parameters:
+      - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+      - {in: path, name: documentId, required: true, schema: {type: string, format: uuid}}
+      responses: {'200': {description: Inspeção registrada, content: {application/json: {schema: {$ref: '#/components/schemas/VehicleReview'}}}}, '403': {$ref: '#/components/responses/Error403'}, '404': {$ref: '#/components/responses/Error404'}, '409': {$ref: '#/components/responses/Error409'}}
+  /analyst/vehicle-reviews/{id}/documents/{documentId}/download:
+    get:
+      operationId: downloadAssignedVehicleEvidence
+      summary: Baixar evidência autorizada da revisão
+      x-permission: ANALISTA_OPERACIONAL atribuído + MFA; snapshot corrente
+      security: [{bearerAuth: []}]
+      parameters:
+      - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+      - {in: path, name: documentId, required: true, schema: {type: string, format: uuid}}
+      responses: {'200': {description: Conteúdo privado, content: {application/octet-stream: {schema: {type: string, format: binary}}}}, '403': {$ref: '#/components/responses/Error403'}, '404': {$ref: '#/components/responses/Error404'}, '409': {$ref: '#/components/responses/Error409'}}
+  /analyst/vehicle-reviews/{id}/decision:
+    post:
+      operationId: decideVehicleReview
+      summary: Solicitar decisão profissional de vínculo
+      description: Continua bloqueada com POLICY_UNDEFINED até critérios, responsáveis e integrações reais existirem.
+      x-permission: ANALISTA_OPERACIONAL atribuído + MFA + critérios profissionais publicados
+      security: [{bearerAuth: []}]
+      parameters: [{in: path, name: id, required: true, schema: {type: string, format: uuid}}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ReviewDecision'}}}}
+      responses: {'403': {$ref: '#/components/responses/Error403'}, '404': {$ref: '#/components/responses/Error404'}, '409': {$ref: '#/components/responses/Error409'}, '422': {$ref: '#/components/responses/Error422'}}
 components:
   securitySchemes:
     bearerAuth:
@@ -4520,7 +4567,7 @@ components:
           type: string
           minLength: 7
           maxLength: 10
-        brand:
+        make:
           type: string
           minLength: 1
           maxLength: 80
@@ -4532,7 +4579,7 @@ components:
           type: string
           minLength: 1
           maxLength: 40
-        manufactureYear:
+        manufacturingYear:
           type: integer
           minimum: 1886
           maximum: 32767
@@ -4540,34 +4587,24 @@ components:
           type: integer
           minimum: 1886
           maximum: 32767
-        relationship:
+        linkType:
           type: string
           enum:
           - PROPRIEDADE
           - LOCACAO
           - AUTORIZACAO
-        registrationDocumentId:
+        validUntil:
           type: string
-          format: uuid
-        authorizationDocumentId:
-          type: string
-          format: uuid
-        photoDocumentIds:
-          type: array
-          items:
-            type: string
-            format: uuid
-          minItems: 1
+          format: date
+          nullable: true
       required:
       - plate
-      - brand
+      - make
       - model
       - color
-      - manufactureYear
+      - manufacturingYear
       - modelYear
-      - relationship
-      - registrationDocumentId
-      - photoDocumentIds
+      - linkType
     VehicleLink:
       type: object
       additionalProperties: false
@@ -4575,12 +4612,17 @@ components:
         id:
           type: string
           format: uuid
-        driverId:
-          type: string
-          format: uuid
         vehicleId:
           type: string
           format: uuid
+        plate: {type: string}
+        make: {type: string}
+        model: {type: string}
+        color: {type: string}
+        manufacturingYear: {type: integer}
+        modelYear: {type: integer}
+        linkType: {type: string, enum: [PROPRIEDADE, LOCACAO, AUTORIZACAO]}
+        validUntil: {type: string, format: date, nullable: true}
         status:
           type: string
           enum:
@@ -4591,12 +4633,56 @@ components:
           - SUSPENSO
         version:
           $ref: '#/components/schemas/Version'
+        evidenceComplete: {type: boolean}
+        documents:
+          type: array
+          items: {$ref: '#/components/schemas/VehicleDocument'}
       required:
       - id
-      - driverId
       - vehicleId
+      - plate
+      - make
+      - model
+      - color
+      - manufacturingYear
+      - modelYear
+      - linkType
       - status
       - version
+      - evidenceComplete
+      - documents
+    VehicleDocument:
+      type: object
+      additionalProperties: false
+      required: [id, purpose, mime, size, status, current]
+      properties:
+        id: {type: string, format: uuid}
+        purpose: {type: string, enum: [CRLV, FOTO, USO_AUTORIZADO]}
+        mime: {type: string}
+        size: {type: integer, format: int64}
+        status: {type: string, enum: [QUARENTENA, INSPECAO_PENDENTE, INSPECAO_APROVADA, REJEITADO, EXPURGADO]}
+        current: {type: boolean}
+    VehicleDocumentReuse:
+      type: object
+      additionalProperties: false
+      required: [documentId, purpose, linkVersion]
+      properties:
+        documentId: {type: string, format: uuid}
+        purpose: {type: string, enum: [CRLV, FOTO, USO_AUTORIZADO]}
+        linkVersion: {type: integer, format: int64, minimum: 0}
+    VehicleReview:
+      type: object
+      additionalProperties: false
+      required: [id, linkId, linkVersion, status, documents]
+      properties:
+        id: {type: string, format: uuid}
+        linkId: {type: string, format: uuid}
+        linkVersion: {type: integer, format: int64}
+        analystId: {type: string, format: uuid, nullable: true}
+        status: {type: string, enum: [PENDENTE, ATRIBUIDA, CONCLUIDA, BLOQUEADA]}
+        decision: {type: string, enum: [APROVAR, REJEITAR], nullable: true}
+        reasonCode: {type: string, nullable: true}
+        documents: {type: array, items: {$ref: '#/components/schemas/VehicleDocument'}}
     ReviewInput:
       type: object
       additionalProperties: false

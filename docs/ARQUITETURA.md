@@ -53,6 +53,8 @@ Cadastro exige nome completo, CPF, nascimento, RG/CIN, CNH, selfie/foto atual, c
 
 Não exigir que o carro pertença ao motorista: vínculo pode ser propriedade, locação ou autorização, sujeito à evidência e análise. Dados consultados e fotos enviadas devem corresponder ao veículo ativo. Troca de veículo ou foto deve passar por revisão antes de novas tarefas.
 
+Na fatia implementada, `veiculo`, `vinculo_veiculo`, `vinculo_documento` e os snapshots `revisao_vinculo_*` são persistidos pela migração V6. A API mantém versão otimista no vínculo, histórico de substituição e reutilização somente por proprietário. CRLV, foto e autorização aplicável são documentos privados em quarentena; o painel e o app exibem estado, não autenticidade ou aprovação. A fila de AO usa atribuição + MFA e deixa `POLICY_UNDEFINED` quando faltam critérios profissionais.
+
 Guardar detalhes pessoais somente em módulos privados. A representação enviada ao destinatário contém foto de perfil aprovada, nome de identificação, placa, modelo e cor da tarefa. Não incluir CPF, RG, cópias de CNH/CRLV ou dados biométricos.
 
 Consulta oficial e foto de documento não são equivalentes. QR Code autenticado não prova sozinho a situação atual da habilitação. Verificações de habilitação, categoria e condições profissionais aplicáveis serão fechadas antes da operação real.

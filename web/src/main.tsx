@@ -39,6 +39,14 @@ type Evidence = {
   status: string;
   version: number;
 };
+type VehicleEvidence = Evidence & { purpose: string; current: boolean };
+type VehicleLink = {
+  id: string; plate: string; make: string; model: string; color: string;
+  manufacturingYear: number; modelYear: number; linkType: string;
+  validUntil: string | null; status: string; version: number;
+  evidenceComplete: boolean; documents: VehicleEvidence[];
+};
+type VehicleReview = { id: string; linkId: string; linkVersion: number; analystId: string | null; status: string; documents: VehicleEvidence[] };
 const scopes = ["PEDIDOS", "BENEFICIOS", "RASTREAMENTO", "RECEBIMENTO"];
 const labels: Record<Mode, string> = {
   register: "Solicitar cadastro",
@@ -425,6 +433,9 @@ function DelivererPanel({ session }: { session: Tokens }) {
   const [docs, setDocs] = useState<Evidence[]>([]);
   const [birthDate, setBirthDate] = useState("");
   const [category, setCategory] = useState("HABILITACAO");
+  const [vehicles, setVehicles] = useState<VehicleLink[]>([]);
+  const [selectedVehicle, setSelectedVehicle] = useState<VehicleLink | null>(null);
+  const [vehiclePurpose, setVehiclePurpose] = useState("CRLV");
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
   async function load() {
@@ -434,6 +445,13 @@ function DelivererPanel({ session }: { session: Tokens }) {
       setProfile(await p.json());
       const d = await fetch("/api/v1/me/deliverer/documents", { headers: h });
       if (d.ok) setDocs(await d.json());
+      const v = await fetch("/api/v1/me/vehicle-links", { headers: h });
+      if (v.ok) {
+        const links = (await v.json()) as VehicleLink[];
+        setVehicles(links);
+        if (selectedVehicle)
+          setSelectedVehicle(links.find((item) => item.id === selectedVehicle.id) ?? null);
+      }
     } else if (p.status !== 404)
       throw new Error("Não foi possível consultar o cadastro.");
   }
@@ -505,6 +523,23 @@ function DelivererPanel({ session }: { session: Tokens }) {
     } finally {
       setBusy(false);
     }
+  }
+  async function saveVehicle(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault(); const form=e.currentTarget; const data=new FormData(form);
+    setBusy(true); setNotice(null);
+    try {
+      const payload={plate:data.get("plate"),make:data.get("make"),model:data.get("model"),color:data.get("color"),manufacturingYear:Number(data.get("manufacturingYear")),modelYear:Number(data.get("modelYear")),linkType:data.get("linkType"),validUntil:data.get("validUntil")||null};
+      const path=selectedVehicle?`/api/v1/me/vehicle-links/${selectedVehicle.id}?version=${selectedVehicle.version}`:"/api/v1/me/vehicle-links";
+      const r=await fetch(path,{method:selectedVehicle?"PUT":"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${session.accessToken}`},body:JSON.stringify(payload)});
+      const b=await r.json(); if(!r.ok)throw new Error(b.message??"Vínculo não salvo."); setSelectedVehicle(b); await load();
+      setNotice({tone:"info",text:"Vínculo salvo como pendente. Nenhuma consulta oficial foi simulada."});
+    } catch(e){setNotice({tone:"error",text:e instanceof Error?e.message:"Resultado não confirmado."});} finally{setBusy(false);}
+  }
+  async function uploadVehicle(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault(); if(!selectedVehicle)return; const form=e.currentTarget; const file=(form.elements.namedItem("vehicleFile") as HTMLInputElement).files?.[0]; if(!file)return;
+    const data=new FormData(); data.append("version",String(selectedVehicle.version)); data.append("purpose",vehiclePurpose); data.append("file",file); setBusy(true); setNotice(null);
+    try{const r=await fetch(`/api/v1/me/vehicle-links/${selectedVehicle.id}/documents`,{method:"POST",headers:{Authorization:`Bearer ${session.accessToken}`},body:data});const b=await r.json();if(!r.ok)throw new Error(b.message??"Upload não concluído.");setSelectedVehicle(b);await load();form.reset();setNotice({tone:"info",text:"Arquivo em quarentena. A substituição abriu uma revisão nova, sem herdar aprovação."});}
+    catch(e){setNotice({tone:"error",text:e instanceof Error?e.message:"Resultado não confirmado."});}finally{setBusy(false);}
   }
   return (
     <section className="family" aria-labelledby="deliverer-title">
@@ -578,6 +613,34 @@ function DelivererPanel({ session }: { session: Tokens }) {
           <p className="empty">Nenhum arquivo enviado.</p>
         )}
       </article>
+      <div className="section-heading vehicle-heading">
+        <span className="eyebrow dark">VEÍCULO PRIVADO</span>
+        <h2>Vínculo comprovável</h2>
+        <p>Propriedade não é requisito universal. Registre veículo próprio, alugado ou autorizado; CRLV, fotos e autorização ficam privados e sujeitos a nova revisão quando substituídos.</p>
+      </div>
+      <div className="work-grid">
+        <form key={selectedVehicle?.id??"new-vehicle"} className="work-card" onSubmit={saveVehicle}>
+          <h3>{selectedVehicle?"Alterar veículo selecionado":"Cadastrar veículo"}</h3>
+          <label>Placa</label><input name="plate" defaultValue={selectedVehicle?.plate} pattern="[A-Za-z0-9 -]{7,10}" required />
+          <label>Marca</label><input name="make" defaultValue={selectedVehicle?.make} maxLength={80} required />
+          <label>Modelo</label><input name="model" defaultValue={selectedVehicle?.model} maxLength={80} required />
+          <label>Cor</label><input name="color" defaultValue={selectedVehicle?.color} maxLength={40} required />
+          <div className="inline-fields"><label>Ano de fabricação<input name="manufacturingYear" type="number" min="1886" defaultValue={selectedVehicle?.manufacturingYear} required /></label><label>Ano do modelo<input name="modelYear" type="number" min="1886" defaultValue={selectedVehicle?.modelYear} required /></label></div>
+          <label>Vínculo</label><select name="linkType" defaultValue={selectedVehicle?.linkType??"PROPRIEDADE"}><option value="PROPRIEDADE">Próprio</option><option value="LOCACAO">Alugado</option><option value="AUTORIZACAO">Uso autorizado</option></select>
+          <label>Validade, quando aplicável</label><input name="validUntil" type="date" defaultValue={selectedVehicle?.validUntil??""}/>
+          <button disabled={busy}>{selectedVehicle?"Salvar alteração e revisar novamente":"Criar vínculo pendente"}</button>
+        </form>
+        <form className="work-card" onSubmit={uploadVehicle}>
+          <h3>Evidência do vínculo</h3><p>Selecione um vínculo abaixo. Cada substituição preserva o histórico e invalida a revisão anterior.</p>
+          <label>Finalidade</label><select value={vehiclePurpose} onChange={(e)=>setVehiclePurpose(e.target.value)}><option value="CRLV">CRLV</option><option value="FOTO">Foto do veículo</option>{selectedVehicle?.linkType!=="PROPRIEDADE"&&<option value="USO_AUTORIZADO">Locação ou autorização de uso</option>}</select>
+          <label>PDF, JPEG ou PNG (até 10 MiB)</label><input name="vehicleFile" type="file" accept="application/pdf,image/jpeg,image/png" required />
+          <button disabled={busy||!selectedVehicle}>Enviar para quarentena</button>
+          <small>Inspeção estrutural não comprova autenticidade e não substitui varredura antimalware.</small>
+        </form>
+      </div>
+      <div className="registers vehicle-registers">
+        {vehicles.length?vehicles.map((vehicle)=><article key={vehicle.id}><h3>{vehicle.plate} · {vehicle.model}</h3><p><code>{vehicle.id}</code><strong>{vehicle.status}</strong><span>{vehicle.linkType} · versão {vehicle.version} · evidências {vehicle.evidenceComplete?"completas":"incompletas"}</span><button type="button" onClick={()=>setSelectedVehicle(vehicle)}>Selecionar</button></p>{vehicle.documents.map((document)=><p key={`${document.id}-${document.purpose}`}><code>{document.id}</code><strong>{document.status}</strong><span>{document.purpose}{document.current?"":" · substituído"}</span></p>)}</article>):<article><p className="empty">Nenhum vínculo cadastrado.</p></article>}
+      </div>
       {notice && (
         <p className={`feedback ${notice.tone}`} role="alert">
           {notice.text}
@@ -585,6 +648,20 @@ function DelivererPanel({ session }: { session: Tokens }) {
       )}
     </section>
   );
+}
+
+function VehicleReviewPanel({ session }: { session: Tokens }) {
+  const [reviews,setReviews]=useState<VehicleReview[]>([]); const [available,setAvailable]=useState(false); const [notice,setNotice]=useState<Notice|null>(null); const [secret,setSecret]=useState(""); const [busy,setBusy]=useState(false);
+  async function call(path:string,init:RequestInit={}){const r=await fetch(`/api/v1${path}`,{...init,headers:{...(init.body?{"Content-Type":"application/json"}:{}),Authorization:`Bearer ${session.accessToken}`,...(init.headers??{})}});if(r.status===403&&path==="/analyst/vehicle-reviews"){setAvailable(false);return null;}const b=await r.json().catch(()=>({}));if(!r.ok)throw new Error(b.message??"Ação operacional não concluída.");return b;}
+  async function load(){const b=await call("/analyst/vehicle-reviews");if(b){setAvailable(true);setReviews(b as VehicleReview[]);}}
+  useEffect(()=>{load().catch(e=>setNotice({tone:"error",text:e.message}));},[session.accessToken]);
+  async function run(action:()=>Promise<void>,text:string){setBusy(true);setNotice(null);try{await action();await load();setNotice({tone:"info",text});}catch(e){setNotice({tone:"error",text:e instanceof Error?e.message:"Resultado não confirmado."});}finally{setBusy(false);}}
+  async function enroll(e:FormEvent<HTMLFormElement>){e.preventDefault();const password=new FormData(e.currentTarget).get("password");await run(async()=>{const b=await call("/me/mfa/totp/enrollment",{method:"POST",body:JSON.stringify({password})});setSecret(b.secret);},"Segredo emitido. Confirme o código atual para elevar esta sessão.");}
+  async function confirm(e:FormEvent<HTMLFormElement>){e.preventDefault();const code=new FormData(e.currentTarget).get("code");await run(async()=>{await call("/me/mfa/totp/confirmation",{method:"POST",body:JSON.stringify({code})});},"MFA confirmado temporariamente nesta sessão.");}
+  async function action(review:VehicleReview,path:string,message:string){await run(async()=>{await call(`/analyst/vehicle-reviews/${review.id}${path}`,{method:"POST",body:path==="/decision"?JSON.stringify({decision:"APROVAR",reason:"revisão operacional"}):undefined});},message);}
+  async function download(review:VehicleReview,evidence:VehicleEvidence){setBusy(true);try{const r=await fetch(`/api/v1/analyst/vehicle-reviews/${review.id}/documents/${evidence.id}/download`,{headers:{Authorization:`Bearer ${session.accessToken}`}});if(!r.ok){const b=await r.json();throw new Error(b.message??"Download não autorizado.");}const url=URL.createObjectURL(await r.blob());const a=document.createElement("a");a.href=url;a.download=`evidencia-${evidence.id}`;a.click();URL.revokeObjectURL(url);}catch(e){setNotice({tone:"error",text:e instanceof Error?e.message:"Download não confirmado."});}finally{setBusy(false);}}
+  if(!available)return null;
+  return <section className="family review-panel" aria-labelledby="vehicle-review-title"><div className="section-heading"><span className="eyebrow dark">PAINEL OPERACIONAL</span><h2 id="vehicle-review-title">Revisão atribuída</h2><p>A fila exige atribuição nominal e MFA. O analista não pode revisar o próprio vínculo; inspeção estrutural e aprovação profissional continuam independentes.</p></div><div className="work-grid"><form className="work-card" onSubmit={enroll}><h3>Configurar MFA</h3><label>Senha atual</label><input name="password" type="password" autoComplete="current-password" required/><button disabled={busy}>Emitir segredo TOTP</button>{secret&&<small>Segredo temporário: <code>{secret}</code></small>}</form><form className="work-card" onSubmit={confirm}><h3>Elevar esta sessão</h3><label>Código de seis dígitos</label><input name="code" inputMode="numeric" pattern="[0-9]{6}" required/><button disabled={busy}>Confirmar MFA</button></form></div><div className="registers vehicle-registers">{reviews.length?reviews.map(review=><article key={review.id}><h3>Vínculo <code>{review.linkId}</code></h3><p><code>{review.id}</code><strong>{review.status}</strong><span>snapshot da versão {review.linkVersion}</span>{review.status==="PENDENTE"&&<button type="button" disabled={busy} onClick={()=>void action(review,"/assign","Revisão atribuída.")}>Assumir revisão</button>}</p>{review.documents.map(document=><p key={document.id}><code>{document.id}</code><strong>{document.status}</strong><span>{document.purpose}</span>{review.status==="ATRIBUIDA"&&<><button type="button" disabled={busy||document.status!=="QUARENTENA"} onClick={()=>void action(review,`/documents/${document.id}/inspection`,"Inspeção estrutural registrada.")}>Inspecionar estrutura</button><button type="button" disabled={busy||document.status!=="INSPECAO_APROVADA"} onClick={()=>void download(review,document)}>Download autorizado</button></>}</p>)}{review.status==="ATRIBUIDA"&&<button type="button" className="review-decision" disabled={busy} onClick={()=>void action(review,"/decision","Decisão registrada.")}>Solicitar decisão</button>}</article>):<article><p className="empty">Nenhuma revisão de veículo na fila.</p></article>}</div>{notice&&<p className={`feedback ${notice.tone}`} role="alert">{notice.text}</p>}</section>;
 }
 
 function AccountPage() {
@@ -863,6 +940,7 @@ function AccountPage() {
         <>
           <FamilyPanel session={session} />
           <DelivererPanel session={session} />
+          <VehicleReviewPanel session={session} />
         </>
       )}
     </>
