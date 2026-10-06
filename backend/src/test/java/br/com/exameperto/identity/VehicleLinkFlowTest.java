@@ -18,6 +18,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.sql.DataSource;
+import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,7 +45,7 @@ class VehicleLinkFlowTest {
     @Container static final PostgreSQLContainer<?> POSTGRES=new PostgreSQLContainer<>("postgres:17.6");
     static final Path TEST_ROOT=Path.of(System.getProperty("java.io.tmpdir"),"exame-perto-vehicle-test-"+UUID.randomUUID());
     @DynamicPropertySource static void db(DynamicPropertyRegistry r){r.add("spring.datasource.url",POSTGRES::getJdbcUrl);r.add("spring.datasource.username",POSTGRES::getUsername);r.add("spring.datasource.password",POSTGRES::getPassword);r.add("storage.private-root",TEST_ROOT::toString);}
-    @LocalServerPort int port; @MockBean EmailGateway email; @Autowired ObjectMapper json; @Autowired JdbcTemplate jdbc;
+    @LocalServerPort int port; @MockBean EmailGateway email; @Autowired ObjectMapper json; @Autowired JdbcTemplate jdbc; @Autowired DataSource dataSource;
     @AfterAll static void cleanup() throws Exception {if(Files.exists(TEST_ROOT))try(var paths=Files.walk(TEST_ROOT)){paths.sorted(java.util.Comparator.reverseOrder()).forEach(p->{try{Files.deleteIfExists(p);}catch(Exception ignored){}});}}
     final HttpClient client=HttpClient.newHttpClient(); final ConcurrentHashMap<String,String> mail=new ConcurrentHashMap<>(); static final String PASS="Senha-sintetica-123";
     @BeforeEach void setup(){when(email.configured()).thenReturn(true);doAnswer(i->{mail.put(i.getArgument(0),i.getArgument(2));return null;}).when(email).send(anyString(),anyString(),anyString());}
@@ -99,6 +102,19 @@ class VehicleLinkFlowTest {
         assertThat(request(rotated,"POST","/analyst/vehicle-reviews/"+freshId+"/decision","{\"decision\":\"APROVAR\"}","application/json").statusCode()).isEqualTo(403);
         assertThat(request(rotated,"POST","/auth/logout",null,"application/json").statusCode()).isEqualTo(204);
         assertThat(request(rotated,"GET","/analyst/vehicle-reviews",null,"application/json").statusCode()).isEqualTo(401);
+    }
+
+    @Test void v6MigratesFreshDatabaseAndUpgradesExistingV5Schema() {
+        String schema="vehicle_v6_upgrade_"+UUID.randomUUID().toString().replace("-","");
+        jdbc.execute("CREATE SCHEMA \""+schema+"\"");
+        Flyway before=Flyway.configure().dataSource(dataSource).schemas(schema).defaultSchema(schema).locations("classpath:db/migration").target(MigrationVersion.fromVersion("5")).load();
+        before.migrate();
+        assertThat(jdbc.queryForObject("SELECT max(version) FROM \""+schema+"\".flyway_schema_history",String.class)).isEqualTo("5");
+        Flyway upgrade=Flyway.configure().dataSource(dataSource).schemas(schema).defaultSchema(schema).locations("classpath:db/migration").load();
+        upgrade.migrate();
+        assertThat(jdbc.queryForObject("SELECT max(version) FROM \""+schema+"\".flyway_schema_history",String.class)).isEqualTo("6");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM information_schema.tables WHERE table_schema=? AND table_name='vinculo_veiculo'",Long.class,schema)).isEqualTo(1);
+        jdbc.execute("DROP SCHEMA \""+schema+"\" CASCADE");
     }
 
     private void createDeliverer(Account account)throws Exception{assertThat(request(account,"POST","/me/deliverer","{\"birthDate\":\"1990-01-01\"}","application/json").statusCode()).isEqualTo(201);}

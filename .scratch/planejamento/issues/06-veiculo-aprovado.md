@@ -26,3 +26,9 @@ Implementados backend/API, migração V6, painel web e app mobile para placa, ma
 Testes públicos foram adicionados para acesso entre contas, reutilização de documento de terceiro, campos privilegiados, concorrência, substituição, MFA, sessão revogada e revisão desatualizada. A execução Testcontainers não iniciou neste ambiente por ausência de Docker; typecheck/build web, typecheck/export Android e compilação Maven passaram. O teste em aparelho/emulador permanece pendente conforme ticket 05.
 
 Bloqueios mantidos: aprovação profissional e liberação de ofertas continuam proibidas; não há consulta oficial simulada. Dependências mobile continuam com alertas documentados (16 altos/7 moderados no relatório final), e a instalação/uso ponta a ponta em dispositivo não foi alegada. Não iniciar ticket 07, distribuir ou fazer deploy.
+
+## Verificação PostgreSQL real — 05/10/2026
+
+Docker `28.5.2+dfsg4` e Testcontainers foram encontrados disponíveis. `mvn -q -Dtest=VehicleLinkFlowTest test` passou com PostgreSQL 17.6 descartável: 2 testes, zero falhas/erros/skips. A cobertura confirmou os critérios públicos de autorização, documento de outra conta, conflito `412`, substituição/histórico, MFA, atribuição, autoanálise, decisão `422 POLICY_UNDEFINED` e sessão revogada. O caso de migração criou schema vazio até V5 e aplicou V6, enquanto o banco novo da aplicação recebeu V1–V6; `vinculo_veiculo` foi confirmado no schema atualizado.
+
+O resultado não altera as pendências do ticket 05: teste mobile instalado em dispositivo, aprovação profissional, alertas de dependências e critérios/integrações operacionais. Ticket 06 segue parcial; não iniciar ticket 07 nem liberar operação.
