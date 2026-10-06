@@ -73,7 +73,7 @@ class OrderService {
     }
 
     List<QuoteView> quotes(UUID actor,UUID orderId){authorizeRead(actor,orderId);expireQuotes(orderId);return jdbc.query("SELECT id FROM orcamento WHERE pedido_id=? ORDER BY created_at DESC,id",(rs,n)->quote(rs.getObject(1,UUID.class)),orderId);}
-    QuoteView getQuote(UUID actor,UUID id){Map<String,Object> q=quoteRow(id);authorizeRead(actor,(UUID)q.get("pedido_id"));return quote(id);}
+    QuoteView getQuote(UUID actor,UUID id){Map<String,Object> q=quoteRow(id);authorizeRead(actor,(UUID)q.get("pedido_id"));expireQuotes((UUID)q.get("pedido_id"));return quote(id);}
 
     private BigDecimal calculate(RouteProvider.RouteResult route,Map<String,Object> tariff){
         if(!"BASE_KM_MINUTO".equals(tariff.get("formula_codigo")))throw error(HttpStatus.UNPROCESSABLE_ENTITY,"POLICY_UNDEFINED","A fórmula tarifária não está definida.");
