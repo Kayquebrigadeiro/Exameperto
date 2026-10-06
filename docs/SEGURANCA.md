@@ -23,6 +23,8 @@ Negar por padrão. Autenticação não concede identidade verificada nem aprova�
 | Revisar entregador/veículo | AO atribuído | Revisão fora da própria conta, com evidências; foto nova não herda aprovação anterior. |
 | Ver programas oferecidos | Conta autenticada | Somente programas habilitados; não expõe saldo, acordos ou lista de beneficiários. |
 | Solicitar/listar benefício | P ou F BENEFICIOS | Mesmo paciente; dimensões IDADE/DEFICIENCIA/RENDA independentes; recurso vinculado ao processo do mesmo paciente/programa. |
+| Analisar benefício | AB membro ativo da instituição, caso atribuído e MFA verificado | Não autoanalisar; recurso exige analista diferente. Documento de outra conta, escopo expirado/revogado e versão obsoleta são recusados (404/403/412 conforme operação). |
+| Política/decisão | Política ATIVA vigente e versionada | Ausência de política/critério retorna `422 POLICY_UNDEFINED`; `503 INTEGRATION_UNAVAILABLE` é reservado a integração técnica indisponível. CPF, e-mail confirmado, upload ou inspeção estrutural não provam elegibilidade; decisão não garante financiamento. |
 | Analisar/decidir benefício | AB atribuído | Instituição deriva do programa, não de parâmetro livre; rejeitar autoanálise/conflito de interesse; recurso exige outro analista real; revisão administrativa não diagnostica; percentual calculado por regra aprovada. |
 | Consultar fila/caso operacional | AO/AD conforme capacidade | AO somente casos atribuídos e documentos da finalidade; AD vê fila mínima para atribuir, sem documentos clínicos. |
 | Atribuir análise | AD com capacidade de gestão | Analista ativo e habilitado no escopo; auditoria contém alvo/ator, não laudo. |

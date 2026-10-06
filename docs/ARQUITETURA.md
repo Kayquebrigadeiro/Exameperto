@@ -65,6 +65,10 @@ Armazenamento privado de objetos, com adaptador para S3 compatível e alternativ
 
 Limitar extensão, tamanho e tipo real de arquivo; usar identificador aleatório; descartar nomes originais do caminho; controlar acesso e retenção. Upload recebido não recebe selo de verificado. Logs não contêm documento, CPF completo, selfie, renda ou endereço residencial. Biometria não deve ser armazenada como requisito automático; política depende do fornecedor e da finalidade.
 
+## Solicitações de benefício (V7)
+
+`solicitacao_beneficio` captura instituição, política e versão/snapshot usados no pedido; `solicitacao_dimensao` mantém idade, deficiência e renda independentes. O paciente ou familiar só cria/lê com escopo BENEFICIOS vigente. Evidências permanecem privadas e reutilização exige mesma conta/paciente, finalidade e versão; substituição encerra a revisão corrente e preserva histórico. A fila institucional usa `membro_instituicao`; atribuição, inspeção e decisão exigem MFA e impedem autoanálise. Recurso cria revisão própria para outro analista. Ausência de política vigente bloqueia com `422 POLICY_UNDEFINED`; nenhuma decisão reserva saldo ou habilita programa.
+
 ## Benefícios e recursos
 
 Gratuidade por idade/deficiência e desconto econômico são decisões independentes, com evidência, regra versionada, revisão e validade apropriada. Aplicativo não diagnostica e não aprova por CID isolado. CPF/nascimento não comprova deficiência ou renda.

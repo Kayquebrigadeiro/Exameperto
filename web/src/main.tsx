@@ -47,6 +47,7 @@ type VehicleLink = {
   evidenceComplete: boolean; documents: VehicleEvidence[];
 };
 type VehicleReview = { id: string; linkId: string; linkVersion: number; analystId: string | null; status: string; documents: VehicleEvidence[] };
+type BenefitRequest = { id: string; status: string; policyVersion: number; dimensions: string[]; percentage: number | null; reason: string | null; version: number };
 const scopes = ["PEDIDOS", "BENEFICIOS", "RASTREAMENTO", "RECEBIMENTO"];
 const labels: Record<Mode, string> = {
   register: "Solicitar cadastro",
@@ -428,6 +429,25 @@ function FamilyPanel({ session }: { session: Tokens }) {
   );
 }
 
+function BenefitPanel({ session }: { session: Tokens }) {
+  const [policyId, setPolicyId] = useState("");
+  const [dimensions, setDimensions] = useState<string[]>(["IDADE"]);
+  const [requests, setRequests] = useState<BenefitRequest[]>([]);
+  const [notice, setNotice] = useState<Notice | null>(null);
+  async function api(path: string, init: RequestInit = {}) {
+    const response = await fetch(path, { ...init, headers: { Authorization: `Bearer ${session.accessToken}`, "Content-Type": "application/json", ...(init.headers ?? {}) } });
+    return parse(response);
+  }
+  async function load(showNotice = true) { try { const { result } = await api("/api/v1/benefit-requests"); setRequests(result); } catch (e) { if (showNotice) setNotice({ tone: "error", text: (e as Error).message }); } }
+  useEffect(() => { void load(false); }, [session.accessToken]);
+  async function create(event: FormEvent) {
+    event.preventDefault(); setNotice(null);
+    try { await api("/api/v1/benefit-requests", { method: "POST", body: JSON.stringify({ patientId: (await api("/api/v1/me/patient")).result.id, policyId, dimensions }) }); setNotice({ tone: "info", text: "Solicitação registrada para análise humana." }); await load(); }
+    catch (e) { setNotice({ tone: "error", text: (e as Error).message }); }
+  }
+  return <section className="panel" aria-label="Benefícios"><h2>Solicitação de benefício</h2><p>Dimensões independentes; documentos e critérios permanecem sujeitos à política vigente.</p><form onSubmit={create}><label>UUID da política vigente<input required value={policyId} onChange={e => setPolicyId(e.target.value)} /></label><fieldset><legend>Dimensões</legend>{["IDADE", "DEFICIENCIA", "RENDA"].map(d => <label className="check" key={d}><input type="checkbox" checked={dimensions.includes(d)} onChange={e => setDimensions(e.target.checked ? [...dimensions, d] : dimensions.filter(x => x !== d))} /> {d}</label>)}</fieldset><button type="submit">Solicitar análise</button></form>{notice && <p className={`feedback ${notice.tone}`} role="alert">{notice.text}</p>}<div className="cards">{requests.map(r => <article className="card" key={r.id}><strong>{r.status}</strong><p>Dimensões: {r.dimensions.join(", ")} · política v{r.policyVersion}</p><p>{r.reason ?? "Aguardando análise humana."}</p></article>)}</div></section>;
+}
+
 function DelivererPanel({ session }: { session: Tokens }) {
   const [profile, setProfile] = useState<Deliverer | null>(null);
   const [docs, setDocs] = useState<Evidence[]>([]);
@@ -669,6 +689,7 @@ function AccountPage() {
   const [busy, setBusy] = useState(false);
   const [session, setSession] = useState<Tokens | null>(null);
   const [feedback, setFeedback] = useState<Notice | null>(null);
+  const [showBenefits, setShowBenefits] = useState(false);
   const [expired, setExpired] = useState(false);
   useEffect(() => {
     if (!session) return;
@@ -941,6 +962,8 @@ function AccountPage() {
           <FamilyPanel session={session} />
           <DelivererPanel session={session} />
           <VehicleReviewPanel session={session} />
+          <section className="family" aria-label="Benefícios"><button type="button" onClick={() => setShowBenefits(value => !value)}>{showBenefits ? "Ocultar benefícios" : "Abrir benefícios"}</button></section>
+          {showBenefits && <BenefitPanel session={session} />}
         </>
       )}
     </>

@@ -67,6 +67,22 @@ Um processo inicial e um banco, com responsabilidades separadas por módulo. Int
 
 ## Modelo de dados conceitual
 
+### Fluxo de benefício e revisão
+
+```mermaid
+flowchart LR
+  P[Paciente ou familiar com BENEFICIOS vigente] --> S[Solicitação + dimensões independentes]
+  S --> E[Evidências privadas em quarentena]
+  S --> V[Snapshot da política/versionamento]
+  E --> R[Revisão atribuída]
+  R -->|MFA + sem autoanálise| D[Decisão humana]
+  D --> A[Recurso]
+  A --> R2[Outro analista + MFA]
+  V --> X{Política vigente?}
+  X -->|não| U[422 POLICY_UNDEFINED]
+  D --> F[Sem reserva de financiamento]
+```
+
 ```mermaid
 erDiagram
   direction TB

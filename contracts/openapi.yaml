@@ -3958,6 +3958,75 @@ paths:
       parameters: [{in: path, name: id, required: true, schema: {type: string, format: uuid}}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ReviewDecision'}}}}
       responses: {'403': {$ref: '#/components/responses/Error403'}, '404': {$ref: '#/components/responses/Error404'}, '409': {$ref: '#/components/responses/Error409'}, '422': {$ref: '#/components/responses/Error422'}}
+  /benefit-requests:
+    post:
+      operationId: createBenefitRequestV7
+      summary: Criar solicitação de benefício
+      tags: [benefits]
+      description: Paciente titular ou familiar com escopo BENEFICIOS vigente; política ATIVA versionada é capturada por snapshot.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BenefitRequestInputV7'}
+      responses:
+        '201': {description: Solicitação criada, content: {application/json: {schema: {$ref: '#/components/schemas/BenefitRequestV7'}}}}
+        '401': {$ref: '#/components/responses/Error401'}
+        '403': {$ref: '#/components/responses/Error403'}
+        '404': {$ref: '#/components/responses/Error404'}
+        '422': {$ref: '#/components/responses/Error422'}
+    get:
+      operationId: listBenefitRequestsV7
+      summary: Listar solicitações acessíveis
+      tags: [benefits]
+      responses:
+        '200': {description: Solicitações, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/BenefitRequestV7'}}}}}
+        '401': {$ref: '#/components/responses/Error401'}
+  /benefit-requests/{requestId}:
+    parameters: [{name: requestId, in: path, required: true, schema: {type: string, format: uuid}}]
+    get:
+      operationId: getBenefitRequestV7
+      summary: Consultar solicitação
+      tags: [benefits]
+      responses:
+        '200': {description: Solicitação e histórico, content: {application/json: {schema: {$ref: '#/components/schemas/BenefitRequestV7'}}}}
+        '404': {$ref: '#/components/responses/Error404'}
+  /benefit-requests/{requestId}/appeal:
+    post:
+      operationId: appealBenefitRequestV7
+      summary: Recorrer de decisão
+      tags: [benefits]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/BenefitAppealInputV7'}}}}
+      responses:
+        '200': {description: Recurso criado, content: {application/json: {schema: {$ref: '#/components/schemas/BenefitRequestV7'}}}}
+        '412': {description: Versão obsoleta, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+        '422': {$ref: '#/components/responses/Error422'}
+  /analyst/benefit-reviews:
+    get:
+      operationId: listBenefitReviewsV7
+      summary: Fila de revisões atribuíveis
+      tags: [benefits]
+      description: Membro ativo da instituição; decisão/inspeção exigem MFA.
+      responses:
+        '200': {description: Fila, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/BenefitReviewV7'}}}}}
+  /analyst/benefit-reviews/{reviewId}/assign:
+    post:
+      operationId: assignBenefitReviewV7
+      summary: Atribuir revisão
+      tags: [benefits]
+      responses:
+        '200': {description: Revisão atribuída, content: {application/json: {schema: {$ref: '#/components/schemas/BenefitReviewV7'}}}}
+        '403': {$ref: '#/components/responses/Error403'}
+  /analyst/benefit-reviews/{reviewId}/decision:
+    post:
+      operationId: decideBenefitReviewV7
+      summary: Decidir revisão
+      tags: [benefits]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/BenefitDecisionInputV7'}}}}
+      responses:
+        '200': {description: Decisão humana registrada, content: {application/json: {schema: {$ref: '#/components/schemas/BenefitRequestV7'}}}}
+        '422': {$ref: '#/components/responses/Error422'}
+
 components:
   securitySchemes:
     bearerAuth:
@@ -4021,6 +4090,59 @@ components:
       description: Obrigatório em requisições WEB com cookie, além de Origin permitido; omitido em MOBILE sem cookie.
         Falha 403.
   schemas:
+    BenefitRequestInputV7:
+      type: object
+      required: [patientId, policyId, dimensions]
+      properties:
+        patientId: {type: string, format: uuid}
+        policyId: {type: string, format: uuid}
+        dimensions: {type: array, minItems: 1, items: {type: string, enum: [IDADE, DEFICIENCIA, RENDA]}}
+    BenefitAppealInputV7:
+      type: object
+      required: [reason, requestVersion]
+      properties:
+        reason: {type: string, minLength: 1}
+        requestVersion: {type: integer, minimum: 0}
+    BenefitDecisionInputV7:
+      type: object
+      required: [decision, percentage, reason]
+      properties:
+        decision: {type: string, enum: [APROVADA, REJEITADA]}
+        percentage: {type: number, minimum: 0, maximum: 100}
+        reason: {type: string, minLength: 1}
+    BenefitEvidenceV7:
+      type: object
+      required: [id, purpose, state, current]
+      properties:
+        id: {type: string, format: uuid}
+        purpose: {type: string, enum: [IDADE, DEFICIENCIA, RENDA]}
+        state: {type: string}
+        current: {type: boolean}
+    BenefitReviewV7:
+      type: object
+      required: [id, type, state, requestVersion]
+      properties:
+        id: {type: string, format: uuid}
+        type: {type: string, enum: [INICIAL, RECURSO]}
+        state: {type: string}
+        requestVersion: {type: integer}
+        analystId: {type: string, format: uuid, nullable: true}
+    BenefitRequestV7:
+      type: object
+      required: [id, patientId, institutionId, policyId, policyVersion, status, dimensions, version]
+      properties:
+        id: {type: string, format: uuid}
+        patientId: {type: string, format: uuid}
+        institutionId: {type: string, format: uuid}
+        policyId: {type: string, format: uuid}
+        policyVersion: {type: integer, minimum: 1}
+        status: {type: string, enum: [EM_ANALISE, DECIDIDA, RECURSO, ENCERRADA]}
+        dimensions: {type: array, items: {type: string, enum: [IDADE, DEFICIENCIA, RENDA]}}
+        percentage: {type: number, minimum: 0, maximum: 100, nullable: true}
+        reason: {type: string, nullable: true}
+        version: {type: integer, minimum: 0}
+        evidence: {type: array, items: {$ref: '#/components/schemas/BenefitEvidenceV7'}}
+        reviews: {type: array, items: {$ref: '#/components/schemas/BenefitReviewV7'}}
     MfaPassword:
       type: object
       additionalProperties: false
