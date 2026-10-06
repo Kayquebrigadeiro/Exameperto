@@ -29,6 +29,9 @@ public class RegistrationErrorHandler {
     @ExceptionHandler(FundingService.FundingException.class)
     ResponseEntity<ApiError> funding(FundingService.FundingException ex) { return ResponseEntity.status(ex.getStatusCode()).header("Cache-Control", "no-store").body(ex.body()); }
 
+    @ExceptionHandler(OrderService.OrderException.class)
+    ResponseEntity<ApiError> order(OrderService.OrderException ex) { return ResponseEntity.status(ex.getStatusCode()).header("Cache-Control", "no-store").body(ex.body()); }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ApiError> invalid(MethodArgumentNotValidException ignored) {
         return ResponseEntity.badRequest().body(new ApiError("INVALID_INPUT", "Confira os campos informados.", UUID.randomUUID(), false));

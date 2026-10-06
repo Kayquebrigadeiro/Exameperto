@@ -1499,6 +1499,40 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AssignmentInput'
+  /order-documents/pickup-authorization:
+    post:
+      operationId: uploadPickupAuthorization
+      summary: Anexar evidência privada de autorização de retirada
+      tags:
+      - orders
+      description: Paciente ou familiar autenticado; o documento permanece privado e PENDENTE, sem presumir aceite da unidade.
+      x-permission: Paciente titular ou familiar PEDIDOS
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required: [file]
+      responses:
+        '201':
+          description: Metadados da evidência privada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '413':
+          $ref: '#/components/responses/Error413'
   /orders:
     post:
       operationId: createOrder
@@ -1661,6 +1695,52 @@ paths:
         schema:
           type: string
           format: uuid
+    put:
+      operationId: updateOrderAddresses
+      summary: Alterar endereços do pedido
+      tags:
+      - orders
+      description: Paciente/familiar PEDIDOS; invalida orçamentos anteriores e exige nova rota e aceite.
+      x-permission: Paciente titular ou familiar PEDIDOS
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                origin:
+                  $ref: '#/components/schemas/Address'
+                destination:
+                  $ref: '#/components/schemas/Address'
+                version:
+                  $ref: '#/components/schemas/Version'
+              required: [origin, destination, version]
+      responses:
+        '200':
+          description: Pedido atualizado e orçamentos substituídos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '412':
+          $ref: '#/components/responses/Error412'
   /orders/{orderId}/verification:
     post:
       operationId: verifyOrder
@@ -5223,19 +5303,26 @@ components:
           type: string
           minLength: 1
           maxLength: 200
+        routeReference:
+          type: string
         distanceMeters:
           type: integer
           minimum: 1
         durationSeconds:
           type: integer
           minimum: 1
-        includesLiveTraffic:
+        trafficIncluded:
           type: boolean
+        calculatedAt:
+          type: string
+          format: date-time
         expiresAt:
           type: string
           format: date-time
         version:
           $ref: '#/components/schemas/Version'
+        includesLiveTraffic:
+          type: boolean
         platformRevenueAmount:
           type: string
           nullable: true
@@ -5256,8 +5343,11 @@ components:
       - programId
       - tariffVersion
       - routeProvider
+      - routeReference
       - distanceMeters
       - durationSeconds
+      - trafficIncluded
+      - calculatedAt
       - includesLiveTraffic
       - expiresAt
       - version

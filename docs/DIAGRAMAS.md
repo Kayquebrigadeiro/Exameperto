@@ -94,6 +94,23 @@ flowchart LR
   L --> S[Disponibilidade por programa = soma dos lançamentos]
 ```
 
+### Pedido e orçamento particular (V9)
+
+```mermaid
+flowchart LR
+  U[Paciente/familiar PEDIDOS] --> O[Pedido + endereços cifrados]
+  O --> E[Evidência privada de retirada]
+  E --> V{Unidade confirmou?}
+  V -->|não| B[EM_VERIFICACAO; sem aceite presumido]
+  V -->|sim| R[RouteProvider identificado]
+  R --> T{Rota válida?}
+  T -->|não| I[503 INTEGRATION_UNAVAILABLE]
+  T -->|sim| P{Tarifa vigente?}
+  P -->|não| Q[422 POLICY_UNDEFINED]
+  P -->|sim| C[Orçamento versionado e expirável]
+  C -->|endereço muda| X[SUBSTITUIDO; nova cotação]
+```
+
 ```mermaid
 erDiagram
   direction TB

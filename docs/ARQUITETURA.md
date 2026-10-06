@@ -75,6 +75,10 @@ Limitar extensão, tamanho e tipo real de arquivo; usar identificador aleatório
 
 ## Benefícios e recursos
 
+## Pedidos e precificação (V9)
+
+O módulo de pedidos grava endereços cifrados e autorização de retirada privada, consultando escopos PEDIDOS/RECEBIMENTO a cada chamada. `RouteProvider` é um adaptador explícito: a implementação padrão permanece indisponível até configuração real; testes isolados podem fornecer resposta controlada e identificada. `OrderService` valida distância/duração, consulta `tarifa` vigente, calcula dinheiro exato e grava snapshot, validade e origem da rota. A alteração de endereço substitui cotações antigas. Este recorte não chama provedor externo, não presume unidade aceita, não cobra, não reserva financiamento e não designa entregador.
+
 Gratuidade por idade/deficiência e desconto econômico são decisões independentes, com evidência, regra versionada, revisão e validade apropriada. Aplicativo não diagnostica e não aprova por CID isolado. CPF/nascimento não comprova deficiência ou renda.
 
 Faixas de renda e tarifas financeiras devem ser configuradas pelo programa e registradas; os valores exemplificados nas conversas não são preços ou critérios oficiais.

@@ -71,6 +71,10 @@ Uma troca de documento/foto registra novo vínculo de documento submetido e gera
 
 Proposta de composição: maior cobertura válida entre gratuidade e desconto por renda, nunca soma acima de 100%; registrar cada decisão consultada. A forma final de combinar faixas e fontes depende de política aprovada. Uma única instituição/programa financia cada orçamento inicial; múltiplos financiadores ficam fora desta etapa. Tipo de benefício não é único por paciente: idade, deficiência e renda são dimensões independentes.
 
+### Pedido particular — V9
+
+`pedido` guarda origem/destino cifrados, coordenadas para o adaptador de rota, paciente, solicitante, destinatário, unidade informada, estado e versão. `autorizacao_retirada` referencia documento privado do solicitante e permanece PENDENTE até aceite/verificação da unidade; nenhum aceite é presumido. `tarifa` é imutável por número, vigência e parâmetros; `orcamento` captura provedor/referência/horário da rota, distância, duração, trânsito, snapshot tarifário, composição BRL, validade e versão. Alterar endereço substitui orçamentos anteriores e retorna ao fluxo de verificação. A ausência de rota habilitada retorna `503 INTEGRATION_UNAVAILABLE`; a ausência de tarifa válida retorna `422 POLICY_UNDEFINED`. O recorte não cobra, reserva fundos, designa entregador ou executa entrega.
+
 ## Designação, eventos e posição
 
 | Tabela | Campos específicos | Restrições / índices |

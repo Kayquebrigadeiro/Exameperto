@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { ChangeEvent, Dispatch, SetStateAction } from "react";
 import type { FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
@@ -49,6 +50,8 @@ type VehicleLink = {
 type VehicleReview = { id: string; linkId: string; linkVersion: number; analystId: string | null; status: string; documents: VehicleEvidence[] };
 type BenefitRequest = { id: string; status: string; policyVersion: number; dimensions: string[]; percentage: number | null; reason: string | null; version: number };
 type Funding = { id: string; programId: string; amount: number; currency: string; status: string; evidenceDocumentId: string; reconciliationEvidenceId: string | null; version: number };
+type Order = { id: string; patientId: string; status: string; coverageStatus: string; createdAt: string; version: number; pickupAuthorizationId: string; pickupUnitId: string };
+type Quote = { id: string; orderId: string; status: string; grossAmount: number; patientAmount: number; subsidyAmount: number; tariffVersion: number; routeProvider: string; routeReference: string; distanceMeters: number; durationSeconds: number; trafficIncluded: boolean; calculatedAt: string; expiresAt: string; version: number };
 const scopes = ["PEDIDOS", "BENEFICIOS", "RASTREAMENTO", "RECEBIMENTO"];
 const labels: Record<Mode, string> = {
   register: "Solicitar cadastro",
@@ -698,6 +701,22 @@ function VehicleReviewPanel({ session }: { session: Tokens }) {
   return <section className="family review-panel" aria-labelledby="vehicle-review-title"><div className="section-heading"><span className="eyebrow dark">PAINEL OPERACIONAL</span><h2 id="vehicle-review-title">Revisão atribuída</h2><p>A fila exige atribuição nominal e MFA. O analista não pode revisar o próprio vínculo; inspeção estrutural e aprovação profissional continuam independentes.</p></div><div className="work-grid"><form className="work-card" onSubmit={enroll}><h3>Configurar MFA</h3><label>Senha atual</label><input name="password" type="password" autoComplete="current-password" required/><button disabled={busy}>Emitir segredo TOTP</button>{secret&&<small>Segredo temporário: <code>{secret}</code></small>}</form><form className="work-card" onSubmit={confirm}><h3>Elevar esta sessão</h3><label>Código de seis dígitos</label><input name="code" inputMode="numeric" pattern="[0-9]{6}" required/><button disabled={busy}>Confirmar MFA</button></form></div><div className="registers vehicle-registers">{reviews.length?reviews.map(review=><article key={review.id}><h3>Vínculo <code>{review.linkId}</code></h3><p><code>{review.id}</code><strong>{review.status}</strong><span>snapshot da versão {review.linkVersion}</span>{review.status==="PENDENTE"&&<button type="button" disabled={busy} onClick={()=>void action(review,"/assign","Revisão atribuída.")}>Assumir revisão</button>}</p>{review.documents.map(document=><p key={document.id}><code>{document.id}</code><strong>{document.status}</strong><span>{document.purpose}</span>{review.status==="ATRIBUIDA"&&<><button type="button" disabled={busy||document.status!=="QUARENTENA"} onClick={()=>void action(review,`/documents/${document.id}/inspection`,"Inspeção estrutural registrada.")}>Inspecionar estrutura</button><button type="button" disabled={busy||document.status!=="INSPECAO_APROVADA"} onClick={()=>void download(review,document)}>Download autorizado</button></>}</p>)}{review.status==="ATRIBUIDA"&&<button type="button" className="review-decision" disabled={busy} onClick={()=>void action(review,"/decision","Decisão registrada.")}>Solicitar decisão</button>}</article>):<article><p className="empty">Nenhuma revisão de veículo na fila.</p></article>}</div>{notice&&<p className={`feedback ${notice.tone}`} role="alert">{notice.text}</p>}</section>;
 }
 
+function OrderPanel({ session }: { session: Tokens }) {
+  const [patientId,setPatientId]=useState(""); const [recipientId,setRecipientId]=useState(""); const [unitId,setUnitId]=useState("");
+  const [origin,setOrigin]=useState({street:"",number:"",district:"",city:"",state:"",postalCode:"",latitude:"",longitude:""});
+  const [destination,setDestination]=useState({street:"",number:"",district:"",city:"",state:"",postalCode:"",latitude:"",longitude:""});
+  const [documentId,setDocumentId]=useState(""); const [orders,setOrders]=useState<Order[]>([]); const [quotes,setQuotes]=useState<Record<string,Quote[]>>({}); const [notice,setNotice]=useState<Notice|null>(null); const [busy,setBusy]=useState(false);
+  async function api(path:string,init:RequestInit={}){return parse(await fetch(`/api/v1${path}`,{...init,credentials:"same-origin",headers:{Authorization:`Bearer ${session.accessToken}`,...(init.body instanceof FormData?{}:{"Content-Type":"application/json"}),...(init.headers??{})}}));}
+  async function load(){const b=await api("/orders");setOrders(b.result as Order[]);}
+  useEffect(()=>{load().catch(e=>setNotice({tone:"error",text:e.message}));},[session.accessToken]);
+  async function upload(e:ChangeEvent<HTMLInputElement>){const file=e.target.files?.[0];if(!file)return;setBusy(true);try{const f=new FormData();f.append("file",file);const b=await api("/order-documents/pickup-authorization",{method:"POST",body:f});setDocumentId((b.result as Evidence).id);setNotice({tone:"info",text:"Evidência privada anexada; ela ainda depende da verificação da unidade."});}catch(err){setNotice({tone:"error",text:err instanceof Error?err.message:"Upload não confirmado."});}finally{setBusy(false);}}
+  function address(value:typeof origin){return {...value,latitude:Number(value.latitude),longitude:Number(value.longitude)};}
+  async function create(e:FormEvent){e.preventDefault();setBusy(true);try{await api("/orders",{method:"POST",headers:{"Idempotency-Key":crypto.randomUUID()},body:JSON.stringify({patientId,recipientUserId:recipientId,pickupUnitId:unitId,pickupAuthorizationDocumentId:documentId,origin:address(origin),destination:address(destination)})});setNotice({tone:"info",text:"Pedido criado para verificação; nenhuma unidade foi presumida como aceita."});await load();}catch(err){setNotice({tone:"error",text:err instanceof Error?err.message:"Pedido não confirmado."});}finally{setBusy(false);}}
+  async function quote(order:Order){setBusy(true);try{const b=await api(`/orders/${order.id}/quotes`,{method:"POST",headers:{"If-Match":String(order.version),"Idempotency-Key":crypto.randomUUID()},body:JSON.stringify({})});setQuotes(current=>({...current,[order.id]:[b.result as Quote,...(current[order.id]??[])]}));setNotice({tone:"info",text:"Orçamento calculado com rota e tarifa versionadas."});}catch(err){setNotice({tone:"error",text:err instanceof Error?err.message:"Orçamento não confirmado."});}finally{setBusy(false);}}
+  const fields=(label:string,value:typeof origin,setter:Dispatch<SetStateAction<typeof origin>>) => <fieldset><legend>{label}</legend>{(["street","number","district","city","state","postalCode","latitude","longitude"] as const).map(key=><label key={key}>{key}<input required value={value[key]} onChange={e=>setter({...value,[key]:e.target.value})}/></label>)}</fieldset>;
+  return <section className="family order-panel" aria-label="Pedidos e orçamentos"><div className="section-heading"><span className="eyebrow dark">PEDIDOS</span><h2>Retirada e orçamento particular</h2><p>Endereços ficam privados. O pedido aguarda verificação da unidade; rota e tarifa precisam estar habilitadas.</p></div><form className="work-card" onSubmit={create}><label>Paciente <input required value={patientId} onChange={e=>setPatientId(e.target.value)}/></label><label>Destinatário autorizado <input required value={recipientId} onChange={e=>setRecipientId(e.target.value)}/></label><label>Unidade de retirada <input required value={unitId} onChange={e=>setUnitId(e.target.value)}/></label><label>Evidência de autorização de retirada<input type="file" accept="application/pdf,image/png,image/jpeg" onChange={upload} required={!documentId}/></label><p><code>{documentId||"Nenhuma evidência anexada"}</code></p>{fields("Origem",origin,setOrigin)}{fields("Destino",destination,setDestination)}<button disabled={busy||!documentId}>Solicitar retirada</button></form><div className="registers">{orders.length?orders.map(order=><article key={order.id}><h3>Pedido <code>{order.id}</code></h3><p><strong>{order.status}</strong><span>versão {order.version}</span><span>autorização {order.pickupAuthorizationId}</span></p><button type="button" disabled={busy||order.status!=="EM_VERIFICACAO"} onClick={()=>void quote(order)}>Calcular orçamento</button>{(quotes[order.id]??[]).map(q=><p key={q.id}><strong>{q.status}</strong><span>R$ {q.grossAmount}</span><span>{q.distanceMeters} m · {q.durationSeconds}s · {q.routeProvider}</span><small>válido até {new Date(q.expiresAt).toLocaleString("pt-BR")}</small></p>)}</article>):<article><p className="empty">Nenhum pedido visível.</p></article>}</div>{notice&&<p className={`feedback ${notice.tone}`} role="alert">{notice.text}</p>}</section>;
+}
+
 function AccountPage() {
   const [mode, setMode] = useState<Mode>("register");
   const [busy, setBusy] = useState(false);
@@ -705,6 +724,7 @@ function AccountPage() {
   const [feedback, setFeedback] = useState<Notice | null>(null);
   const [showBenefits, setShowBenefits] = useState(false);
   const [showFunding, setShowFunding] = useState(false);
+  const [showOrders, setShowOrders] = useState(false);
   const [expired, setExpired] = useState(false);
   useEffect(() => {
     if (!session) return;
@@ -981,6 +1001,8 @@ function AccountPage() {
           {showBenefits && <BenefitPanel session={session} />}
           <section className="family" aria-label="Aportes"><button type="button" onClick={() => setShowFunding(value => !value)}>{showFunding ? "Ocultar aportes" : "Abrir aportes"}</button></section>
           {showFunding && <FundingPanel session={session} />}
+          <section className="family" aria-label="Pedidos"><button type="button" onClick={() => setShowOrders(value => !value)}>{showOrders ? "Ocultar pedidos" : "Abrir pedidos"}</button></section>
+          {showOrders && <OrderPanel session={session} />}
         </>
       )}
     </>

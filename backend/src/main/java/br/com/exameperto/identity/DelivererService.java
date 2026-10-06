@@ -94,6 +94,11 @@ class DelivererService {
         }
     }
 
+    DocumentView storeDocument(UUID ownerId, String category, MultipartFile file) {
+        StoredEvidence stored=storeEvidence(ownerId,category,file);
+        return document(stored.id());
+    }
+
     void discardEvidence(StoredEvidence stored) { store.remove(stored.key()); }
 
     Download inspectedDownload(UUID documentId) {
@@ -148,7 +153,7 @@ class DelivererService {
     InputStream open(String key) { return store.open(key); }
 
     private void validate(String category, MultipartFile file) {
-        if (!List.of("IDENTIDADE","HABILITACAO","VEICULO","FOTO_OPERACIONAL","IDADE","DEFICIENCIA","RENDA","FINANCIAMENTO","COMPROVANTE").contains(category)) throw error(HttpStatus.BAD_REQUEST,"INVALID_INPUT","Categoria de documento inválida.");
+        if (!List.of("IDENTIDADE","HABILITACAO","VEICULO","FOTO_OPERACIONAL","IDADE","DEFICIENCIA","RENDA","FINANCIAMENTO","COMPROVANTE","AUTORIZACAO_RETIRADA").contains(category)) throw error(HttpStatus.BAD_REQUEST,"INVALID_INPUT","Categoria de documento inválida.");
         if (file==null || file.isEmpty() || file.getSize()>MAX) throw error(HttpStatus.PAYLOAD_TOO_LARGE,"FILE_TOO_LARGE","Arquivo vazio ou acima do limite de 10 MiB.");
         try { realMime(file.getBytes()); } catch (Exception ex) { throw error(HttpStatus.UNPROCESSABLE_ENTITY,"INVALID_FILE","Tipo real de arquivo não permitido."); }
     }

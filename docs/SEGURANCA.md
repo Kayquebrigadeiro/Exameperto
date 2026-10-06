@@ -106,6 +106,10 @@ Não há prazos legais presumidos. Antes de produção, cada categoria exige res
 
 Pendências materiais de validação das direções adotadas: documentos/critério e prazos do recurso de benefícios; faixas de renda; custeio/tarifas; cancelamento e remuneração em ocorrência; seleção/contratos de provedores; critérios profissionais de entregador; representação legal/incapacidade; recuperação e bootstrap privilegiado; prazos do convite adulto já adotado; medição dos limiares/retenção de GPS; política de exclusão; habilitação institucional e dupla revisão financeira. Registrar decisões com responsável antes de mover os tickets dependentes para execução.
 
+## Pedidos e orçamento particular (V9)
+
+Pedido e endereços exigem titularidade ou concessão PEDIDOS vigente reavaliada no backend; destinatário exige titularidade ou RECEBIMENTO vigente. Evidência de autorização de retirada é privada, pertence à conta que a envia e não comprova aceite da unidade. A unidade/protocolo continua bloqueada até procedimento real. Rota usa adaptador identificado, distância/duração e horário da consulta; não há linha reta ou fallback silencioso. Tarifa é versionada e seus parâmetros ficam no snapshot do orçamento; ausência de rota retorna `503 INTEGRATION_UNAVAILABLE`, ausência de política tarifária `422 POLICY_UNDEFINED`. Alteração de endereço invalida orçamento anterior e exige nova cotação/aceite. Nenhuma operação desta fatia cobra, reserva, designa ou executa entrega.
+
 ## Limites desta etapa
 
 Não foram executados testes de penetração, transações PostgreSQL, aparelhos Android, integração bancária ou varredura de infraestrutura. Foram planejados controles e cenários; validações documentais efetivas constam em [STATUS](STATUS.md). Segurança, escalabilidade e conformidade precisam de evidência posterior.
