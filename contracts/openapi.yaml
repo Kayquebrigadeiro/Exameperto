@@ -2754,6 +2754,27 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/FundingReview'
+  /funding/{fundingId}/review/evidence/{documentId}/inspection:
+    post:
+      operationId: inspectFundingReconciliationEvidence
+      summary: Inspecionar evidência de conciliação
+      tags: [funding]
+      description: GF da mesma instituição, com MFA; a inspeção estrutural não comprova transferência por si só.
+      responses:
+        '200': {description: Evidência inspecionada, content: {application/json: {schema: {$ref: '#/components/schemas/Document'}}}}
+        '403': {$ref: '#/components/responses/Error403'}
+        '404': {$ref: '#/components/responses/Error404'}
+        '409': {$ref: '#/components/responses/Error409'}
+        '422': {$ref: '#/components/responses/Error422'}
+    parameters:
+    - name: fundingId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    - name: documentId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
   /orders/{orderId}/financial-operations:
     get:
       operationId: listFinancialOperations

@@ -27,3 +27,9 @@ D02/D10/D11: MFA e duas pessoas reais distintas para registro/revisão; sem revi
 `FundingFlowTest` executou HTTP → Spring Boot → Flyway V1–V8 → PostgreSQL 17.6 descartável via Testcontainers. Cobriu falta de MFA, papel/atribuição, auto-confirmação, evidência de outra conta, valores inválidos, `412` obsoleto, instituições isoladas, rejeição sem saldo, replay idempotente e duas confirmações concorrentes com um único lançamento. Dados e instituição/programa foram sintéticos e criados somente no banco de teste.
 
 Critérios ainda bloqueados: procedimento/acordo real, responsáveis financeiros reais, evidência de transferência e eventual integração bancária; portanto nenhum saldo real, subsídio ou confirmação operacional foi liberado.
+
+## Ensaio web funcional — 06/10/2026
+
+`FundingBrowserFlowTest` executou Chromium → Vite → API HTTP real → PostgreSQL 17.6 descartável (Testcontainers), com armazenamento privado temporário e sem interceptação da API. O cenário registrou evidência privada, listou o aporte PENDENTE e confirmou disponibilidade zero; em seguida trocou para outro GF da mesma instituição, elevou a sessão com MFA, anexou/inspecionou a conciliação e confirmou o aporte, verificando no painel `CONFIRMADO` e disponibilidade `100.5`.
+
+O painel permite a revisão contratada (inspeção, confirmação/rejeição, motivo, versão e atualização). Os bloqueios de auto-confirmação, instituição alheia, MFA, `412` de versão, rejeição sem saldo, replay/idempotência e concorrência foram exercitados pelas interfaces HTTP públicas em `FundingFlowTest`, também contra PostgreSQL real; não foram substituídos por mocks ou H2. O ensaio de navegador não é verificação visual manual nem auditoria de acessibilidade; essas avaliações continuam não realizadas. Nenhum dado real, transferência ou integração bancária foi usado.

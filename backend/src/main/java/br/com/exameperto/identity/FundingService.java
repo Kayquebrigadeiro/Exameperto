@@ -83,6 +83,14 @@ class FundingService {
         audit(actor,fundingId,state,input.reasonCode()); return funding(fundingId);
     }
 
+    @Transactional
+    DocumentView inspectReconciliation(AuthService.SessionPrincipal principal, UUID fundingId, UUID documentId) {
+        UUID actor=principal.userId(); evidence.active(actor); mfa.requireVerified(principal);
+        Map<String,Object> row=fundingForUpdate(fundingId); requireManager(actor,institutionForProgram((UUID)row.get("programa_id")));
+        if(!"PENDENTE".equals(row.get("estado"))) throw error(HttpStatus.CONFLICT,"REVIEW_CONFLICT","O aporte já possui decisão.");
+        requireEvidence(documentId,actor,false); evidence.inspectEvidence(documentId); return evidence.document(documentId);
+    }
+
     private FundingView replay(UUID actor,String operation,String key,byte[] hash) {
         try { Map<String,Object> row=jdbc.queryForMap("SELECT request_hash,aporte_id FROM financiamento_idempotencia WHERE ator_id=? AND operacao=? AND chave=?",actor,operation,key); if(!MessageDigest.isEqual((byte[])row.get("request_hash"),hash)) throw error(HttpStatus.CONFLICT,"IDEMPOTENCY_CONFLICT","A mesma chave foi usada com dados diferentes."); return funding((UUID)row.get("aporte_id")); }
         catch(EmptyResultDataAccessException ex){return null;}
