@@ -57,7 +57,7 @@ Uma troca de documento/foto registra novo vínculo de documento submetido e gera
 
 | Tabela | Campos específicos | Restrições / índices |
 |---|---|---|
-| `programa` (mutável) | `instituicao_id uuid FK instituicao`, `nome text`, `acordo_documento_id uuid FK documento`, `estado` | PENDENTE/HABILITADO/SUSPENSO/ENCERRADO; UNIQUE(id,instituicao_id). |
+| `programa` (mutável) | V8: `instituicao_id uuid FK instituicao`, `codigo`, `nome`, `estado` | PENDENTE/HABILITADO/SUSPENSO; referência administrativa sem endpoint/seed de criação nesta fatia. Acordo/habilitação real continuam dependências de governança. |
 | `politica_beneficio` | `instituicao_id uuid FK instituicao`, `codigo`, `versao`, `criterios jsonb`, `percentual_maximo`, vigência e `estado` | V7: versão identificada por instituição/código, snapshot imutável na solicitação; estado ATIVA só com política vigente. Percentuais 0–100; sem critérios/responsável não se torna padrão ativo. |
 | `solicitacao_beneficio` (mutável) | `paciente_id`, `solicitante_id`, `instituicao_id`, `politica_id`, `politica_versao`, `politica_snapshot`, estado/decisão, percentual, `version` | V7: dimensões ficam em `solicitacao_dimensao` (IDADE/DEFICIENCIA/RENDA) e recurso mantém histórico no mesmo processo. Concorrência exige versão; decisão não cria saldo/financiamento. |
 | `beneficio_evidencia` | solicitação, documento, finalidade e `substituido_em` | Documento privado, quarentena/inspeção pelos controles existentes; somente o atual de cada dimensão é usado. Substituição bloqueia revisão anterior e cria nova revisão. |

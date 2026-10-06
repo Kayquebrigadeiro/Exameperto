@@ -48,6 +48,7 @@ type VehicleLink = {
 };
 type VehicleReview = { id: string; linkId: string; linkVersion: number; analystId: string | null; status: string; documents: VehicleEvidence[] };
 type BenefitRequest = { id: string; status: string; policyVersion: number; dimensions: string[]; percentage: number | null; reason: string | null; version: number };
+type Funding = { id: string; programId: string; amount: number; currency: string; status: string; evidenceDocumentId: string; reconciliationEvidenceId: string | null; version: number };
 const scopes = ["PEDIDOS", "BENEFICIOS", "RASTREAMENTO", "RECEBIMENTO"];
 const labels: Record<Mode, string> = {
   register: "Solicitar cadastro",
@@ -448,6 +449,15 @@ function BenefitPanel({ session }: { session: Tokens }) {
   return <section className="panel" aria-label="Benefícios"><h2>Solicitação de benefício</h2><p>Dimensões independentes; documentos e critérios permanecem sujeitos à política vigente.</p><form onSubmit={create}><label>UUID da política vigente<input required value={policyId} onChange={e => setPolicyId(e.target.value)} /></label><fieldset><legend>Dimensões</legend>{["IDADE", "DEFICIENCIA", "RENDA"].map(d => <label className="check" key={d}><input type="checkbox" checked={dimensions.includes(d)} onChange={e => setDimensions(e.target.checked ? [...dimensions, d] : dimensions.filter(x => x !== d))} /> {d}</label>)}</fieldset><button type="submit">Solicitar análise</button></form>{notice && <p className={`feedback ${notice.tone}`} role="alert">{notice.text}</p>}<div className="cards">{requests.map(r => <article className="card" key={r.id}><strong>{r.status}</strong><p>Dimensões: {r.dimensions.join(", ")} · política v{r.policyVersion}</p><p>{r.reason ?? "Aguardando análise humana."}</p></article>)}</div></section>;
 }
 
+function FundingPanel({ session }: { session: Tokens }) {
+  const [programId, setProgramId] = useState(""); const [amount, setAmount] = useState(""); const [sourceReference, setSourceReference] = useState(""); const [evidenceId, setEvidenceId] = useState(""); const [funding, setFunding] = useState<Funding[]>([]); const [balance, setBalance] = useState<{ available: number } | null>(null); const [notice, setNotice] = useState<Notice | null>(null);
+  async function api(path: string, init: RequestInit = {}) { const response = await fetch(path, { ...init, headers: { Authorization: `Bearer ${session.accessToken}`, "Content-Type": "application/json", ...(init.headers ?? {}) } }); return parse(response); }
+  async function load() { if (!programId) return; try { const [{ result: list }, { result: current }] = await Promise.all([api(`/api/v1/programs/${programId}/funding`), api(`/api/v1/programs/${programId}/balance`)]); setFunding(list); setBalance(current); } catch (e) { setNotice({ tone: "error", text: (e as Error).message }); } }
+  async function upload(event: FormEvent<HTMLInputElement>) { const file = event.currentTarget.files?.[0]; if (!file) return; const data = new FormData(); data.append("file", file); try { const response = await fetch("/api/v1/me/financial-documents", { method: "POST", headers: { Authorization: `Bearer ${session.accessToken}` }, body: data }); const parsed = await parse(response); setEvidenceId(parsed.result.id); setNotice({ tone: "info", text: "Evidência privada anexada; ainda não comprova transferência." }); } catch (e) { setNotice({ tone: "error", text: (e as Error).message }); } }
+  async function record(event: FormEvent) { event.preventDefault(); try { await api(`/api/v1/programs/${programId}/funding`, { method: "POST", headers: { "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify({ amount, currency: "BRL", evidenceDocumentId: evidenceId, sourceReference }) }); setNotice({ tone: "info", text: "Aporte registrado como pendente de conciliação independente." }); await load(); } catch (e) { setNotice({ tone: "error", text: (e as Error).message }); } }
+  return <section className="family" aria-label="Aportes institucionais"><div className="section-heading"><span className="eyebrow dark">PAINEL FINANCEIRO</span><h2>Aportes e disponibilidade</h2><p>Exige gestor nominal, MFA e evidência de conciliação. Registro pendente não aumenta saldo.</p></div><form className="work-card" onSubmit={record}><label>UUID do programa<input required value={programId} onChange={e => setProgramId(e.target.value)} /></label><label>Valor em BRL<input required inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} /></label><label>Referência de origem<input required value={sourceReference} onChange={e => setSourceReference(e.target.value)} /></label><label>Evidência privada<input required type="file" accept="application/pdf,image/png,image/jpeg" onChange={upload} /></label><p><code>{evidenceId || "Nenhuma evidência anexada"}</code></p><button type="submit" disabled={!evidenceId}>Registrar aporte</button><button type="button" onClick={() => void load()}>Atualizar situação</button></form>{balance && <p className="feedback info">Disponibilidade confirmada: {balance.available} BRL</p>}{notice && <p className={`feedback ${notice.tone}`} role="alert">{notice.text}</p>}<div className="registers">{funding.map(item => <article key={item.id}><strong>{item.status}</strong><p>{item.amount} {item.currency} · versão {item.version}</p></article>)}</div></section>;
+}
+
 function DelivererPanel({ session }: { session: Tokens }) {
   const [profile, setProfile] = useState<Deliverer | null>(null);
   const [docs, setDocs] = useState<Evidence[]>([]);
@@ -690,6 +700,7 @@ function AccountPage() {
   const [session, setSession] = useState<Tokens | null>(null);
   const [feedback, setFeedback] = useState<Notice | null>(null);
   const [showBenefits, setShowBenefits] = useState(false);
+  const [showFunding, setShowFunding] = useState(false);
   const [expired, setExpired] = useState(false);
   useEffect(() => {
     if (!session) return;
@@ -964,6 +975,8 @@ function AccountPage() {
           <VehicleReviewPanel session={session} />
           <section className="family" aria-label="Benefícios"><button type="button" onClick={() => setShowBenefits(value => !value)}>{showBenefits ? "Ocultar benefícios" : "Abrir benefícios"}</button></section>
           {showBenefits && <BenefitPanel session={session} />}
+          <section className="family" aria-label="Aportes"><button type="button" onClick={() => setShowFunding(value => !value)}>{showFunding ? "Ocultar aportes" : "Abrir aportes"}</button></section>
+          {showFunding && <FundingPanel session={session} />}
         </>
       )}
     </>

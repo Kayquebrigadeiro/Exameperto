@@ -83,6 +83,17 @@ flowchart LR
   D --> F[Sem reserva de financiamento]
 ```
 
+### Conciliação de aporte
+
+```mermaid
+flowchart LR
+  GF1[GF registrador + MFA] --> P[PENDENTE + comprovante privado]
+  P --> GF2[Outro GF + MFA + conciliação]
+  GF2 -->|REJEITADO| R[Auditoria; saldo inalterado]
+  GF2 -->|CONFIRMADO| L[Lançamento confirmado único]
+  L --> S[Disponibilidade por programa = soma dos lançamentos]
+```
+
 ```mermaid
 erDiagram
   direction TB

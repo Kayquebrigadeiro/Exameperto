@@ -3972,9 +3972,6 @@ paths:
       responses:
         '201': {description: Solicitação criada, content: {application/json: {schema: {$ref: '#/components/schemas/BenefitRequestV7'}}}}
         '401': {$ref: '#/components/responses/Error401'}
-        '403': {$ref: '#/components/responses/Error403'}
-        '404': {$ref: '#/components/responses/Error404'}
-        '422': {$ref: '#/components/responses/Error422'}
     get:
       operationId: listBenefitRequestsV7
       summary: Listar solicitações acessíveis
@@ -3982,6 +3979,29 @@ paths:
       responses:
         '200': {description: Solicitações, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/BenefitRequestV7'}}}}}
         '401': {$ref: '#/components/responses/Error401'}
+  /me/financial-documents:
+    post:
+      operationId: uploadFinancialEvidence
+      summary: Anexar evidência privada de aporte
+      tags: [funding]
+      description: Conta autenticada; o arquivo permanece privado e em quarentena. Upload não comprova transferência nem aumenta saldo.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: {type: string, format: binary}
+      responses:
+        '201': {description: Documento privado em quarentena, content: {application/json: {schema: {$ref: '#/components/schemas/Document'}}}}
+        '400': {$ref: '#/components/responses/Error400'}
+        '401': {$ref: '#/components/responses/Error401'}
+        '413': {$ref: '#/components/responses/Error413'}
+        '403': {$ref: '#/components/responses/Error403'}
+        '404': {$ref: '#/components/responses/Error404'}
+        '422': {$ref: '#/components/responses/Error422'}
   /benefit-requests/{requestId}:
     parameters: [{name: requestId, in: path, required: true, schema: {type: string, format: uuid}}]
     get:

@@ -247,3 +247,13 @@ Base `a7443bf` confirmada na branch `docs/planejamento-tecnico`; `referencia.md`
 O painel web ganhou acompanhamento/criação explícita de solicitação e `npm run build --prefix web` passou. `BrowserFlowTest -DbrowserTest=true` passou (navegador → API → PostgreSQL); o cenário de benefício usa política UUID sintética e não constitui homologação de elegibilidade.
 
 Contrato, modelo, segurança, arquitetura, diagramas e ticket foram alinhados. Pendentes: teste em dispositivo mobile; critérios/responsável profissional, integrações, armazenamento/expurgo e alertas do ticket 05. Aprovação profissional/operacional permanece bloqueada; ticket 08 não iniciado, sem distribuição, contratação ou deploy.
+
+## Ticket 08 — implementação parcial autorizada — 06/10/2026
+
+Base `2299e5e` confirmada na branch `docs/planejamento-tecnico`; `referencia.md` preservada fora do Git. V8 adiciona referência administrativa de programa, aporte BRL com valor exato, evidência privada, estados PENDENTE/CONFIRMADO/REJEITADO, idempotência, auditoria e lançamentos confirmados. A aplicação não cria instituição/programa, não semeia saldo e não consulta banco externo.
+
+Gestores financeiros exigem papel global nominal, vínculo ativo à instituição e MFA. Registro exige Idempotency-Key e permanece pendente. Revisão exige outro GF da mesma instituição, MFA, `If-Match`, evidência de conciliação própria aprovada e motivo; confirmação cria exatamente um lançamento. Disponibilidade soma somente `lancamento_aporte`; rejeições e pendências não alteram saldo.
+
+`FundingFlowTest` passou com PostgreSQL 17.6/Testcontainers e HTTP real: isolamento entre instituições, MFA/papel, auto-confirmação, evidência de outra conta, valores inválidos, versão obsoleta, rejeição, replay e concorrência sem duplicação. O painel web foi integrado ao fluxo de upload/registro/consulta; ainda não representa operação financeira real.
+
+Permanecem bloqueados: responsáveis e procedimento financeiro reais, acordo/programa habilitado por governança, comprovação de transferência, eventual integração bancária, retenção/expurgo e liberação de subsídio. Pendências do ticket 05 e teste mobile continuam separadas. Sem movimentação externa, contratação, deploy ou ticket 09.
