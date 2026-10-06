@@ -1,4 +1,4 @@
-# Status — atualizado em 05/10/2026
+# Status — atualizado em 06/10/2026
 
 Situação atual: tickets 03–04 implementados localmente e ticket 05 em continuidade técnica parcial; entrega real de e-mail e aprovação profissional continuam não homologadas. Registros abaixo preservam o histórico; ver a seção final para continuidade.
 
@@ -267,3 +267,22 @@ Base `474cf951` confirmada na branch `docs/planejamento-tecnico`; `referencia.md
 `OrderFlowTest` passou com PostgreSQL 17.6/Testcontainers e HTTP real: isolamento, familiar sem escopo/revogado, destinatário, evidência, endereço inválido, rota inválida/timeout, ausência de tarifa (`422`), cálculo sintético, replay, `412` e substituição. `OrderBrowserFlowTest` passou com Chromium → Vite → API → PostgreSQL real, armazenamento privado temporário e sem interceptação; anexou evidência, criou/acompanhou o pedido e exibiu o bloqueio de cotação sem aceite da unidade. Não é validação visual manual nem acessibilidade.
 
 O adaptador padrão de rota permanece indisponível (`503 INTEGRATION_UNAVAILABLE`); respostas controladas são exclusivas dos testes e não homologam fornecedor. A tarifa de teste é sintética e não é política comercial. Permanecem bloqueados unidade/protocolo e retorno reais, provedor contratado, política tarifária/comercial, custódia, cobrança, reserva, designação e execução. Pendências do ticket 05, teste mobile e aprovação operacional permanecem separadas. Não iniciar ticket 10.
+
+## Ticket 10 — implementação técnica parcial autorizada — 06/10/2026
+
+Base autorizada `2cc16fd`, branch `docs/planejamento-tecnico`, inicialmente igual a `origin/docs/planejamento-tecnico`; `referencia.md` permaneceu não rastreada e sem alteração. O recorte não iniciou designação/ticket 11, liquidação, repasse, deploy, contratação ou movimentação financeira externa.
+
+V10 implementa aceite append-only protegido também por trigger, com snapshot de valores, rota, tarifa, política apresentada, ator e versões do pedido/orçamento. Usuário/escopo é reavaliado; orçamento vencido/substituído, pedido alterado, valores/política divergentes e familiar revogado são recusados. Mudança de endereço substitui o orçamento e exige novo aceite; antes de qualquer designação libera somente a reserva local ainda não consumida e envia eventual cobrança para reconciliação, sem inventar política de cancelamento/estorno.
+
+Particular não consulta instituição financiadora. Parcela positiva exige adaptador de pagamento habilitado, cria obrigação/outbox única e permanece `PENDENTE_PAGAMENTO`; somente evento autenticado e validado pode tornar a cobertura confirmada. O frontend não possui comando de confirmação. O adaptador padrão está indisponível e retorna `503`; não foi implementada chamada financeira externa. O contrato do adaptador recebe bytes/headers originais e devolve evento normalizado apenas após autenticação; ID+hash deduplicam, valor/moeda/destinatário divergentes são rejeitados, timeout/resultado incerto fica `INCERTA` e evento tardio não regride confirmação nem ressuscita orçamento substituído.
+
+Subsidiado separa elegibilidade de disponibilidade: cotação e aceite exigem decisão aprovada ainda vigente, política ativa da mesma instituição e programa `HABILITADO`. `conta_programa` recebe apenas aportes confirmados e a reserva usa atualização condicional no PostgreSQL; falta de saldo retorna `409 FUNDING_INSUFFICIENT`. Paciente + subsídio permanece igual ao frete em banco e no snapshot. Reserva, aceite, operação e outbox pertencem à mesma transação; falha final testada reverte todos os efeitos.
+
+Evidências executadas nesta rodada:
+
+- `QuoteAcceptanceFlowTest` em PostgreSQL 17.6/Testcontainers: 3 testes, zero falhas/erros. Cobriu vencido, substituído, conflito de versão, familiar revogado, provedor/política ausentes, replay, corrida de dois aceites/reservas no último saldo, saldo insuficiente, liberação por novo endereço, rollback forçado sem efeito parcial, assinatura controlada ausente, duplicação, payload divergente, valor divergente, resultado incerto e evento tardio fora de ordem.
+- Suíte Maven comum final: 40 testes descobertos, 35 aprovados e 5 opt-in de navegador ignorados. Uma execução intermediária expôs uma asserção histórica que calculava `max(version)` como texto e esperava V8; ela foi corrigida para inteiro/V10 antes da execução final verde. Após o último endurecimento de destinatário/evento, `QuoteAcceptanceFlowTest` passou novamente com 3/3.
+- `AcceptanceBrowserFlowTest -DbrowserTest=true`: Chromium → Vite → API HTTP real → PostgreSQL 17.6 descartável, 1 teste aprovado. A interface aceitou as condições e mostrou `PENDENTE_PAGAMENTO`; banco confirmou um aceite, uma operação pendente e nenhuma confirmação de cobertura. É evidência funcional local, não homologação de adquirente/provedor financeiro.
+- Build web e compilação Maven passaram. OpenAPI 3.0.3 passou em `openapi-spec-validator 0.7.2`; a validação também corrigiu três parâmetros de path preexistentes nas rotas V7 de recurso/revisão. `git diff --check` passou.
+
+Conclusão separada: **particular tecnicamente parcial** — aceite/outbox/eventos e bloqueio sem integração concluídos, cobrança externa não homologada; **subsidiado tecnicamente parcial** — benefício/programa/saldo/reserva concorrente concluídos, sem programa ou responsáveis financeiros reais habilitados; **dependências externas bloqueadas** — provedor/credenciais/formato definitivo de evento, política de cancelamento/estorno, unidade/protocolo/retorno, tarifa comercial e homologação financeira. O ticket 10 inteiro permanece aberto. Próxima ação humana é revisar o conjunto e resolver essas dependências; não iniciar ticket 11.

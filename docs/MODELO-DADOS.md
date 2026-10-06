@@ -75,6 +75,16 @@ Proposta de composição: maior cobertura válida entre gratuidade e desconto po
 
 `pedido` guarda origem/destino cifrados, coordenadas para o adaptador de rota, paciente, solicitante, destinatário, unidade informada, estado e versão. `autorizacao_retirada` referencia documento privado do solicitante e permanece PENDENTE até aceite/verificação da unidade; nenhum aceite é presumido. `tarifa` é imutável por número, vigência e parâmetros; `orcamento` captura provedor/referência/horário da rota, distância, duração, trânsito, snapshot tarifário, composição BRL, validade e versão. Alterar endereço substitui orçamentos anteriores e retorna ao fluxo de verificação. A ausência de rota habilitada retorna `503 INTEGRATION_UNAVAILABLE`; a ausência de tarifa válida retorna `422 POLICY_UNDEFINED`. O recorte não cobra, reserva fundos, designa entregador ou executa entrega.
 
+### Aceite e cobertura — V10
+
+V10 materializa `aceite_orcamento` append-only com ator, versões do pedido/orçamento, valores, moeda e snapshot JSON das condições apresentadas. `orcamento.pedido_version` impede aceitar uma proposta depois de mudança no pedido; endereço novo substitui o orçamento e exige nova proposta e aceite. `politica_cancelamento_id` permanece nulo quando a política não existe, e nesse caso o aceite retorna `422 POLICY_UNDEFINED` em vez de inventar regra.
+
+No particular, subsídio e programa são nulos. Parcela positiva cria uma única `operacao_financeira` COBRANCA e `financeiro_outbox` na transação do aceite, mas o pedido continua `AGUARDANDO_ACEITE` até evento autenticado e validado confirmar valor/moeda/destinatário. O adaptador padrão está indisponível; sem adaptador configurado o aceite retorna `503` e não persiste efeito. `INCERTA`/`RECONCILIAR` não são sucesso nem falha definitiva.
+
+No subsidiado, a cotação revalida decisão aprovada vigente e política ativa da mesma instituição do programa habilitado. O aceite repete essas guardas e atualiza condicionalmente `conta_programa.disponivel/reservado`; `reserva_subsidio` é única por orçamento. Benefício aprovado sem conta disponível retorna `409 FUNDING_INSUFFICIENT`. A divisão persistida sempre satisfaz paciente + subsídio = frete. Mudança de endereço anterior à designação libera a reserva na mesma transação e marca eventual cobrança para reconciliação; não define cancelamento, estorno ou remuneração futura.
+
+`evento_pagamento` deduplica `(provedor, evento_externo_id)` e conserva hash do corpo original. O próprio adaptador autentica e normaliza o evento antes do efeito; mesmo ID/hash repete sem efeito, mesmo ID/hash diferente conflita. A confirmação tardia de orçamento substituído vai para reconciliação e não torna o pedido disponível. Testes usam adaptador controlado apenas no contexto descartável.
+
 ## Designação, eventos e posição
 
 | Tabela | Campos específicos | Restrições / índices |

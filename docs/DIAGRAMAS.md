@@ -264,6 +264,8 @@ sequenceDiagram
 
 Confirmação de pagamento real depende do provedor habilitado e dos eventos autenticados correspondentes. Registro de repasse a pagar não equivale a dinheiro transferido; confirmação de transferência vem da integração ou conciliação comprovada.
 
+V10 implementa até a fronteira de cobertura: snapshot imutável do aceite, reserva concorrente e outbox local. O adaptador de cobrança de produção permanece indisponível. Eventos controlados existem apenas nos testes descartáveis; eles demonstram autenticação delegada ao adaptador, validação e deduplicação, não homologação financeira externa. Designação, liquidação e repasse continuam fora deste recorte.
+
 ## Rastreamento ao vivo
 
 ```mermaid
