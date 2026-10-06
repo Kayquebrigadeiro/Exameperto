@@ -56,9 +56,8 @@ class FundingService {
     BalanceView balance(AuthService.SessionPrincipal principal, UUID programId) {
         UUID actor=principal.userId(); evidence.active(actor); mfa.requireVerified(principal);
         UUID institution=institutionForProgram(programId); requireManager(actor,institution);
-        Map<String,Object> row=jdbc.queryForMap("SELECT COALESCE(SUM(valor),0)::numeric(19,2) AS disponivel, count(*) AS versao FROM lancamento_aporte WHERE programa_id=? AND moeda='BRL'",programId);
-        BigDecimal available=(BigDecimal)row.get("disponivel"); long version=((Number)row.get("versao")).longValue();
-        return new BalanceView(programId,"BRL",available,BigDecimal.ZERO,BigDecimal.ZERO,version);
+        Map<String,Object> row;try{row=jdbc.queryForMap("SELECT disponivel,reservado,liquidado,version FROM conta_programa WHERE programa_id=?",programId);}catch(EmptyResultDataAccessException ex){return new BalanceView(programId,"BRL",BigDecimal.ZERO,BigDecimal.ZERO,BigDecimal.ZERO,0);}
+        return new BalanceView(programId,"BRL",(BigDecimal)row.get("disponivel"),(BigDecimal)row.get("reservado"),(BigDecimal)row.get("liquidado"),((Number)row.get("version")).longValue());
     }
 
     @Transactional
@@ -78,6 +77,7 @@ class FundingService {
         if(input.decision()==FundingReviewInput.Decision.CONFIRMADO) {
             try { jdbc.update("INSERT INTO lancamento_aporte(id,aporte_id,programa_id,valor,moeda) VALUES (?,?,?,?,?)",UUID.randomUUID(),fundingId,row.get("programa_id"),row.get("valor"),row.get("moeda")); }
             catch(DataIntegrityViolationException ex) { throw error(HttpStatus.CONFLICT,"FUNDING_CONFLICT","O crédito do aporte já foi lançado."); }
+            jdbc.update("INSERT INTO conta_programa(programa_id,disponivel) VALUES (?,?) ON CONFLICT (programa_id) DO UPDATE SET disponivel=conta_programa.disponivel+EXCLUDED.disponivel,version=conta_programa.version+1",row.get("programa_id"),row.get("valor"));
         }
         jdbc.update("INSERT INTO financiamento_idempotencia(ator_id,operacao,chave,request_hash,aporte_id) VALUES (?,?,?,?,?)",actor,"REVIEW:"+fundingId,idem,hash,fundingId);
         audit(actor,fundingId,state,input.reasonCode()); return funding(fundingId);

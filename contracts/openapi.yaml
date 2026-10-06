@@ -1943,8 +1943,10 @@ paths:
       summary: Aceitar preço e iniciar cobertura
       tags:
       - quotes
-      description: Paciente titular ou familiar PEDIDOS. Lock, reserva e outbox atômicos. Retorno pode estar PENDENTE;
-        cobrar somente valor aceito. Cobertura insuficiente 409 FUNDING_INSUFFICIENT. If-Match do orçamento.
+      description: Paciente titular ou familiar PEDIDOS vigente. Confere If-Match do orçamento e acceptedOrderVersion,
+        vigência, composição e política apresentada. Lock, reserva e outbox são atômicos. Particular não consulta
+        financiador e só aceita com adaptador de pagamento habilitado; o frontend nunca confirma pagamento. Subsidiado
+        revalida benefício/programa e reserva saldo real. Cobertura insuficiente retorna 409 FUNDING_INSUFFICIENT.
       x-permission: Paciente titular ou familiar PEDIDOS
       responses:
         '202':
@@ -4117,6 +4119,7 @@ paths:
       operationId: appealBenefitRequestV7
       summary: Recorrer de decisão
       tags: [benefits]
+      parameters: [{name: requestId, in: path, required: true, schema: {type: string, format: uuid}}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/BenefitAppealInputV7'}}}}
       responses:
         '200': {description: Recurso criado, content: {application/json: {schema: {$ref: '#/components/schemas/BenefitRequestV7'}}}}
@@ -4135,6 +4138,7 @@ paths:
       operationId: assignBenefitReviewV7
       summary: Atribuir revisão
       tags: [benefits]
+      parameters: [{name: reviewId, in: path, required: true, schema: {type: string, format: uuid}}]
       responses:
         '200': {description: Revisão atribuída, content: {application/json: {schema: {$ref: '#/components/schemas/BenefitReviewV7'}}}}
         '403': {$ref: '#/components/responses/Error403'}
@@ -4143,6 +4147,7 @@ paths:
       operationId: decideBenefitReviewV7
       summary: Decidir revisão
       tags: [benefits]
+      parameters: [{name: reviewId, in: path, required: true, schema: {type: string, format: uuid}}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/BenefitDecisionInputV7'}}}}
       responses:
         '200': {description: Decisão humana registrada, content: {application/json: {schema: {$ref: '#/components/schemas/BenefitRequestV7'}}}}
@@ -5332,6 +5337,7 @@ components:
         cancellationPolicyId:
           type: string
           format: uuid
+          nullable: true
       required:
       - id
       - orderId
@@ -5352,7 +5358,6 @@ components:
       - expiresAt
       - version
       - platformRevenueAmount
-      - cancellationPolicyId
       description: patientAmount + subsidyAmount = grossAmount para serviço completo. Receita da plataforma separada,
         modelo comercial pendente. Política de cancelamento versionada deve estar validada; não garante frete integral
         no aceite. Modalidade com receita cobrável depende de contrato financeiro específico posterior.
@@ -5371,14 +5376,17 @@ components:
         acceptedCancellationPolicyId:
           type: string
           format: uuid
+        acceptedOrderVersion:
+          $ref: '#/components/schemas/Version'
       required:
       - acceptedGrossAmount
       - acceptedPatientAmount
       - acceptedCurrency
       - acceptedCancellationPolicyId
+      - acceptedOrderVersion
       description: Confirma os valores apresentados; divergência com proposta resulta em 409, não recalcula silenciosamente.
-        Política de cancelamento deve coincidir com a proposta e ter sido apresentada; nenhum aceite implica remuneração
-        integral automática em cancelamento.
+        A versão deve ser a atual do pedido. Política de cancelamento deve coincidir com a proposta e ter sido apresentada;
+        ausência bloqueia o aceite com POLICY_UNDEFINED. Nenhum aceite implica remuneração integral automática em cancelamento.
     Offer:
       type: object
       additionalProperties: false
