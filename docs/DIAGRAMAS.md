@@ -156,7 +156,7 @@ erDiagram
   OPERACAO_FINANCEIRA o|--o{ EVENTO_EXTERNO : concilia
 ```
 
-Visão resumida do [modelo físico](MODELO-DADOS.md). V1–V13 materializam conta/sessão, representação, evidências e revisão local, benefício/aporte, pedido/orçamento, aceite/cobertura, designação, custódia/entrega comprovada e posições de tarefa ativa. V13 deduplica posição por designação/sequência e indexa a última posição/expurgo futuro; habilitação real continua bloqueada pela retenção não aprovada. Apuração, liquidação e repasse continuam planejados. Pedido particular não depende de instituição/reserva, mas só vira oferta após pagamento confirmado; subsidiado só vira oferta com reserva integral ainda ativa. Evidências clínicas e financeiras permanecem fora da projeção operacional.
+Visão resumida do [modelo físico](MODELO-DADOS.md). V1–V14 materializam conta/sessão, representação, evidências e revisão local, benefício/aporte, pedido/orçamento, aceite/cobertura, designação, custódia/entrega comprovada, posições de tarefa ativa e obrigação/repasse reconciliável. V13 deduplica posição por designação/sequência e indexa a última posição; habilitação real continua bloqueada pela retenção não aprovada. V14 separa liquidação local de transferência externa, preserva referência em timeout e mantém divergências auditáveis. Pedido particular não depende de instituição/reserva, mas só vira oferta após pagamento confirmado; subsidiado só vira oferta com reserva integral ainda ativa. Evidências clínicas e financeiras permanecem fora da projeção operacional.
 
 ### Ticket 06 — vínculo e revisão versionada
 

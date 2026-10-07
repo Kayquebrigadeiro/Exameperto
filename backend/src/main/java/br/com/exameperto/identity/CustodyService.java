@@ -19,9 +19,10 @@ class CustodyService {
     private final JdbcTemplate jdbc;
     private final DataProtector protector;
     private final ObjectMapper json;
+    private final PayoutService payouts;
 
-    CustodyService(JdbcTemplate jdbc, DataProtector protector, ObjectMapper json) {
-        this.jdbc = jdbc; this.protector = protector; this.json = json;
+    CustodyService(JdbcTemplate jdbc, DataProtector protector, ObjectMapper json, PayoutService payouts) {
+        this.jdbc = jdbc; this.protector = protector; this.json = json; this.payouts = payouts;
     }
 
     @Transactional
@@ -86,6 +87,7 @@ class CustodyService {
         jdbc.update("UPDATE codigo_recebimento SET usado_em=clock_timestamp() WHERE id=?",code.get("id")); jdbc.update("UPDATE custodia SET destino_tipo='ENTREGA',destino_usuario_id=?,encerrada_em=clock_timestamp(),recebimento_evento_id=?,version=version+1 WHERE id=?",order.get("destinatario_id"),event,custody);
         long next=((Number)order.get("version")).longValue()+1; jdbc.update("UPDATE pedido SET estado='ENTREGUE',version=?,updated_at=clock_timestamp() WHERE id=? AND version=?",next,orderId,expectedVersion); jdbc.update("UPDATE designacao SET encerrada_em=clock_timestamp(),encerramento_motivo='ENTREGA_COMPROVADA',version=version+1 WHERE pedido_id=? AND encerrada_em IS NULL",orderId);
         jdbc.update("INSERT INTO evento_custodia(id,pedido_id,custodia_id,designacao_id,ator_id,tipo,estado_anterior,estado_novo) SELECT ?,?,?,d.id,?,'ENTREGA_COMPROVADA','EM_ENTREGA','ENTREGUE' FROM designacao d WHERE d.pedido_id=?",event,orderId,custody,actor,orderId);
+        payouts.recordCompletedService(orderId);
         remember(actor,"DELIVER:"+orderId,key,requestHash,orderId,custody); return custody(custody);
     }
 

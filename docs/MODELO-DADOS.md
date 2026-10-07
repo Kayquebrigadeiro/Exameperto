@@ -85,6 +85,14 @@ No subsidiado, a cotação revalida decisão aprovada vigente e política ativa 
 
 `evento_pagamento` deduplica `(provedor, evento_externo_id)` e conserva hash do corpo original. O próprio adaptador autentica e normaliza o evento antes do efeito; mesmo ID/hash repete sem efeito, mesmo ID/hash diferente conflita. A confirmação tardia de orçamento substituído vai para reconciliação e não torna o pedido disponível. Testes usam adaptador controlado apenas no contexto descartável.
 
+### Repasse e conciliação — V14
+
+Na entrega comprovada, `apuracao_remuneracao` grava somente `SERVICO_COMPLETO` com a tarifa/frete aceitos e cria `LIQUIDACAO` confirmada, lançamentos balanceados e uma obrigação `repasse` em `OBRIGACAO_REGISTRADA`. Cancelamento, ocorrência e serviço parcial ficam `BLOQUEADA` até política aprovada; não se inventam multas, valores ou responsabilidade. A transferência não é consequência automática da entrega.
+
+`repasse` separa `OBRIGACAO_REGISTRADA`, `SOLICITADO`, `CONFIRMADO`, `FALHOU`, `INCERTO` e `DIVERGENTE`, com referência estável `repasse:{pedido}`. `financeiro_outbox` agenda a tentativa sem payload bancário; `evento_repasse` e `auditoria_repasse` são append-only. Timeout conserva a mesma referência e exige consulta/conciliação; confirmações posteriores validam referência, valor, moeda e destinatário e eventos antigos não regridem estado. O constraint trigger exige lançamentos balanceados no commit.
+
+O painel exige GF nominal da instituição, vínculo ativo e MFA verificado. O adaptador padrão retorna `503 INTEGRATION_UNAVAILABLE`; somente testes descartáveis substituem o provedor por um adaptador controlado. Prazo de retenção financeira continua pendente (D08).
+
 ## Designação, eventos e posição
 
 ### Ofertas e designação — V11

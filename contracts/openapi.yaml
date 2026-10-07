@@ -3215,6 +3215,69 @@ paths:
           $ref: '#/components/responses/Error429'
         '503':
           $ref: '#/components/responses/Error503'
+  /financial/payouts:
+    get:
+      operationId: listPayoutPanel
+      summary: Painel institucional de obrigações e conciliação
+      tags: [financial-operations]
+      description: GF nominal da instituição, com vínculo ativo e MFA verificado. Mostra somente repasses da própria instituição, sem dados bancários.
+      x-permission: GF da instituição com MFA
+      responses:
+        '200': {description: Obrigações, divergências e resultados incertos, content: {application/json: {schema: {$ref: '#/components/schemas/PayoutPage'}}}}
+        '401': {$ref: '#/components/responses/Error401'}
+        '403': {$ref: '#/components/responses/Error403'}
+  /payouts/{payoutId}:
+    get:
+      operationId: getPayout
+      summary: Consultar obrigação ou repasse próprio
+      tags: [financial-operations]
+      description: Entregador consulta a própria parcela; GF consulta a instituição com MFA. Paciente consulta somente a parcela própria.
+      parameters:
+      - name: payoutId
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200': {description: Estado do repasse, content: {application/json: {schema: {$ref: '#/components/schemas/Payout'}}}}
+        '401': {$ref: '#/components/responses/Error401'}
+        '403': {$ref: '#/components/responses/Error403'}
+        '404': {$ref: '#/components/responses/Error404'}
+  /payouts/{payoutId}/request:
+    post:
+      operationId: requestPayout
+      summary: Solicitar repasse pela mesma referência
+      tags: [financial-operations]
+      description: GF com MFA. Cria a operação somente quando o provedor está habilitado; timeout vira INCERTO e nunca autoriza nova referência.
+      x-permission: GF nominal da instituição com MFA
+      parameters:
+      - name: payoutId
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': {description: Repasse solicitado ou resultado conciliado, content: {application/json: {schema: {$ref: '#/components/schemas/Payout'}}}}
+        '403': {$ref: '#/components/responses/Error403'}
+        '409': {$ref: '#/components/responses/Error409'}
+        '503': {$ref: '#/components/responses/Error503'}
+  /payouts/{payoutId}/reconcile:
+    post:
+      operationId: reconcilePayout
+      summary: Consultar e conciliar repasse incerto
+      tags: [financial-operations]
+      description: Consulta a operação existente; valida referência, valor, moeda e destinatário. Não repete pagamento com nova identidade.
+      x-permission: GF nominal da instituição com MFA
+      parameters:
+      - name: payoutId
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': {description: Resultado conciliado, content: {application/json: {schema: {$ref: '#/components/schemas/Payout'}}}}
+        '403': {$ref: '#/components/responses/Error403'}
+        '409': {$ref: '#/components/responses/Error409'}
+        '503': {$ref: '#/components/responses/Error503'}
   /reviews/benefits:
     get:
       operationId: listAssignedBenefits
@@ -5942,6 +6005,33 @@ components:
       - version
       description: Representação mínima; cada ator vê apenas operações pertinentes à sua parcela/função, sem contas
         bancárias de terceiros.
+    Payout:
+      type: object
+      additionalProperties: false
+      properties:
+        id: {type: string, format: uuid}
+        orderId: {type: string, format: uuid}
+        amount: {$ref: '#/components/schemas/Money'}
+        currency: {type: string, enum: [BRL]}
+        status:
+          type: string
+          enum: [OBRIGACAO_REGISTRADA, SOLICITADO, CONFIRMADO, FALHOU, INCERTO, DIVERGENTE]
+        availability: {type: string, enum: [DISPONIVEL, INDISPONIVEL]}
+        divergenceCode: {type: string, nullable: true}
+        requestedAt: {type: string, format: date-time, nullable: true}
+        confirmedAt: {type: string, format: date-time, nullable: true}
+        version: {$ref: '#/components/schemas/Version'}
+      required: [id, orderId, amount, currency, status, availability, divergenceCode, requestedAt, confirmedAt, version]
+      description: Obrigação local não significa transferência. Nenhuma conta ou dado bancário é exposto.
+    PayoutPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/Payout'}}
+        obligations: {type: integer, minimum: 0}
+        divergences: {type: integer, minimum: 0}
+        uncertain: {type: integer, minimum: 0}
+      required: [items, obligations, divergences, uncertain]
     ProgramInput:
       type: object
       additionalProperties: false

@@ -1,5 +1,17 @@
 # Status — atualizado em 07/10/2026
 
+## Ticket 14 — repasse e conciliação (implementação independente, 07/10/2026)
+
+Base autorizada: `719357e`; branch `docs/planejamento-tecnico`; `referencia.md` preservada, não rastreada e sem alteração.
+
+Implementada V14 com PostgreSQL: entrega comprovada apura `SERVICO_COMPLETO` pelo frete aceito e registra `LIQUIDACAO`/lançamentos balanceados e obrigação de repasse na mesma transação. A obrigação é distinta de `SOLICITADO`, `CONFIRMADO`, `FALHOU`, `INCERTO` e `DIVERGENTE`; outbox, referência estável `repasse:{pedido}`, eventos externos deduplicados e auditoria append-only preservam histórico. Timeout não cria referência nova: consulta/conciliação usa a operação existente e valida referência, valor, moeda e destinatário; eventos duplicados/antigos não pagam duas vezes. Cancelamento, ocorrência e serviço parcial permanecem bloqueados sem política aprovada.
+
+Criadas fronteiras REST para painel institucional, consulta da parcela, solicitação e conciliação. A solicitação/conciliação exige GF nominal da instituição, vínculo ativo e MFA verificado; entregador/paciente consultam apenas sua própria parcela. O adaptador padrão retorna `503 INTEGRATION_UNAVAILABLE`; somente os testes usam `@MockBean` controlado, sem homologar transferência bancária. A tela web apresenta obrigações, divergências, incertezas e disponibilidade da integração, sem dados bancários.
+
+Evidências: `PayoutFlowTest` executou 3 cenários via HTTP/API e PostgreSQL 17.6/Testcontainers real isolado, cobrindo obrigação/apuração, timeout e confirmação tardia, consulta sem nova referência, eventos fora de ordem/duplicados, divergência de moeda, concorrência de solicitação, MFA, instituição alheia, rollback sem lançamentos parciais e integração ausente. `mvn -q -Dtest=PayoutFlowTest test` passou (3/3); `mvn -q -DskipTests compile` e `npm run build --prefix web` passaram. Não houve dinheiro real, contratação, deploy ou chamada bancária.
+
+Pendências: provedor, credenciais, beneficiários e homologação externa; responsáveis institucionais/dupla revisão; retenção financeira D08; regras aprovadas de cancelamento, ocorrência e serviço parcial; classificação contábil/fiscal. Mobile/GPS e retenção de posições permanecem pendências separadas do ticket 13. O ticket 14 não é marcado completo enquanto essas dependências e a validação operacional não existirem.
+
 ## Ticket 13 — rastreamento de tarefa (implementação técnica parcial, 07/10/2026)
 
 Base autorizada: `d40eb5f`; branch `docs/planejamento-tecnico`; `referencia.md` preservada, não rastreada e sem alteração.

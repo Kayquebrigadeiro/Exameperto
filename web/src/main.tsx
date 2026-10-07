@@ -58,6 +58,8 @@ type ReceiptChallenge = { code: string; expiresAt: string };
 type LiveLocation = { assignmentId:string; sequence:number; capturedAt:string; receivedAt:string; latitude:number; longitude:number; accuracyMeters:number; stale:boolean; lowAccuracy:boolean };
 type Incident = { id: string; orderId: string; type: string; status: string; description?: string; createdAt: string };
 type OperationalIdentity = { displayName: string; plate: string; model: string; color: string; photoDocumentId: string };
+type Payout = { id:string; orderId:string; amount:number; currency:string; status:string; availability:string; divergenceCode:string|null; requestedAt:string|null; confirmedAt:string|null; version:number };
+type PayoutPage = { items:Payout[]; obligations:number; divergences:number; uncertain:number };
 const scopes = ["PEDIDOS", "BENEFICIOS", "RASTREAMENTO", "RECEBIMENTO"];
 const labels: Record<Mode, string> = {
   register: "Solicitar cadastro",
@@ -74,7 +76,7 @@ async function parse(response: Response) {
   if (!response.ok) {
     const message =
       result.code === "INTEGRATION_UNAVAILABLE"
-        ? "O serviço de conta, e-mail ou canal privado está indisponível. Não foi possível concluir a solicitação."
+        ? "A integração necessária está indisponível. Nenhuma transferência foi iniciada."
         : result.code === "POLICY_UNDEFINED"
           ? "A operação aguarda a validação da política aplicável."
           : (result.message ?? "Não foi possível concluir a solicitação.");
@@ -97,6 +99,22 @@ function ScopeFields() {
       </div>
     </fieldset>
   );
+}
+
+function PayoutPanel({ session }: { session: Tokens }) {
+  const [data,setData]=useState<PayoutPage|null>(null);
+  const [notice,setNotice]=useState<Notice|null>(null);
+  const [busy,setBusy]=useState<string|null>(null);
+  async function api(path:string,init:RequestInit={}) { return parse(await fetch(`/api/v1${path}`,{...init,headers:{Authorization:`Bearer ${session.accessToken}`,...(init.headers??{})}})); }
+  async function reload(){const response=await api("/financial/payouts");setData(response.result as PayoutPage);}
+  useEffect(()=>{reload().catch(error=>setNotice({tone:"error",text:error instanceof Error?error.message:"Não foi possível carregar a conciliação."}));},[session.accessToken]);
+  async function act(item:Payout,action:"request"|"reconcile") {setBusy(item.id);setNotice(null);try{await api(`/payouts/${item.id}/${action}`,{method:"POST",headers:{"Idempotency-Key":`${action}-${item.id}`}});await reload();setNotice({tone:"info",text:action==="request"?"Solicitação processada. Confirmação depende da conciliação externa.":"A mesma referência foi consultada e conciliada."});}catch(error){setNotice({tone:"error",text:error instanceof Error?error.message:"O resultado não pôde ser confirmado."});}finally{setBusy(null);}}
+  return <section className="family ledger" aria-labelledby="payout-title">
+    <div className="section-heading"><span className="eyebrow dark">REPASSE E CONCILIAÇÃO</span><h2 id="payout-title">Livro de obrigações</h2><p>A entrega registra o valor devido. Transferência é um evento separado: referências incertas são consultadas antes de qualquer nova tentativa.</p></div>
+    {notice&&<p className={`feedback ${notice.tone}`} role="alert">{notice.text}</p>}
+    {data&&<><div className="ledger-summary" aria-label="Resumo financeiro"><article><strong>{data.obligations}</strong><span>obrigações registradas</span></article><article><strong>{data.uncertain}</strong><span>resultados incertos</span></article><article><strong>{data.divergences}</strong><span>divergências</span></article></div>
+    <div className="ledger-table" role="table" aria-label="Obrigações e repasses"><div className="ledger-row ledger-head" role="row"><span>Pedido</span><span>Valor devido</span><span>Estado</span><span>Último marco</span><span>Ação</span></div>{data.items.map(item=><div className="ledger-row" role="row" key={item.id}><code>{item.orderId.slice(0,8)}</code><strong>{new Intl.NumberFormat("pt-BR",{style:"currency",currency:item.currency}).format(item.amount)}</strong><span className={`status status-${item.status.toLowerCase()}`}>{item.status.replaceAll("_"," ")}</span><time>{item.confirmedAt?`Confirmado ${new Date(item.confirmedAt).toLocaleString("pt-BR")}`:item.requestedAt?`Solicitado ${new Date(item.requestedAt).toLocaleString("pt-BR")}`:"Ainda não solicitado"}</time><div>{item.status==="OBRIGACAO_REGISTRADA"?<button disabled={busy===item.id||item.availability==="INDISPONIVEL"} onClick={()=>act(item,"request")}>{item.availability==="INDISPONIVEL"?"Integração indisponível":"Solicitar repasse"}</button>:["INCERTO","DIVERGENTE"].includes(item.status)?<button disabled={busy===item.id} onClick={()=>act(item,"reconcile")}>Conciliar referência</button>:<span>—</span>}</div>{item.divergenceCode&&<small className="ledger-alert">Divergência: {item.divergenceCode}</small>}</div>)}</div></>}
+  </section>;
 }
 
 function FamilyPanel({ session }: { session: Tokens }) {
@@ -736,6 +754,7 @@ function AccountPage() {
   const [showBenefits, setShowBenefits] = useState(false);
   const [showFunding, setShowFunding] = useState(false);
   const [showOrders, setShowOrders] = useState(false);
+  const [showPayouts, setShowPayouts] = useState(false);
   const [expired, setExpired] = useState(false);
   useEffect(() => {
     if (!session) return;
@@ -1014,6 +1033,8 @@ function AccountPage() {
           {showFunding && <FundingPanel session={session} />}
           <section className="family" aria-label="Pedidos"><button type="button" onClick={() => setShowOrders(value => !value)}>{showOrders ? "Ocultar pedidos" : "Abrir pedidos"}</button></section>
           {showOrders && <OrderPanel session={session} />}
+          <section className="family" aria-label="Repasses"><button type="button" onClick={() => setShowPayouts(value => !value)}>{showPayouts ? "Ocultar repasses" : "Abrir repasses"}</button></section>
+          {showPayouts && <PayoutPanel session={session} />}
         </>
       )}
     </>
