@@ -168,6 +168,12 @@ Base técnica: [constraints PostgreSQL](https://www.postgresql.org/docs/current/
 
 ## Complementos físicos D01–D12
 
+### V12 — custódia, entrega comprovada e ocorrências implementadas
+
+V12 materializa `custodia`, `evento_custodia`, `codigo_recebimento`, `ocorrencia_entrega` e `custodia_idempotencia`. Retirada exige designação ativa, autorização vigente, protocolo/cobertura de retorno habilitados e documento `COMPROVANTE` aprovado pertencente ao entregador; o conteúdo do exame nunca é aberto ou fotografado pela aplicação. Início de entrega e ocorrência respeitam `If-Match`, locks do pedido e chaves idempotentes. O código de recebimento é emitido somente ao destinatário vigente, armazenado apenas como hash, expira em 30 minutos, limita cinco tentativas e é invalidado atomicamente no recebimento concorrente.
+
+Entrega comprovada grava evento estruturado, encerra custódia e designação e marca o pedido `ENTREGUE`, sem código em claro ou log. Ocorrência (`UNIDADE_FECHADA`, `DESTINATARIO_AUSENTE`, `LACRE_COMPROMETIDO` ou `OUTRA`) mantém custódia e pedido em `OCORRENCIA`; não encerra, liquida, cancela, retorna ou reentrega automaticamente. Retorno, reentrega e cancelamento pós-designação permanecem bloqueados até política aprovada de destino, custo, cobertura e responsabilidade.
+
 As tabelas abaixo seguem as convenções de UUID, índices em FKs, timestamps e versionamento acima. Políticas são versões imutáveis; nenhuma recebe valores ativos de demonstração.
 
 | Tabela | Campos específicos | Restrições / guardas |

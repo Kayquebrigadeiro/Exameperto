@@ -1550,7 +1550,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Order'
+                $ref: '#/components/schemas/Custody'
           headers:
             ETag:
               schema:
@@ -2241,7 +2241,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Order'
+                $ref: '#/components/schemas/Custody'
           headers:
             ETag:
               schema:
@@ -2296,7 +2296,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Order'
+                $ref: '#/components/schemas/Custody'
           headers:
             ETag:
               schema:
@@ -2394,7 +2394,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Order'
+                $ref: '#/components/schemas/Custody'
           headers:
             ETag:
               schema:
@@ -2490,7 +2490,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Reason'
+              $ref: '#/components/schemas/IncidentInput'
   /incidents/{incidentId}/resolve:
     post:
       operationId: resolveIncident
@@ -5568,19 +5568,11 @@ components:
       type: object
       additionalProperties: false
       properties:
-        pickupAuthorizationId:
-          type: string
-          format: uuid
-        custodyProtocolId:
-          type: string
-          format: uuid
-        pickupEvidenceId:
+        evidenceDocumentId:
           type: string
           format: uuid
       required:
-      - pickupAuthorizationId
-      - custodyProtocolId
-      - pickupEvidenceId
+      - evidenceDocumentId
       description: Somente autorização específica verificada e vigente; não substitui prova exigida pela unidade.
     DeliveryCode:
       type: object
@@ -5588,8 +5580,8 @@ components:
       properties:
         code:
           type: string
-          minLength: 6
-          maxLength: 12
+          minLength: 20
+          maxLength: 512
           writeOnly: true
       required:
       - code
@@ -5602,8 +5594,8 @@ components:
       properties:
         code:
           type: string
-          minLength: 6
-          maxLength: 12
+          minLength: 20
+          maxLength: 512
         expiresAt:
           type: string
           format: date-time
@@ -5612,6 +5604,17 @@ components:
       - expiresAt
       description: Somente destinatário autorizado atual. Não registrar nem incluir em idempotência persistida como
         resposta em texto claro.
+    IncidentInput:
+      type: object
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          enum: [UNIDADE_FECHADA, DESTINATARIO_AUSENTE, LACRE_COMPROMETIDO, OUTRA]
+        description:
+          type: string
+          maxLength: 500
+      required: [type]
     Incident:
       type: object
       additionalProperties: false
@@ -5622,30 +5625,35 @@ components:
         orderId:
           type: string
           format: uuid
-        reasonCode:
+        type:
           type: string
-          minLength: 1
-          maxLength: 200
+          enum: [UNIDADE_FECHADA, DESTINATARIO_AUSENTE, LACRE_COMPROMETIDO, OUTRA]
+        description:
+          type: string
+          maxLength: 500
         status:
           type: string
           enum:
           - ABERTA
-          - RESOLVIDA
-        version:
-          $ref: '#/components/schemas/Version'
-        previousOrderStatus:
-          type: string
-          enum:
-          - ACEITA
-          - RETIRADA
-          - EM_ENTREGA
+          - PENDENTE_RESOLUCAO
+          - ENCERRADA
       required:
       - id
       - orderId
-      - reasonCode
+      - type
       - status
-      - version
-      - previousOrderStatus
+    Custody:
+      type: object
+      additionalProperties: false
+      properties:
+        id: {type: string, format: uuid}
+        orderId: {type: string, format: uuid}
+        status: {type: string, enum: [ATIVA, ENCERRADA]}
+        destinationType: {type: string, enum: [ENTREGA, RETORNO]}
+        pickedUpAt: {type: string, format: date-time}
+        closedAt: {type: string, format: date-time}
+        version: {$ref: '#/components/schemas/Version'}
+      required: [id, orderId, status, pickedUpAt, version]
     IncidentResolution:
       type: object
       additionalProperties: false

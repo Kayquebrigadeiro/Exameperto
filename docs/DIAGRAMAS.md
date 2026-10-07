@@ -268,7 +268,7 @@ sequenceDiagram
 
 Confirmação de pagamento real depende do provedor habilitado e dos eventos autenticados correspondentes. Registro de repasse a pagar não equivale a dinheiro transferido; confirmação de transferência vem da integração ou conciliação comprovada.
 
-V10 implementa a fronteira de cobertura: snapshot imutável do aceite, reserva concorrente e outbox local. V11 implementa consulta mínima e aceite exclusivo da oferta, com revalidação transacional e acompanhamento inicial nas interfaces. O adaptador de cobrança de produção, aprovações profissionais, política de capacidade e protocolos reais permanecem indisponíveis; testes usam substitutos apenas no banco descartável. Retirada, custódia efetiva, rastreamento, liquidação e repasse continuam fora deste recorte.
+V10 implementa a fronteira de cobertura; V11 implementa oferta/designação; V12 implementa retirada, início de entrega, código de recebimento, custódia e ocorrência com locks e idempotência. Retorno, reentrega, liquidação e cancelamento pós-designação continuam bloqueados por políticas ausentes. Aprovações profissionais, capacidade e protocolos reais permanecem indisponíveis; testes usam substitutos somente no banco descartável.
 
 ## Rastreamento ao vivo
 

@@ -147,3 +147,8 @@ Conta básica implementada; ver [configuração, controles e homologação](CONT
 Respostas de recuperação/reenvio são genéricas: 202 apenas aceita a solicitação; envio ocorre em fila interna sem segredo persistido. Falha de transporte fica RECONCILIAR, sem alegar entrega. Ausência de configuração é 503 para qualquer endereço. Cadastro mantém rollback integral na falha SMTP. Confirmação não comprova identidade, benefício, entregador ou veículo.
 
 Limites técnicos: rate limit por processo, sem coordenação entre réplicas; rotação operacional de chaves, retenção validada, monitoramento/bounces e homologação do provedor ainda pendentes. Não declarar conformidade ou segurança universal com base nos testes desta fatia.
+## Ticket 12 — custódia e recebimento
+
+Retirada só é aceita pelo entregador designado ativo, com autorização vigente, protocolo/cobertura de retorno habilitados e evidência operacional mínima aprovada. A aplicação não acessa o conteúdo do exame. O destinatário vigente é reavaliado na emissão e no consumo do código; familiar perde acesso quando a autorização RECEBIMENTO é revogada.
+
+O código é secreto, temporário, de uso único, limitado por tentativas e nunca aparece para o entregador, em logs ou na chave de idempotência. O pedido é bloqueado antes de validar hash/expiração e a confirmação concorrente só pode consumir uma linha. Eventos e ocorrências registram ator, estado anterior/novo e evidência sem encerrar custódia por si só. Retorno, reentrega e cancelamento pós-retirada ficam indisponíveis sem política operacional aprovada.

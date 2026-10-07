@@ -1,5 +1,15 @@
 # Status — atualizado em 06/10/2026
 
+## Ticket 12 — retirada, ocorrência e entrega comprovada (implementação parcial, 06/10/2026)
+
+Base autorizada: `b50a6f9`; branch `docs/planejamento-tecnico`; `referencia.md` preservada e não rastreada.
+
+Implementada V12 com PostgreSQL: custódia vinculada à designação/protocolo, retirada somente por entregador designado com autorização vigente e evidência `COMPROVANTE` aprovada, início de entrega, ocorrências auditáveis e confirmação de recebimento por código secreto do destinatário. Código usa hash, prazo de 30 minutos, cinco tentativas, uso único e locks; não aparece ao entregador, em logs ou em idempotência. Web acompanha custódia/ocorrências; app oferece retirada, início e entrega sem abrir/fotografar o envelope.
+
+Retorno, reentrega e cancelamento após designação/retirada permanecem bloqueados por ausência de políticas aprovadas de destino, custo, cobertura, responsabilidade e apuração. Não foi implementada liquidação/repasse externo, entrega física ou rastreamento.
+
+Evidência automatizada: `CustodyFlowTest` (2 testes) usa PostgreSQL 17.6/Testcontainers e HTTP real, cobrindo entregador alheio, transições, código incorreto/reutilizado, idempotência, ocorrência e ausência de efeitos parciais. Suíte Maven final: 47 testes descobertos, 0 falhas, 6 opt-in ignorados na execução comum. Web build passou; mobile typecheck e export Android passaram (581 módulos, 1,5 MB), sem `adb`/emulador, portanto export não é execução em aparelho.
+
 ## Ticket 11 — ofertas e designação (implementação parcial, 06/10/2026)
 
 Base autorizada: `f7449ad`; branch `docs/planejamento-tecnico`; remoto confirmado `https://github.com/Kayquebrigadeiro/Exameperto.git`. `referencia.md` permaneceu fora do Git e sem alterações.

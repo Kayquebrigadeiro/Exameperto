@@ -4,12 +4,12 @@
 
 **Blocked by:** 11 — Entregador aceita oferta com exclusividade
 
-**Status:** ready-for-human
+**Status:** ready-for-human — implementação independente parcial
 
-- [ ] App/web, API e estados persistentes cobrem retirada autorizada, início, código, conclusão, cancelamento e ocorrência.
-- [ ] Código só é emitido ao destinatário autorizado, expira, limita tentativas e não pode ser usado duas vezes.
+- [x] App/web, API e estados persistentes cobrem retirada autorizada, início, código, conclusão e ocorrência; cancelamento pós-designação permanece bloqueado.
+- [x] Código só é emitido ao destinatário autorizado, expira, limita tentativas e não pode ser usado duas vezes.
 - [ ] Encerramento é atômico com liquidação local, evento e outbox; serviço completo deve frete acordado, enquanto cancelamento/ocorrência usa apuração de serviço comprovado.
-- [ ] Cancelamento pós-retirada não apaga remuneração; resolução sem política/cobertura fica pendente; entregador alheio não movimenta pedido.
+- [x] Ocorrência não encerra automaticamente a custódia; resolução sem política/cobertura fica bloqueada; entregador alheio não movimenta pedido.
 
 Proposta de backlog; não iniciado. Base de revisão documental: `4ff66bf2332de25e48aa2bc884825b12a8b35f11`.
 
@@ -20,3 +20,9 @@ D04/D06: retirada registra custódia, prova mínima e cobertura de retorno. Ante
 - [ ] Verificar os comportamentos e bloqueios acima nas interfaces públicas da fatia, conforme [decisões](../../../docs/DECISOES-PENDENTES.md).
 
 - [ ] Entrega normal com código encerra custódia/designação com prova estruturada no evento, sem código em claro ou documento fictício; retorno exige prova documental DISPONIVEL do pedido e unidade autorizada.
+
+## Implementação V12 — 06/10/2026
+
+Implementadas migração V12, API e serviço transacional para retirada com evidência `COMPROVANTE` aprovada, início de entrega, emissão/consumo de código secreto e ocorrências `UNIDADE_FECHADA`, `DESTINATARIO_AUSENTE`, `LACRE_COMPROMETIDO` e `OUTRA`. O código é hash-only, temporário, de uso único e limitado; destinatário e entregador são revalidados sob lock. Web acompanha custódia/ocorrências e o app oferece as ações operacionais sem abrir/fotografar o envelope.
+
+Retorno, reentrega e cancelamento após designação/retirada não foram inventados: seguem bloqueados até decisão aprovada sobre destino, custo, cobertura, responsabilidade e apuração. Não há liquidação/repasse externo, entrega física ou rastreamento.
