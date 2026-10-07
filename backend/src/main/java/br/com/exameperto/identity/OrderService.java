@@ -39,12 +39,13 @@ class OrderService {
 
     List<OrderView> list(UUID actor){return jdbc.query("SELECT p.id FROM pedido p LEFT JOIN autorizacao_paciente a ON a.paciente_id=p.paciente_id AND a.familiar_id=? AND a.revogada_em IS NULL AND a.expira_em>clock_timestamp() JOIN paciente patient ON patient.id=p.paciente_id WHERE patient.usuario_id=? OR (a.id IS NOT NULL AND EXISTS (SELECT 1 FROM autorizacao_escopo e WHERE e.autorizacao_id=a.id AND e.escopo='PEDIDOS')) GROUP BY p.id,p.created_at ORDER BY p.created_at DESC,p.id",(rs,n)->order(rs.getObject(1,UUID.class)),actor,actor);}
     OrderView get(UUID actor,UUID id){authorizeRead(actor,id);return order(id);}
-    OrderAddressesView addresses(UUID actor,UUID id){authorizeRead(actor,id);Map<String,Object> r=row(id);return new OrderAddressesView(read((byte[])r.get("origem_cifrada")),read((byte[])r.get("destino_cifrada")));}
+    OrderAddressesView addresses(UUID actor,UUID id){authorizeAddresses(actor,id);Map<String,Object> r=row(id);return new OrderAddressesView(read((byte[])r.get("origem_cifrada")),read((byte[])r.get("destino_cifrada")));}
 
     @Transactional
     OrderView updateAddresses(UUID actor,UUID id,OrderAddressUpdateInput input){
         requireAddress(input.origin()); requireAddress(input.destination()); authorizeRead(actor,id); Map<String,Object> row=forUpdate(id); requireVersion(row,input.version());
-        releaseCoverageForReplacement(id);
+        if("ACEITA".equals(row.get("estado"))||jdbc.queryForObject("SELECT count(*) FROM designacao WHERE pedido_id=? AND encerrada_em IS NULL",Long.class,id)>0)throw error(HttpStatus.CONFLICT,"ORDER_ASSIGNED","O endereço não pode mudar após a designação.");
+        releaseCoverageForReplacement(id,"endereco");
         jdbc.update("UPDATE pedido SET origem_cifrada=?,destino_cifrada=?,origem_lat=?,origem_lon=?,destino_lat=?,destino_lon=?,estado='EM_VERIFICACAO',version=version+1,updated_at=clock_timestamp() WHERE id=? AND version=?",protect(input.origin()),protect(input.destination()),input.origin().latitude(),input.origin().longitude(),input.destination().latitude(),input.destination().longitude(),id,input.version());
         jdbc.update("UPDATE orcamento SET estado='SUBSTITUIDO',version=version+1 WHERE pedido_id=? AND estado IN ('PROPOSTO','ACEITO')",id); return order(id);
     }
@@ -77,6 +78,14 @@ class OrderService {
 
     List<QuoteView> quotes(UUID actor,UUID orderId){authorizeRead(actor,orderId);expireQuotes(orderId);return jdbc.query("SELECT id FROM orcamento WHERE pedido_id=? ORDER BY created_at DESC,id",(rs,n)->quote(rs.getObject(1,UUID.class)),orderId);}
     QuoteView getQuote(UUID actor,UUID id){Map<String,Object> q=quoteRow(id);authorizeRead(actor,(UUID)q.get("pedido_id"));expireQuotes((UUID)q.get("pedido_id"));return quote(id);}
+
+    @Transactional
+    OrderView cancel(UUID actor,UUID orderId,long expectedVersion,String idem,CancelOrderInput input){
+        if(idem==null||idem.isBlank())throw error(HttpStatus.BAD_REQUEST,"IDEMPOTENCY_REQUIRED","O cancelamento exige Idempotency-Key.");authorizeRead(actor,orderId);byte[] requestHash=hash(input);UUID replay=replay(actor,"CANCEL_ORDER",idem,requestHash);if(replay!=null)return order(replay);Map<String,Object> current=forUpdate(orderId);replay=replay(actor,"CANCEL_ORDER",idem,requestHash);if(replay!=null)return order(replay);requireVersion(current,expectedVersion);
+        if(jdbc.queryForObject("SELECT count(*) FROM designacao WHERE pedido_id=? AND encerrada_em IS NULL",Long.class,orderId)>0)throw error(HttpStatus.UNPROCESSABLE_ENTITY,"POLICY_UNDEFINED","Cancelamento após designação depende de apuração ainda não definida.");
+        if(!List.of("AGUARDANDO_ACEITE","DISPONIVEL").contains(current.get("estado")))throw error(HttpStatus.CONFLICT,"ORDER_NOT_CANCELLABLE","O pedido não pode ser cancelado neste estado.");
+        releaseCoverageForReplacement(orderId,"cancelamento");jdbc.update("UPDATE orcamento SET estado='SUBSTITUIDO',version=version+1 WHERE pedido_id=? AND estado='ACEITO'",orderId);jdbc.update("UPDATE pedido SET estado='CANCELADA',version=version+1,updated_at=clock_timestamp() WHERE id=?",orderId);jdbc.update("INSERT INTO evento_designacao(id,pedido_id,ator_id,tipo,estado_anterior,estado_novo,pedido_version,motivo_codigo) VALUES (?,?,?,'CANCELAMENTO_PRE_DESIGNACAO',?,'CANCELADA',?,?)",UUID.randomUUID(),orderId,actor,current.get("estado"),expectedVersion+1,input.reasonCode());jdbc.update("INSERT INTO pedido_idempotencia(ator_id,operacao,chave,request_hash,pedido_id) VALUES (?,?,?,?,?)",actor,"CANCEL_ORDER",idem,requestHash,orderId);return order(orderId);
+    }
 
     @Transactional
     OrderView accept(UUID actor,UUID quoteId,long quoteVersion,String idem,AcceptQuoteInput input){
@@ -162,9 +171,9 @@ class OrderService {
         UUID reservation=UUID.randomUUID();jdbc.update("INSERT INTO reserva_subsidio(id,orcamento_id,pedido_id,programa_id,paciente_id,valor,moeda,estado) VALUES (?,?,?,?,?,?,'BRL','RESERVADA')",reservation,q.get("id"),q.get("pedido_id"),program,q.get("paciente_id"),value);
         jdbc.update("INSERT INTO operacao_financeira(id,pedido_id,programa_id,tipo,chave_negocio,valor,moeda,estado) VALUES (?,?,?,'RESERVA',?,?,'BRL','CONFIRMADA')",UUID.randomUUID(),q.get("pedido_id"),program,"reserva:"+q.get("id"),value);
     }
-    private void releaseCoverageForReplacement(UUID orderId){
+    void releaseCoverageForReplacement(UUID orderId,String reason){
         List<Map<String,Object>> rows=jdbc.queryForList("SELECT r.* FROM reserva_subsidio r JOIN orcamento q ON q.id=r.orcamento_id WHERE r.pedido_id=? AND r.estado='RESERVADA' AND q.estado='ACEITO'",orderId);
-        for(Map<String,Object> r:rows){BigDecimal value=((BigDecimal)r.get("valor")).subtract((BigDecimal)r.get("valor_liquidado")).subtract((BigDecimal)r.get("valor_liberado"));jdbc.update("UPDATE conta_programa SET disponivel=disponivel+?,reservado=reservado-?,version=version+1 WHERE programa_id=?",value,value,r.get("programa_id"));jdbc.update("UPDATE reserva_subsidio SET valor_liberado=valor_liberado+?,estado='LIBERADA' WHERE id=?",value,r.get("id"));jdbc.update("INSERT INTO operacao_financeira(id,pedido_id,programa_id,tipo,chave_negocio,valor,moeda,estado) VALUES (?,?,?,'LIBERACAO',?,?,'BRL','CONFIRMADA')",UUID.randomUUID(),orderId,r.get("programa_id"),"liberacao:endereco:"+r.get("orcamento_id"),value);}
+        for(Map<String,Object> r:rows){BigDecimal value=((BigDecimal)r.get("valor")).subtract((BigDecimal)r.get("valor_liquidado")).subtract((BigDecimal)r.get("valor_liberado"));jdbc.update("UPDATE conta_programa SET disponivel=disponivel+?,reservado=reservado-?,version=version+1 WHERE programa_id=?",value,value,r.get("programa_id"));jdbc.update("UPDATE reserva_subsidio SET valor_liberado=valor_liberado+?,estado='LIBERADA' WHERE id=?",value,r.get("id"));jdbc.update("INSERT INTO operacao_financeira(id,pedido_id,programa_id,tipo,chave_negocio,valor,moeda,estado) VALUES (?,?,?,'LIBERACAO',?,?,'BRL','CONFIRMADA')",UUID.randomUUID(),orderId,r.get("programa_id"),"liberacao:"+reason+":"+r.get("orcamento_id"),value);}
         jdbc.update("UPDATE operacao_financeira SET estado='RECONCILIAR',updated_at=clock_timestamp() WHERE pedido_id=? AND tipo='COBRANCA' AND estado IN ('PENDENTE','PROCESSANDO','CONFIRMADA','INCERTA')",orderId);
         jdbc.update("UPDATE financeiro_outbox SET estado='RECONCILIAR' WHERE pedido_id=? AND tipo='CRIAR_COBRANCA' AND estado IN ('PENDENTE','EM_ENVIO','ENVIADO')",orderId);
     }
@@ -174,6 +183,7 @@ class OrderService {
     private void authorizeRecipient(UUID patient,UUID recipient){UUID owner=jdbc.queryForObject("SELECT usuario_id FROM paciente WHERE id=?",UUID.class,patient);if(owner.equals(recipient))return;long n=jdbc.queryForObject("SELECT count(*) FROM autorizacao_paciente a JOIN autorizacao_escopo e ON e.autorizacao_id=a.id WHERE a.paciente_id=? AND a.familiar_id=? AND a.revogada_em IS NULL AND a.expira_em>clock_timestamp() AND e.escopo='RECEBIMENTO'",Long.class,patient,recipient);if(n!=1)throw error(HttpStatus.UNPROCESSABLE_ENTITY,"RECIPIENT_UNAUTHORIZED","Destinatário não possui RECEBIMENTO vigente.");}
     private void requireOwnedAuthorization(UUID actor,UUID doc){try{Map<String,Object> d=jdbc.queryForMap("SELECT proprietario_id,categoria,estado FROM documento WHERE id=?",doc);if(!actor.equals(d.get("proprietario_id"))||!"AUTORIZACAO_RETIRADA".equals(d.get("categoria"))||List.of("REJEITADO","EXPURGADO").contains(d.get("estado")))throw notFound();}catch(EmptyResultDataAccessException e){throw notFound();}}
     private void authorizeRead(UUID actor,UUID id){Map<String,Object> r=row(id);UUID patientUser=jdbc.queryForObject("SELECT usuario_id FROM paciente WHERE id=?",UUID.class,r.get("paciente_id"));if(patientUser.equals(actor))return;long n=jdbc.queryForObject("SELECT count(*) FROM autorizacao_paciente a JOIN autorizacao_escopo e ON e.autorizacao_id=a.id WHERE a.paciente_id=? AND a.familiar_id=? AND a.revogada_em IS NULL AND a.expira_em>clock_timestamp() AND e.escopo='PEDIDOS'",Long.class,r.get("paciente_id"),actor);if(n!=1)throw notFound();}
+    private void authorizeAddresses(UUID actor,UUID id){try{authorizeRead(actor,id);return;}catch(OrderException ignored){}if(jdbc.queryForObject("SELECT count(*) FROM designacao d JOIN entregador e ON e.id=d.entregador_id WHERE d.pedido_id=? AND e.usuario_id=? AND d.encerrada_em IS NULL",Long.class,id,actor)!=1)throw notFound();}
     private Map<String,Object> authorization(UUID id){return jdbc.queryForMap("SELECT * FROM autorizacao_retirada WHERE pedido_id=?",id);}
     private Map<String,Object> row(UUID id){try{return jdbc.queryForMap("SELECT * FROM pedido WHERE id=?",id);}catch(EmptyResultDataAccessException e){throw notFound();}}
     private Map<String,Object> forUpdate(UUID id){try{return jdbc.queryForMap("SELECT * FROM pedido WHERE id=? FOR UPDATE",id);}catch(EmptyResultDataAccessException e){throw notFound();}}

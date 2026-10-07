@@ -104,7 +104,7 @@ class VehicleLinkFlowTest {
         assertThat(request(rotated,"GET","/analyst/vehicle-reviews",null,"application/json").statusCode()).isEqualTo(401);
     }
 
-    @Test void v6MigratesFreshDatabaseAndUpgradesExistingV5Schema() {
+    @Test void currentSchemaMigratesFreshDatabaseAndUpgradesExistingV5Schema() {
         String schema="vehicle_v6_upgrade_"+UUID.randomUUID().toString().replace("-","");
         jdbc.execute("CREATE SCHEMA \""+schema+"\"");
         Flyway before=Flyway.configure().dataSource(dataSource).schemas(schema).defaultSchema(schema).locations("classpath:db/migration").target(MigrationVersion.fromVersion("5")).load();
@@ -112,7 +112,7 @@ class VehicleLinkFlowTest {
         assertThat(jdbc.queryForObject("SELECT max(version) FROM \""+schema+"\".flyway_schema_history",String.class)).isEqualTo("5");
         Flyway upgrade=Flyway.configure().dataSource(dataSource).schemas(schema).defaultSchema(schema).locations("classpath:db/migration").load();
         upgrade.migrate();
-        assertThat(jdbc.queryForObject("SELECT max(version::integer) FROM \""+schema+"\".flyway_schema_history",Integer.class)).isEqualTo(10);
+        assertThat(jdbc.queryForObject("SELECT max(version::integer) FROM \""+schema+"\".flyway_schema_history",Integer.class)).isEqualTo(11);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM information_schema.tables WHERE table_schema=? AND table_name='vinculo_veiculo'",Long.class,schema)).isEqualTo(1);
         jdbc.execute("DROP SCHEMA \""+schema+"\" CASCADE");
     }

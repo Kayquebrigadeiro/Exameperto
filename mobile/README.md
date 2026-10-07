@@ -1,6 +1,6 @@
 # App do entregador
 
-Expo/React Native para cadastro, upload privado e acompanhamento de estado. O app usa somente a API autenticada; não contém credenciais, aprovação local ou armazenamento de documentos. `EXPO_PUBLIC_API_URL` aponta para o backend no ambiente de desenvolvimento.
+Expo/React Native para cadastro, upload privado, consulta de ofertas e acompanhamento de designações. O app usa somente a API autenticada; não contém credenciais, aprovação/cobertura local ou armazenamento de documentos. `EXPO_PUBLIC_API_URL` aponta para o backend no ambiente de desenvolvimento.
 
 O refresh móvel fica no SecureStore, é rotacionado pela API e removido no logout. O app consulta o histórico após upload para acompanhar quarentena/inspeção; nenhum estado local aprova o cadastro.
 
@@ -15,6 +15,7 @@ Pré-requisitos: Node.js >= 20.19.4, npm, JDK 21, Docker, Android Studio/SDK com
 5. Confirme via API/PostgreSQL as linhas em `entregador`, `documento` e `revisao_entregador`, e o objeto em `EXAME_PERTO_PRIVATE_ROOT/quarantine`. Registre apenas IDs, estados e hashes, nunca tokens ou conteúdo do documento.
 6. Exercite arquivo com conteúdo incompatível com a extensão/MIME, arquivo acima de 10 MiB, API desligada, token de acesso expirado com refresh, refresh inválido e logout. Depois do logout, reabrir o app não pode restaurar a sessão. O documento deve permanecer inacessível antes da inspeção.
 7. Se houver AO sintético no banco descartável, execute atribuição/MFA/inspeção pelo painel e confirme que a tentativa de decisão profissional retorna `422 POLICY_UNDEFINED`. A inspeção estrutural não comprova autenticidade documental nem constitui varredura antimalware.
+8. Somente no banco descartável, prepare entregador, vínculo/veículo e foto operacional aprovados, política de capacidade e protocolo/cobertura de retorno sintéticos. Confirme que a lista da oferta mostra cidades, distância e frete, sem destinatário/endereço/documentos; aceite e confira a única designação no PostgreSQL. Só então abra os endereços da tarefa. Com outra conta de entregador, a mesma consulta precisa retornar `404`. Repita com cobertura `PENDENTE`, `INCERTA`, reserva insuficiente e liberada: nenhuma pode aparecer.
 
 Sem `adb`, emulador ou aparelho conectado, esses passos continuam pendentes e nenhum build/export substitui o ensaio no dispositivo.
 
