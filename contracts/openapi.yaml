@@ -2557,7 +2557,9 @@ paths:
       tags:
       - orders
       description: Entregador designado ativo; assignmentId deve pertencer ao pedido. Deduplicação natural por designação/sequence;
-        repetição idêntica retorna 200, diferente retorna 409; antigo/fora de ordem 422. Sem Idempotency-Key adicional.
+        repetição idêntica retorna 200, diferente retorna 409; antigo/fora de ordem 422. Payload máximo 1 KiB e oito
+        posições por janela móvel de dois minutos. Sem Idempotency-Key adicional. A operação permanece desabilitada
+        para dados reais enquanto a política de retenção de GPS não estiver aprovada.
       x-permission: Entregador designado ativo; assignmentId deve pertencer ao pedido
       responses:
         '201':
@@ -2576,6 +2578,8 @@ paths:
           $ref: '#/components/responses/Error404'
         '409':
           $ref: '#/components/responses/Error409'
+        '413':
+          $ref: '#/components/responses/Error413'
         '422':
           $ref: '#/components/responses/Error422'
         '429':
@@ -5727,7 +5731,7 @@ components:
       - accuracyMeters
       description: 'Parâmetros D09 são hipóteses configuráveis para aparelho real: captura 15 s, stale 60 s, buffer
         oito pontos/dois minutos, futuro 30 s, sinalizar imprecisão acima de 100 m. Nenhum ensaio de bateria, precisão
-        ou segundo plano realizado.'
+        ou segundo plano realizado. O corpo JSON aceito tem no máximo 1 KiB.'
     Location:
       type: object
       additionalProperties: false
@@ -5758,9 +5762,8 @@ components:
           minimum: 0
         stale:
           type: boolean
-        staleAfterSeconds:
-          type: integer
-          minimum: 1
+        lowAccuracy:
+          type: boolean
       required:
       - assignmentId
       - sequence
@@ -5770,7 +5773,9 @@ components:
       - longitude
       - accuracyMeters
       - stale
-      - staleAfterSeconds
+      - lowAccuracy
+      description: A posição real mais recente inclui horários de captura/recebimento, precisão e sinais calculados
+        com os limiares configurados; stale não transforma ponto antigo em posição atual.
     FundingInput:
       type: object
       additionalProperties: false

@@ -1,3 +1,4 @@
 {
-  "expo": { "name": "Exame Perto Entregador", "slug": "exame-perto-entregador", "version": "0.1.0", "orientation": "portrait", "scheme": "exameperto" }
+  "expo": { "name": "Exame Perto Entregador", "slug": "exame-perto-entregador", "version": "0.1.0", "orientation": "portrait", "scheme": "exameperto",
+    "plugins": [["expo-location", {"locationWhenInUsePermission":"Permitir que o Exame Perto compartilhe sua localização somente durante a tarefa ativa."}]] }
 }

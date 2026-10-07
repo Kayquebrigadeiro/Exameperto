@@ -156,7 +156,7 @@ erDiagram
   OPERACAO_FINANCEIRA o|--o{ EVENTO_EXTERNO : concilia
 ```
 
-Visão resumida do [modelo físico](MODELO-DADOS.md). V1–V11 materializam conta/sessão, representação, evidências e revisão local, benefício/aporte, pedido/orçamento, aceite/cobertura e a designação inicial. V11 impõe uma designação ativa por pedido, limite simultâneo configurado sob lock do entregador, snapshots dos termos e idempotência do aceite. Custódia executada, rastreamento, entrega, apuração, liquidação e repasse continuam planejados. Pedido particular não depende de instituição/reserva, mas só vira oferta após pagamento confirmado; subsidiado só vira oferta com reserva integral ainda ativa. Evidências clínicas e financeiras permanecem fora da projeção operacional.
+Visão resumida do [modelo físico](MODELO-DADOS.md). V1–V13 materializam conta/sessão, representação, evidências e revisão local, benefício/aporte, pedido/orçamento, aceite/cobertura, designação, custódia/entrega comprovada e posições de tarefa ativa. V13 deduplica posição por designação/sequência e indexa a última posição/expurgo futuro; habilitação real continua bloqueada pela retenção não aprovada. Apuração, liquidação e repasse continuam planejados. Pedido particular não depende de instituição/reserva, mas só vira oferta após pagamento confirmado; subsidiado só vira oferta com reserva integral ainda ativa. Evidências clínicas e financeiras permanecem fora da projeção operacional.
 
 ### Ticket 06 — vínculo e revisão versionada
 
@@ -250,7 +250,7 @@ sequenceDiagram
     B-->>C: Pedido disponível para entrega
     M->>B: Consultar oferta mínima (cidades/distância/frete)
     M->>B: Aceitar tarefa
-    B->>D: Lock pedido/entregador; revalidar cobertura, aprovações e limite
+    B->>D: Lock pedido/entregador e revalidar cobertura, aprovações e limite
     B->>D: Criar designação única, snapshot, evento e idempotência
     D-->>B: Designação confirmada
     B-->>M: Tarefa e endereços mínimos autorizados
@@ -278,19 +278,22 @@ sequenceDiagram
   participant B as Backend
   participant D as PostgreSQL
   participant C as Paciente autorizado
-  M->>B: Enviar posição com horário e precisão
-  B->>D: Conferir designação ativa e registrar posição válida
-  B-->>C: Publicar posição e horário via WebSocket
+  M->>M: Pedir permissão foreground ao sistema
+  M->>B: HTTP posição, horário, precisão e sequência
+  B->>D: Revalidar sessão, designação, tarefa e limites e persistir
+  C->>B: STOMP CONNECT e SUBSCRIBE privado
+  B->>D: Revalidar sessão, participante, escopo e tarefa
+  B-->>C: Publicar posição somente após commit e nova autorização
   alt Perda de conexão ou posição antiga
     C->>B: Recuperar último estado autorizado
     B-->>C: Última posição e indicação de desatualização
   else Entrega encerrada
-    B-->>M: Encerrar rastreamento da tarefa
-    B-->>C: Encerrar assinatura e mostrar conclusão
+    B-->>M: Recusar envio e remover observação local
+    B-->>C: Cessar publicação mesmo com conexão aberta
   end
 ```
 
-O app enfileira somente dados recentes com limites e política de descarte; reconexão não reproduz pontos antigos como se fossem atuais. Autorização é reavaliada no envio e no recebimento, e o fechamento da tarefa encerra compartilhamento.
+O app enfileira no máximo oito pontos de até dois minutos e envia no máximo um corpo de 1 KiB por vez; o servidor limita oito pontos por janela móvel de dois minutos. Reconexão consulta novamente a última posição, preservando `stale` após 60 s, e nunca reproduz ponto antigo como atual. Autorização é reavaliada no envio, assinatura e publicação. Logout, revogação, expiração e fechamento cessam o acesso das conexões abertas. Captura em segundo plano, bateria e precisão física continuam sem evidência de aparelho.
 
 ## Estados financeiros independentes
 

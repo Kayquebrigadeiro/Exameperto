@@ -1,4 +1,18 @@
-# Status — atualizado em 06/10/2026
+# Status — atualizado em 07/10/2026
+
+## Ticket 13 — rastreamento de tarefa (implementação técnica parcial, 07/10/2026)
+
+Base autorizada: `d40eb5f`; branch `docs/planejamento-tecnico`; `referencia.md` preservada, não rastreada e sem alteração.
+
+Antes do rastreamento, o ensaio opt-in de custódia foi completado em Chromium com API Spring e PostgreSQL 17.6 reais, sem interceptação: retirada, ocorrência sem encerrar custódia, código visível apenas ao destinatário autorizado, recebimento e encerramento. Os dois pedidos e todas as contas/evidências foram sintéticos e isolados; o banco confirmou custódia aberta na ocorrência e custódia encerrada/código consumido na entrega.
+
+Implementada V13 e a fatia independente de rastreamento: captura foreground no app Expo após permissão explícita do sistema; horário, coordenadas e precisão; ingestão HTTP exclusiva do entregador/designação/tarefa/finalidade ativos; PostgreSQL com sequência única; distribuição STOMP privada; reautorização no envio, SUBSCRIBE e publicação; e interrupção de acesso após revogação, logout, expiração ou encerramento, inclusive para conexões já abertas. A web exibe horário, precisão, baixa precisão e desatualização; sem ponto, exibe indisponibilidade e nenhum marcador. Token não entra na URL e localização não é registrada em logs da aplicação.
+
+Parâmetros D09 estão explícitos: captura 15 s, `stale` 60 s, buffer máximo oito pontos/dois minutos, corpo 1 KiB, servidor oito pontos/dois minutos, futuro 30 s e baixa precisão acima de 100 m. Reconexão faz GET autorizado e nova assinatura, portanto ponto antigo continua marcado como desatualizado. `EXAME_PERTO_TRACKING_ENABLED=false` por padrão: retenção/expurgo de GPS, prazo em backup, base/finalidade e responsável ainda não foram aprovados; não há job de expurgo e dados reais não devem ser habilitados.
+
+Evidências: `TrackingFlowTest` passou com 2 cenários em HTTP, STOMP/WebSocket e PostgreSQL 17.6 reais, cobrindo publicação/assinatura alheias, familiar sem escopo e revogado com conexão aberta, logout, sessão expirada, tarefa encerrada, coordenadas inválidas, ponto antigo/futuro, duplicata idempotente/conflitante, fora de ordem, reconexão/desatualização e limites. `CustodyBrowserFlowTest` passou com 1 ensaio Chromium/API/PostgreSQL e dois pedidos. Coordenadas foram sintéticas somente no banco descartável. A suíte Maven completa passou com 50 testes, 0 falhas e 7 opt-in ignorados; Playwright comum teve 2 aprovados/7 opt-in ignorados; web build, mobile typecheck e export Android passaram (590 módulos, 1,5 MB). OpenAPI 3.0.3 passou em `openapi-spec-validator 0.7.2`; 101 links Markdown locais e 16 diagramas Mermaid foram validados.
+
+Pendências: não há aparelho/emulador nesta rodada, logo captura GPS física, bateria, perda de sinal real, retomada prolongada e segundo plano em development build permanecem sem comprovação; os parâmetros continuam hipóteses até esse ensaio. O `npm audit --omit=dev` mantém 23 avisos transitivos do toolchain Expo (16 altos e 7 moderados, em `braces`, `node-forge` e `uuid`); a correção automática sugere downgrade incompatível e não foi aplicada. Ticket 13 não está completo. Não houve rastreamento de terceiros, operação física, contratação, deploy ou início do ticket 14.
 
 ## Ticket 12 — retirada, ocorrência e entrega comprovada (implementação parcial, 06/10/2026)
 

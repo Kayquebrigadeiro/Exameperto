@@ -63,3 +63,12 @@ storage:
   private-root: ${EXAME_PERTO_PRIVATE_ROOT:${java.io.tmpdir}/exame-perto-private}
 review:
   file-safety-inspection-enabled: true
+tracking:
+  enabled: ${EXAME_PERTO_TRACKING_ENABLED:false}
+  max-age: PT2M
+  future-tolerance: PT30S
+  stale-after: PT60S
+  rate-window: PT2M
+  rate-maximum: 8
+  max-payload-bytes: 1024
+  low-accuracy-meters: 100

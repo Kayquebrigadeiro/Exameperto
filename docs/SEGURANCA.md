@@ -62,16 +62,18 @@ Não armazenar conteúdo dos exames como requisito: transporte é de envelope fe
 
 ## WebSocket/STOMP e localização
 
-OpenAPI cobre HTTP, não o protocolo STOMP. Contrato complementar proposto:
+OpenAPI cobre HTTP, não o protocolo STOMP. O contrato complementar implementado na fatia técnica do ticket 13 é:
 
-- Endpoint `/ws`, TLS; CONNECT recebe `Authorization: Bearer ...` em header STOMP, nunca query string. Validar Origin web e sessão; limitar tamanho, conexões e frequência. Não usar cookie sozinho para autenticar CONNECT.
-- SUBSCRIBE permitido apenas em `/topic/orders/{orderId}/state` (participantes com acesso ao pedido) e `/topic/orders/{orderId}/location` (matriz GPS). Lista explícita de destinos, sem curingas ou tópicos arbitrários. Client SEND para publicação é negado; GPS entra pelo HTTP autenticado.
-- Evento de estado: `eventId`, `orderId`, `sequence`, `occurredAt`, `status`, `version`; localização: `eventId`, `orderId`, campos de Location do OpenAPI. Nenhum endereço/documento/código de recebimento em tópicos.
+- Endpoint `/ws`; CONNECT recebe `Authorization: Bearer ...` no header STOMP, nunca em URL. Origin web e sessão são validados; cookie isolado não autentica CONNECT. TLS continua obrigação do ambiente de operação, que não foi implantado.
+- SUBSCRIBE é privado e exato em `/user/queue/orders/{orderId}/locations`; curingas, travessia, destinos arbitrários e Client SEND são negados. GPS entra apenas pelo HTTP autenticado. A mensagem contém somente os campos de `Location`, sem endereço, documento ou código de recebimento.
 - Autorizar CONNECT, cada SUBSCRIBE e cada despacho. Sessão expirada/revogada, familiar revogado e tarefa encerrada invalidam assinaturas; descartar mensagens enfileiradas que perderam autorização. Evento terminal pode ser emitido uma vez para participante ainda autorizado antes de encerrar; nenhum GPS após o ponto efetivo de encerramento.
-- Reconnect faz GET autorizado do estado/última posição; eventos duplicados são deduplicados por ID/sequence. Não oferecer histórico irrestrito de GPS. Última posição indica idade/stale; sem ponto real, mostrar indisponível. Limiares de idade, frequência e buffer dependem de medição real e são obrigatórios para habilitar rastreamento.
+- Reconnect faz GET autorizado da última posição e nova assinatura; sequência duplicada idêntica é idempotente, mas conteúdo divergente conflita. Não há histórico público. Última posição mostra horário, precisão, baixa precisão acima de 100 m e `stale` após 60 s; sem ponto real, a interface mostra indisponibilidade e nenhum marcador.
+- Limites configurados: corpo HTTP 1 KiB, captura sugerida a cada 15 s, no máximo oito pontos por janela móvel de dois minutos, buffer móvel com até oito posições de no máximo dois minutos, tolerância futura de 30 s e recusa de captura com mais de dois minutos. Coordenadas só são persistidas após revalidar sessão, entregador/designação, estado e finalidade ativos.
 - Suspeita de GPS falsificado, precisão ruim ou salto impossível sinaliza revisão; a assinatura do usuário não prova localização física. O sistema não deve declarar prevenção absoluta de spoofing.
 
-Ticket 04 implementa a fronteira HTTP que consulta `autorizacao_paciente` e `autorizacao_escopo` em cada leitura concedida. Módulos futuros de pedidos, benefícios, documentos e rastreamento devem chamar essa mesma decisão dentro da própria operação, após carregar o registro, sem copiar escopos para sessão/JWT. O servidor STOMP ainda não existe; quando implementado, SUBSCRIBE e cada despacho deverão repetir a consulta e encerrar a assinatura após revogação/expiração. Não há alegação de cobertura STOMP nesta fatia.
+Ticket 04 implementa a fronteira HTTP que consulta `autorizacao_paciente` e `autorizacao_escopo` em cada leitura concedida. O rastreamento repete essa decisão no GET, SUBSCRIBE e em cada publicação, sem copiar escopos para sessão/JWT. Logout remove a sessão do registro ao vivo; expiração, revogação do familiar e encerramento removem o pedido da conexão na revalidação e impedem novas mensagens, mesmo se o transporte continuar aberto.
+
+`EXAME_PERTO_TRACKING_ENABLED` permanece `false` por padrão. A tabela existe e os transportes foram exercitados somente com coordenadas sintéticas em PostgreSQL descartável, mas não há job de expurgo nem habilitação operacional: finalidade/base, prazo primário, backups, responsável e verificação de descarte de GPS ainda precisam de aprovação. Teste de transporte não comprova captura GPS, precisão física, consumo de bateria ou comportamento em segundo plano.
 
 ## Ameaças e evidências exigidas
 

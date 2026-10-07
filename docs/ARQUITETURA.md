@@ -97,7 +97,7 @@ Orçamento registra tarifa, rota, expiração, parcelas e frete do entregador. D
 
 Designação atômica impede duas aceitações. Somente entregador aprovado, veículo aprovado e usuário designado atualizam o pedido. Envio de GPS é autenticado por HTTP; backend distribui ao vivo aos participantes por WebSocket/STOMP.
 
-Posição inclui horário da captura, horário do recebimento e precisão. Rejeitar dados inválidos, antigos/fora de ordem e posição enviada por entregador não designado. Mostrar posição desatualizada se conexão ou GPS falhar; não mover marcador artificialmente. Frequência e retenção serão definidas após medir consumo, bateria e conectividade em aparelhos.
+Posição inclui horário da captura, horário do recebimento e precisão. Rejeitar dados inválidos, antigos/fora de ordem e posição enviada por entregador não designado. Mostrar posição desatualizada se conexão ou GPS falhar; sem ponto recebido, mostrar indisponibilidade e não criar marcador. D09 está implementada como configuração provisória: captura 15 s, stale 60 s, oito pontos/dois minutos, buffer de até oito pontos com idade máxima de dois minutos, corpo de 1 KiB, tolerância futura de 30 s e aviso de precisão acima de 100 m. Esses valores e a retenção ainda exigem ensaio em aparelho e aprovação antes de habilitar dados reais.
 
 Navegação turn-by-turn será inicialmente delegada ao aplicativo de mapas instalado, sem construir um navegador próprio. O monitoramento acompanha as duas etapas da tarefa: aproximação à unidade e entrega ao destinatário, até concluir/cancelar.
 

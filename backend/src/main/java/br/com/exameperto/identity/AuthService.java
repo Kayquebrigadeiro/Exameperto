@@ -18,14 +18,15 @@ public class AuthService {
     private final JdbcTemplate jdbc;
     private final DataProtector protector;
     private final AccessTokens tokens;
+    private final org.springframework.context.ApplicationEventPublisher events;
     private final Duration sessionTtl, refreshTtl;
     private final com.github.benmanes.caffeine.cache.Cache<String,java.util.concurrent.atomic.AtomicInteger> loginAttempts = com.github.benmanes.caffeine.cache.Caffeine.newBuilder().maximumSize(10000).expireAfterWrite(Duration.ofMinutes(1)).build();
     private static final String DUMMY_HASH = Passwords.hash("synthetic-unused-timing-password");
 
-    AuthService(JdbcTemplate jdbc, DataProtector protector, AccessTokens tokens,
+    AuthService(JdbcTemplate jdbc, DataProtector protector, AccessTokens tokens, org.springframework.context.ApplicationEventPublisher events,
                 @Value("${registration.session-ttl:PT15M}") Duration sessionTtl,
                 @Value("${registration.refresh-ttl:P30D}") Duration refreshTtl) {
-        this.jdbc = jdbc; this.protector = protector; this.tokens = tokens;
+        this.jdbc = jdbc; this.protector = protector; this.tokens = tokens; this.events=events;
         this.sessionTtl = sessionTtl; this.refreshTtl = refreshTtl;
     }
 
@@ -73,6 +74,7 @@ public class AuthService {
         lockUser(principal.userId());
         // Also revokes a successor if logout races a rotation.
         jdbc.update("UPDATE sessao SET revogada_em=coalesce(revogada_em,clock_timestamp()),updated_at=clock_timestamp() WHERE familia_id=(SELECT familia_id FROM sessao WHERE id=?)", principal.sessionId());
+        events.publishEvent(new SessionRevokedEvent(principal.sessionId()));
     }
 
     @Transactional
@@ -124,6 +126,7 @@ public class AuthService {
     static AuthException unauthorized() { return new AuthException(HttpStatus.UNAUTHORIZED,"UNAUTHENTICATED","Credenciais inválidas ou expiradas."); }
     static AuthException unavailable() { return new AuthException(HttpStatus.SERVICE_UNAVAILABLE,"INTEGRATION_UNAVAILABLE","O serviço de conta está indisponível."); }
     public record SessionPrincipal(UUID userId, UUID sessionId, String client) {}
+    record SessionRevokedEvent(UUID sessionId) {}
     public static final class AuthException extends ResponseStatusException {
         private final ApiError body;
         AuthException(HttpStatus status, String code, String message) { super(status,message); body=new ApiError(code,message,UUID.randomUUID(),status.is5xxServerError() || status.value()==429); }
