@@ -20,3 +20,6 @@ Pré-requisitos: Node.js >= 20.19.4, npm, JDK 21, Docker, Android Studio/SDK com
 Sem `adb`, emulador ou aparelho conectado, esses passos continuam pendentes e nenhum build/export substitui o ensaio no dispositivo.
 
 O app está alinhado ao Expo SDK 57/React Native 0.86. O [relatório de dependências](../docs/AUDITORIA-DEPENDENCIAS-MOBILE.md) registra a migração e os alertas transitivos remanescentes do toolchain. Antes de qualquer distribuição, repita `npm audit --omit=dev`, a análise de alcance e os ensaios em dispositivo; não use `npm audit fix --force`, pois a sugestão atual faz downgrade incompatível da stack.
+### Custódia e entrega (ticket 12)
+
+O app só mostra ações de retirada/início/entrega para a designação autenticada. A retirada exige comprovante operacional aprovado e não abre nem fotografa o envelope; o código de recebimento é digitado apenas quando fornecido pelo destinatário. Ocorrências e retorno permanecem sujeitos às políticas do servidor. `npm run typecheck` e `npm run build:android` comprovam compilação/export, não execução em aparelho.

@@ -23,8 +23,8 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping("/api/v1")
 class OrderController {
-    private final OrderService service; private final String origin;
-    OrderController(OrderService service,@Value("${registration.allowed-origin:http://localhost:5173}") String origin){this.service=service;this.origin=origin;}
+    private final OrderService service; private final CustodyService custody; private final String origin;
+    OrderController(OrderService service,CustodyService custody,@Value("${registration.allowed-origin:http://localhost:5173}") String origin){this.service=service;this.custody=custody;this.origin=origin;}
     @PostMapping("/orders") ResponseEntity<OrderView> create(Authentication a,HttpServletRequest r,@RequestHeader(value="Idempotency-Key",required=false) String key,@Valid @RequestBody OrderInput input){mutation(a,r);return ResponseEntity.status(HttpStatus.CREATED).body(service.create(user(a),input,key));}
     @GetMapping("/orders") List<OrderView> list(Authentication a){return service.list(user(a));}
     @PostMapping(value="/order-documents/pickup-authorization",consumes=MediaType.MULTIPART_FORM_DATA_VALUE) ResponseEntity<DocumentView> uploadAuthorization(Authentication a,HttpServletRequest r,@RequestParam MultipartFile file){mutation(a,r);return ResponseEntity.status(HttpStatus.CREATED).body(service.uploadAuthorizationDocument(user(a),file));}
@@ -37,6 +37,13 @@ class OrderController {
     @GetMapping("/quotes/{id}") QuoteView quote(Authentication a,@PathVariable UUID id){return service.getQuote(user(a),id);}
     @PostMapping("/quotes/{id}/accept") ResponseEntity<OrderView> accept(Authentication a,HttpServletRequest r,@PathVariable UUID id,@RequestHeader("If-Match") String etag,@RequestHeader("Idempotency-Key") String key,@Valid @RequestBody AcceptQuoteInput input){mutation(a,r);return ResponseEntity.accepted().body(service.accept(user(a),id,version(etag),key,input));}
     @PostMapping("/orders/{id}/cancel") OrderView cancel(Authentication a,HttpServletRequest r,@PathVariable UUID id,@RequestHeader("If-Match")String etag,@RequestHeader("Idempotency-Key")String key,@Valid @RequestBody CancelOrderInput input){mutation(a,r);return service.cancel(user(a),id,version(etag),key,input);}
+    @PostMapping("/orders/{id}/pickup") CustodyView pickup(Authentication a,HttpServletRequest r,@PathVariable UUID id,@RequestHeader("If-Match")String etag,@RequestHeader("Idempotency-Key")String key,@Valid @RequestBody PickupConfirmation input){mutation(a,r);return custody.pickup(user(a),id,version(etag),key,input);}
+    @PostMapping("/orders/{id}/start-delivery") CustodyView startDelivery(Authentication a,HttpServletRequest r,@PathVariable UUID id,@RequestHeader("If-Match")String etag,@RequestHeader("Idempotency-Key")String key){mutation(a,r);return custody.startDelivery(user(a),id,version(etag),key);}
+    @PostMapping("/orders/{id}/receipt-code") ReceiptChallenge receiptCode(Authentication a,HttpServletRequest r,@PathVariable UUID id,@RequestHeader("If-Match")String etag){mutation(a,r);return custody.issueCode(user(a),id,version(etag));}
+    @PostMapping("/orders/{id}/deliver") CustodyView deliver(Authentication a,HttpServletRequest r,@PathVariable UUID id,@RequestHeader("If-Match")String etag,@RequestHeader("Idempotency-Key")String key,@Valid @RequestBody DeliveryCode input){mutation(a,r);return custody.deliver(user(a),id,version(etag),key,input);}
+    @PostMapping("/orders/{id}/incidents") ResponseEntity<IncidentView> incident(Authentication a,HttpServletRequest r,@PathVariable UUID id,@RequestHeader("If-Match")String etag,@RequestHeader("Idempotency-Key")String key,@Valid @RequestBody IncidentInput input){mutation(a,r);return ResponseEntity.status(HttpStatus.CREATED).body(custody.incident(user(a),id,version(etag),key,input));}
+    @GetMapping("/orders/{id}/custody") CustodyView custody(Authentication a,@PathVariable UUID id){return custody.custodyFor(user(a),id);}
+    @GetMapping("/orders/{id}/incidents") List<IncidentView> incidents(Authentication a,@PathVariable UUID id){return custody.incidents(user(a),id);}
     private UUID user(Authentication a){return ((AuthService.SessionPrincipal)a.getDetails()).userId();}
     private long version(String value){try{return Long.parseLong(value.replace("\"",""));}catch(Exception ex){throw OrderService.error(HttpStatus.PRECONDITION_REQUIRED,"IF_MATCH_REQUIRED","If-Match deve conter a versão do pedido.");}}
     private void mutation(Authentication a,HttpServletRequest r){AuthService.SessionPrincipal p=(AuthService.SessionPrincipal)a.getDetails();if("WEB".equals(p.client())&&!origin.equals(r.getHeader("Origin")))throw OrderService.error(HttpStatus.FORBIDDEN,"FORBIDDEN","Origem inválida.");}

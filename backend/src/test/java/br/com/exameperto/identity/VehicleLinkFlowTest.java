@@ -112,7 +112,7 @@ class VehicleLinkFlowTest {
         assertThat(jdbc.queryForObject("SELECT max(version) FROM \""+schema+"\".flyway_schema_history",String.class)).isEqualTo("5");
         Flyway upgrade=Flyway.configure().dataSource(dataSource).schemas(schema).defaultSchema(schema).locations("classpath:db/migration").load();
         upgrade.migrate();
-        assertThat(jdbc.queryForObject("SELECT max(version::integer) FROM \""+schema+"\".flyway_schema_history",Integer.class)).isEqualTo(11);
+        assertThat(jdbc.queryForObject("SELECT max(version::integer) FROM \""+schema+"\".flyway_schema_history",Integer.class)).isEqualTo(12);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM information_schema.tables WHERE table_schema=? AND table_name='vinculo_veiculo'",Long.class,schema)).isEqualTo(1);
         jdbc.execute("DROP SCHEMA \""+schema+"\" CASCADE");
     }
