@@ -1,5 +1,17 @@
 # Status — atualizado em 06/10/2026
 
+## Ticket 11 — ofertas e designação (implementação parcial, 06/10/2026)
+
+Base autorizada: `f7449ad`; branch `docs/planejamento-tecnico`; remoto confirmado `https://github.com/Kayquebrigadeiro/Exameperto.git`. `referencia.md` permaneceu fora do Git e sem alterações.
+
+Implementada a fatia independente de ofertas/designações: migração V11, API REST, locks transacionais, idempotência, controle de versão, histórico, limite de tarefas simultâneas, revalidação de cobertura/aprovação no aceite, privacidade de oferta e acesso restrito ao endereço após designação. A oferta exige orçamento aceito vigente, cobertura de retorno confirmada, pagamento particular CONFIRMADA quando aplicável ou reserva subsidiada integralmente disponível; benefício aprovado isoladamente não libera oferta. Cancelamento e mudança de endereço antes da designação são idempotentes e liberam cobertura conforme regra existente; após designação permanecem bloqueados por política ainda indefinida.
+
+Web exibe o acompanhamento correspondente e o app do entregador consulta ofertas, aceita e acompanha designações sem expor dados de saúde, renda, benefício ou endereço exato antes do vínculo. Contrato, modelo, segurança, diagramas e ticket 11 foram atualizados. Não foram criados seeds de produção: sem política profissional, protocolo/custódia, capacidade e cobertura reais, a operação permanece indisponível.
+
+Evidências isoladas: PostgreSQL 17.6/Testcontainers com suíte Maven `45` testes, `0` falhas, `6` opt-in ignorados na execução comum; `AssignmentFlowTest` (3 testes) e os ensaios opt-in `OrderBrowserFlowTest`, `AcceptanceBrowserFlowTest` e `AssignmentBrowserFlowTest` passaram com navegador → API → banco real descartável. Web build passou e Playwright comum teve 2 aprovados/6 opt-in ignorados. Mobile typecheck e export Android passaram (581 módulos); não há `adb`, emulador ou `xcrun`, portanto não se declara execução em dispositivo. Evidência de navegador/API/banco não é homologação financeira externa.
+
+Bloqueios: aprovações profissionais vigentes dos tickets 05–06; política/capacidade, unidade e protocolo de custódia reais; adaptadores e confirmação financeira externa; tratamento de suspensão/cancelamento após designação; homologação em dispositivo. Não houve movimentação financeira externa, contratação, retirada, rastreamento, deploy ou início do ticket 12. O ticket 11 permanece parcialmente concluído até essas dependências serem fornecidas e autorizadas.
+
 Situação atual: tickets 03–04 implementados localmente e ticket 05 em continuidade técnica parcial; entrega real de e-mail e aprovação profissional continuam não homologadas. Registros abaixo preservam o histórico; ver a seção final para continuidade.
 
 ## Etapa e artefatos

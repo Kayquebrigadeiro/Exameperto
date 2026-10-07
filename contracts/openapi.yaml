@@ -2001,8 +2001,12 @@ paths:
       summary: Listar ofertas disponíveis
       tags:
       - offers
-      description: Entregador e vínculo aprovados, cobertura confirmada
-      x-permission: Entregador e vínculo aprovados, cobertura confirmada
+      description: >-
+        Entregador e ao menos um vínculo de veículo aprovados e vigentes. Retorna somente pedidos com orçamento
+        aceito atual, pagamento particular CONFIRMADA quando devido, reserva integral RESERVADA quando subsidiado,
+        protocolo de custódia/unidade habilitados e cobertura de retorno confirmada. PENDENTE, INCERTA, reserva
+        insuficiente ou liberada não são oferta. Expõe apenas cidades, distância, valor e termos necessários ao aceite.
+      x-permission: Entregador aprovado e vínculo aprovado vigente; cobertura efetivamente confirmada
       responses:
         '200':
           description: Listar ofertas disponíveis
@@ -2029,17 +2033,61 @@ paths:
       parameters:
       - $ref: '#/components/parameters/Cursor'
       - $ref: '#/components/parameters/Limit'
+  /me/assignments:
+    get:
+      operationId: listOwnAssignments
+      summary: Listar designações do entregador
+      tags:
+      - me
+      description: Histórico próprio do entregador autenticado; não inclui endereços nem identificação do destinatário.
+      x-permission: Entregador titular com conta ativa
+      responses:
+        '200':
+          description: Designações próprias
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Assignment'
+        '401':
+          $ref: '#/components/responses/Error401'
   /orders/{orderId}/assignment:
+    get:
+      operationId: getAssignment
+      summary: Consultar designação ativa do pedido
+      tags:
+      - orders
+      description: Paciente/familiar PEDIDOS ou RECEBIMENTO, ou o entregador designado. Outros recebem 404.
+      x-permission: Participante do pedido ou entregador designado
+      responses:
+        '200':
+          description: Designação ativa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assignment'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '404':
+          $ref: '#/components/responses/Error404'
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
     post:
       operationId: acceptOffer
       summary: Aceitar tarefa atomicamente
       tags:
       - orders
-      description: Entregador aprovado; vínculo próprio aprovado; pedido DISPONIVEL. If-Match de orderVersion da
-        oferta. Duplo aceite 409 ALREADY_ASSIGNED; não expor identidade do vencedor. Exigir aceite explícito de
-        acceptedCancellationPolicyId igual ao orçamento ofertado, protocolo/unidade/cobertura habilitados; registrar
-        versão aceita na designação. Não garante integral em cancelamento.
-      x-permission: Entregador aprovado; vínculo próprio aprovado; pedido DISPONIVEL
+      description: Entregador aprovado; vínculo aprovado e vigente; pedido DISPONIVEL. Revalida aprovação, vínculo,
+        cobertura, protocolo e limite dentro da transação. If-Match de orderVersion da oferta. Concorrente pode receber
+        412 pela versão superada; não expõe identidade do vencedor. Exige acceptedCancellationPolicyId igual ao
+        orçamento ofertado e registra os snapshots aceitos. Não garante integral em cancelamento.
+      x-permission: Entregador aprovado; vínculo aprovado vigente; pedido DISPONIVEL
       responses:
         '201':
           description: Aceitar tarefa atomicamente
@@ -2126,12 +2174,10 @@ paths:
       summary: Cancelar antes da retirada
       tags:
       - orders
-      description: Paciente/familiar PEDIDOS ou operador atribuído, dentro da política aceita. Após retirada exige
-        ocorrência. Reserva e financeiro tratados separadamente, sem estorno fictício. Antes da designação reconciliar
-        cobertura, sem remuneração sem serviço. Com designação criar apuração PENDENTE e encerrar deslocamento/assinaturas,
-        preservando cobertura. Não liberar tudo, pagar integral ou zerar automaticamente. Liquidação/liberação do
-        excedente somente após apuração concluída, com idempotência.
-      x-permission: Paciente/familiar PEDIDOS ou operador atribuído, dentro da política aceita
+      description: Paciente/familiar PEDIDOS, somente antes da designação. Reconcilia cobertura sem estorno fictício
+        nem remuneração sem serviço. Com designação, retirada ou entrega iniciada retorna POLICY_UNDEFINED enquanto a
+        política de apuração/cancelamento operacional não estiver implementada.
+      x-permission: Paciente titular ou familiar PEDIDOS, antes da designação
       responses:
         '200':
           description: Cancelar antes da retirada
@@ -5413,6 +5459,9 @@ components:
           - BRL
         orderVersion:
           $ref: '#/components/schemas/Version'
+        cancellationPolicyId:
+          type: string
+          format: uuid
       required:
       - orderId
       - originCity
@@ -5421,6 +5470,7 @@ components:
       - grossAmount
       - currency
       - orderVersion
+      - cancellationPolicyId
       description: Antes do aceite não expõe endereço, paciente ou tipo de exame.
     AcceptTask:
       type: object
@@ -5451,6 +5501,11 @@ components:
         vehicleLinkId:
           type: string
           format: uuid
+        status:
+          type: string
+          enum:
+          - ATIVA
+          - ENCERRADA
         acceptedAt:
           type: string
           format: date-time
@@ -5458,13 +5513,17 @@ components:
           type: string
           format: date-time
           nullable: true
+        version:
+          $ref: '#/components/schemas/Version'
       required:
       - id
       - orderId
       - driverId
       - vehicleLinkId
+      - status
       - acceptedAt
       - closedAt
+      - version
     OperationalIdentity:
       type: object
       additionalProperties: false

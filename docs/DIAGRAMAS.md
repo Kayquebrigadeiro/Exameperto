@@ -143,8 +143,10 @@ erDiagram
   PEDIDO ||--o| APURACAO_REMUNERACAO : requer
   POLITICA_CANCELAMENTO ||--o{ ORCAMENTO : regula
   POLITICA_CANCELAMENTO ||--o{ APURACAO_REMUNERACAO : fundamenta
+  POLITICA_DESIGNACAO ||--o{ DESIGNACAO : limita
   PEDIDO ||--o{ DESIGNACAO : registra
   VINCULO_VEICULO ||--o{ DESIGNACAO : executa
+  DESIGNACAO ||--o{ EVENTO_DESIGNACAO : audita
   PEDIDO ||--o{ EVENTO_ENTREGA : registra
   DESIGNACAO ||--o{ POSICAO : transmite
   PEDIDO ||--o{ LANCAMENTO_FINANCEIRO : origina
@@ -154,7 +156,7 @@ erDiagram
   OPERACAO_FINANCEIRA o|--o{ EVENTO_EXTERNO : concilia
 ```
 
-Visão resumida do [modelo físico](MODELO-DADOS.md). Conta, sessão, paciente, convite, concessão, a fatia local de entregador/documento, MFA de sessão do AO e vínculo de veículo possuem migrações V1–V6; as demais relações continuam planejadas. Restrições planejadas: uma designação ativa por pedido; um orçamento aceito vigente; vínculo de veículo e motorista aprovados; decisão de benefício atribuída ao paciente; programa e reserva da mesma instituição; idempotência dos lançamentos. Pedido pode não usar subsídio, então lançamentos particulares não dependem de reserva. Evidências clínicas e financeiras precisam de acesso restrito e retenção própria.
+Visão resumida do [modelo físico](MODELO-DADOS.md). V1–V11 materializam conta/sessão, representação, evidências e revisão local, benefício/aporte, pedido/orçamento, aceite/cobertura e a designação inicial. V11 impõe uma designação ativa por pedido, limite simultâneo configurado sob lock do entregador, snapshots dos termos e idempotência do aceite. Custódia executada, rastreamento, entrega, apuração, liquidação e repasse continuam planejados. Pedido particular não depende de instituição/reserva, mas só vira oferta após pagamento confirmado; subsidiado só vira oferta com reserva integral ainda ativa. Evidências clínicas e financeiras permanecem fora da projeção operacional.
 
 ### Ticket 06 — vínculo e revisão versionada
 
@@ -246,10 +248,12 @@ sequenceDiagram
   D-->>B: Cobertura confirmada ou pendente
   alt Cobertura confirmada
     B-->>C: Pedido disponível para entrega
+    M->>B: Consultar oferta mínima (cidades/distância/frete)
     M->>B: Aceitar tarefa
-    B->>D: Criar designação única e ativa
+    B->>D: Lock pedido/entregador; revalidar cobertura, aprovações e limite
+    B->>D: Criar designação única, snapshot, evento e idempotência
     D-->>B: Designação confirmada
-    B-->>M: Frete do servico completo e politica de cancelamento
+    B-->>M: Tarefa e endereços mínimos autorizados
     Note over B,M: Aceite nao garante integral em cancelamento
     M->>B: Confirmar retirada, protocolo e prova de custodia
     Note over B,M: Exigir unidade e cobertura de retorno habilitadas
@@ -264,7 +268,7 @@ sequenceDiagram
 
 Confirmação de pagamento real depende do provedor habilitado e dos eventos autenticados correspondentes. Registro de repasse a pagar não equivale a dinheiro transferido; confirmação de transferência vem da integração ou conciliação comprovada.
 
-V10 implementa até a fronteira de cobertura: snapshot imutável do aceite, reserva concorrente e outbox local. O adaptador de cobrança de produção permanece indisponível. Eventos controlados existem apenas nos testes descartáveis; eles demonstram autenticação delegada ao adaptador, validação e deduplicação, não homologação financeira externa. Designação, liquidação e repasse continuam fora deste recorte.
+V10 implementa a fronteira de cobertura: snapshot imutável do aceite, reserva concorrente e outbox local. V11 implementa consulta mínima e aceite exclusivo da oferta, com revalidação transacional e acompanhamento inicial nas interfaces. O adaptador de cobrança de produção, aprovações profissionais, política de capacidade e protocolos reais permanecem indisponíveis; testes usam substitutos apenas no banco descartável. Retirada, custódia efetiva, rastreamento, liquidação e repasse continuam fora deste recorte.
 
 ## Rastreamento ao vivo
 
