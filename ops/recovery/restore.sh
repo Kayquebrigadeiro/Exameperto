@@ -101,10 +101,52 @@ while IFS=$'\t' read -r execution owner verified; do
   apply_owner "$execution" "$owner" "$verified"
 done < "$journal_rows"
 
+closure_rows=$(mktemp)
+order_rows=$(mktemp)
+trap 'rm -f -- "$journal_rows" "$closure_rows" "$order_rows"' EXIT
+psql "$PURGE_JOURNAL_DATABASE_URL" -X --no-psqlrc -v ON_ERROR_STOP=1 -At -F $'\t' -c \
+  "SELECT execution_id,owner_id,encode(email_cifrado,'hex'),encode(email_busca,'hex'),encode(nome_cifrado,'hex'),senha_hash,coalesce(encode(cpf_cifrado,'hex'),''),coalesce(encode(cpf_busca,'hex'),''),coalesce(nascimento::text,''),coalesce(identidade_estado,'') FROM account_closure_completion ORDER BY completed_at,execution_id" > "$closure_rows"
+while IFS=$'\t' read -r execution owner email_cipher email_lookup name_cipher password cpf_cipher cpf_lookup birth identity; do
+  [[ -n "$execution" ]] || continue
+  valid_uuid "$execution" && valid_uuid "$owner" || die "identificador inválido no diário de encerramento"
+  [[ "$email_cipher" =~ ^[0-9a-f]+$ && "$email_lookup" =~ ^[0-9a-f]+$ && "$name_cipher" =~ ^[0-9a-f]+$ && "$cpf_cipher" =~ ^[0-9a-f]*$ && "$cpf_lookup" =~ ^[0-9a-f]*$ ]] || die "cifra inválida no diário de encerramento"
+  psql "$RESTORE_DATABASE_URL" -X --no-psqlrc -v ON_ERROR_STOP=1 -q \
+    -v execution="$execution" -v owner="$owner" -v email_cipher="$email_cipher" -v email_lookup="$email_lookup" -v name_cipher="$name_cipher" -v password="$password" \
+    -v cpf_cipher="$cpf_cipher" -v cpf_lookup="$cpf_lookup" -v birth="$birth" -v identity="$identity" <<'SQL'
+BEGIN;
+UPDATE usuario SET email_cifrado=decode(:'email_cipher','hex'),email_busca=decode(:'email_lookup','hex'),nome_cifrado=decode(:'name_cipher','hex'),senha_hash=:'password',telefone_cifrado=NULL,estado='ENCERRADO',updated_at=clock_timestamp(),version=version+1 WHERE id=:'owner'::uuid;
+UPDATE paciente SET cpf_cifrado=CASE WHEN :'cpf_cipher'='' THEN cpf_cifrado ELSE decode(:'cpf_cipher','hex') END,cpf_busca=CASE WHEN :'cpf_lookup'='' THEN cpf_busca ELSE decode(:'cpf_lookup','hex') END,nascimento=CASE WHEN :'birth'='' THEN nascimento ELSE :'birth'::date END,identidade_estado=CASE WHEN :'identity'='' THEN identidade_estado ELSE :'identity' END,verificado_em=NULL,updated_at=clock_timestamp(),version=version+1 WHERE usuario_id=:'owner'::uuid;
+UPDATE sessao SET revogada_em=coalesce(revogada_em,clock_timestamp()),updated_at=clock_timestamp() WHERE usuario_id=:'owner'::uuid;
+DELETE FROM desafio_conta WHERE usuario_id=:'owner'::uuid;
+DELETE FROM mfa_totp WHERE usuario_id=:'owner'::uuid;
+UPDATE autorizacao_paciente SET revogada_em=coalesce(revogada_em,clock_timestamp()),updated_at=clock_timestamp(),version=version+1 WHERE familiar_id=:'owner'::uuid OR concedida_por=:'owner'::uuid OR paciente_id IN (SELECT id FROM paciente WHERE usuario_id=:'owner'::uuid);
+UPDATE convite_familiar SET estado='REVOGADO',revogado_em=coalesce(revogado_em,clock_timestamp()),updated_at=clock_timestamp(),version=version+1 WHERE paciente_id IN (SELECT id FROM paciente WHERE usuario_id=:'owner'::uuid) OR aceito_por=:'owner'::uuid;
+UPDATE membro_instituicao SET revogado_em=coalesce(revogado_em,clock_timestamp()) WHERE usuario_id=:'owner'::uuid;
+UPDATE papel_global SET revogado_em=coalesce(revogado_em,clock_timestamp()),motivo='ACCOUNT_CLOSED' WHERE usuario_id=:'owner'::uuid;
+UPDATE entregador SET estado='SUSPENSO',updated_at=clock_timestamp(),version=version+1 WHERE usuario_id=:'owner'::uuid AND estado<>'SUSPENSO';
+UPDATE execucao_expurgo SET estado='VERIFICADA',verificada_em=coalesce(verificada_em,clock_timestamp()),erro_codigo=NULL WHERE id=:'execution'::uuid;
+UPDATE solicitacao_privacidade SET estado='VERIFICADA',version=version+1,updated_at=clock_timestamp() WHERE expurgo_id=:'execution'::uuid;
+UPDATE encerramento_conta SET estado='ENCERRADA',anonimizado_em=coalesce(anonimizado_em,clock_timestamp()),encerrado_em=coalesce(encerrado_em,clock_timestamp()),bloqueio_codigo=NULL,detalhe_codigo=NULL,updated_at=clock_timestamp(),version=version+1 WHERE usuario_id=:'owner'::uuid;
+COMMIT;
+SQL
+done < "$closure_rows"
+psql "$PURGE_JOURNAL_DATABASE_URL" -X --no-psqlrc -v ON_ERROR_STOP=1 -At -F $'\t' -c \
+  "SELECT execution_id,owner_id,order_id,encode(origem_cifrada,'hex'),encode(destino_cifrada,'hex'),origem_lat,origem_lon,destino_lat,destino_lon FROM account_closure_order ORDER BY execution_id,order_id" > "$order_rows"
+while IFS=$'\t' read -r execution owner order origin destination origin_lat origin_lon destination_lat destination_lon; do
+  [[ -n "$execution" ]] || continue
+  valid_uuid "$execution" && valid_uuid "$owner" && valid_uuid "$order" || die "identificador inválido em endereço encerrado"
+  [[ "$origin" =~ ^[0-9a-f]+$ && "$destination" =~ ^[0-9a-f]+$ ]] || die "cifra inválida em endereço encerrado"
+  psql "$RESTORE_DATABASE_URL" -X --no-psqlrc -v ON_ERROR_STOP=1 -q \
+    -v order="$order" -v origin="$origin" -v destination="$destination" -v origin_lat="$origin_lat" -v origin_lon="$origin_lon" -v destination_lat="$destination_lat" -v destination_lon="$destination_lon" <<'SQL'
+UPDATE pedido SET origem_cifrada=decode(:'origin','hex'),destino_cifrada=decode(:'destination','hex'),origem_lat=:'origin_lat'::numeric,origem_lon=:'origin_lon'::numeric,destino_lat=:'destination_lat'::numeric,destino_lon=:'destination_lon'::numeric,updated_at=clock_timestamp(),version=version+1 WHERE id=:'order'::uuid;
+SQL
+done < "$order_rows"
+
 remaining=$(psql_value "$RESTORE_DATABASE_URL" "SELECT count(*) FROM restauracao_expurgo_aplicado a JOIN documento d ON d.proprietario_id=a.titular_id WHERE a.backup_id='$BACKUP_ID'::uuid AND d.categoria NOT IN ('FINANCIAMENTO','COMPROVANTE') AND (d.estado<>'EXPURGADO' OR d.mime<>'application/x-deleted')")
 positions=$(psql_value "$RESTORE_DATABASE_URL" "SELECT count(*) FROM restauracao_expurgo_aplicado a JOIN pedido pe ON true LEFT JOIN paciente pa ON pa.id=pe.paciente_id LEFT JOIN designacao d ON d.pedido_id=pe.id AND d.encerrada_em IS NULL LEFT JOIN entregador e ON e.id=d.entregador_id JOIN posicao_tarefa p ON p.pedido_id=pe.id WHERE a.backup_id='$BACKUP_ID'::uuid AND (pe.solicitante_id=a.titular_id OR pe.destinatario_id=a.titular_id OR pa.usuario_id=a.titular_id OR e.usuario_id=a.titular_id)")
 queued=$(psql_value "$RESTORE_DATABASE_URL" "SELECT count(*) FROM restauracao_expurgo_aplicado a JOIN outbox o ON o.payload_saneado->>'usuarioId'=a.titular_id::text WHERE a.backup_id='$BACKUP_ID'::uuid")
-if [[ "$remaining" != 0 || "$positions" != 0 || "$queued" != 0 ]]; then
+closures=$(psql_value "$RESTORE_DATABASE_URL" "SELECT count(*) FROM restauracao_expurgo_aplicado a JOIN encerramento_conta c ON c.usuario_id=a.titular_id WHERE a.backup_id='$BACKUP_ID'::uuid AND c.estado<>'ENCERRADA'")
+if [[ "$remaining" != 0 || "$positions" != 0 || "$queued" != 0 || "$closures" != 0 ]]; then
   psql "$RESTORE_DATABASE_URL" -X --no-psqlrc -v ON_ERROR_STOP=1 -q -c "UPDATE controle_restauracao SET estado='FALHA',detalhe_codigo='PURGE_VERIFICATION_FAILED',updated_at=clock_timestamp() WHERE singleton"
   die "verificação de expurgos falhou"
 fi

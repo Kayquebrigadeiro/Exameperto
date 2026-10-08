@@ -84,6 +84,7 @@ class PrivacyService {
         jdbc.update("INSERT INTO execucao_expurgo(id,politica_id,solicitacao_id,alvo_referencia_cifrada,alvo_referencia_hash,estado,autorizada_por,backup_residual_ate) VALUES (?,?,?,?,?,'AUTORIZADA',?,CASE WHEN ?::integer IS NULL THEN NULL ELSE clock_timestamp()+(?::integer*interval '1 day') END)",
             execution,policy.get("id"),requestId,protector.encrypt(owner.toString()),ownerHash,principal.userId(),policy.get("backup_prazo_dias"),policy.get("backup_prazo_dias"));
         inventory(execution,owner);
+        jdbc.update("INSERT INTO encerramento_conta(usuario_id,solicitacao_id,estado) VALUES (?,?,'PENDENTE') ON CONFLICT (usuario_id) DO UPDATE SET solicitacao_id=excluded.solicitacao_id,estado='PENDENTE',bloqueio_codigo=NULL,detalhe_codigo=NULL,updated_at=clock_timestamp(),version=encerramento_conta.version+1",owner,requestId);
         jdbc.update("UPDATE solicitacao_privacidade SET estado='EXPURGO_SOLICITADO',expurgo_id=?,version=version+1,updated_at=clock_timestamp() WHERE id=?",execution,requestId);
         return viewAny(requestId);
     }
@@ -120,7 +121,7 @@ class PrivacyService {
         return viewAny(requestId);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = PrivacyException.class)
     PrivacyRequestView verify(AuthService.SessionPrincipal principal, UUID requestId) {
         privileged(principal);
         requirePurgeEnabled();
@@ -136,6 +137,7 @@ class PrivacyService {
                 throw error(HttpStatus.CONFLICT,"PURGE_NOT_VERIFIED","Ainda há conteúdo no recurso controlado.");
             jdbc.update("UPDATE expurgo_alvo SET estado='VERIFICADO' WHERE id=?",target.get("id"));
         }
+        closeAccount(owner, requestId);
         jdbc.update("UPDATE execucao_expurgo SET estado='VERIFICADA',verificada_por=?,verificada_em=clock_timestamp() WHERE id=?",principal.userId(),executionId);
         jdbc.update("UPDATE solicitacao_privacidade SET estado='VERIFICADA',version=version+1,updated_at=clock_timestamp() WHERE id=?",requestId);
         return viewAny(requestId);
@@ -157,6 +159,41 @@ class PrivacyService {
         target(execution,"DISPOSITIVO","DISPOSITIVOS_DO_TITULAR","PROCEDIMENTO_PENDENTE","OUTSIDE_SERVER_CONTROL");
         target(execution,"FORNECEDOR","SUBOPERADORES_EXTERNOS","PROCEDIMENTO_PENDENTE","CONTRACT_REQUIRED");
         target(execution,"BACKUP","COPIAS_RECUPERAVEIS","PROCEDIMENTO_PENDENTE","RESTORE_PROCEDURE_REQUIRED");
+    }
+
+    private void closeAccount(UUID owner, UUID requestId) {
+        String block=closureBlock(owner);
+        if (block!=null) {
+            jdbc.update("UPDATE encerramento_conta SET estado='BLOQUEADA',bloqueio_codigo=?,detalhe_codigo='PENDING_POLICY_OR_OBLIGATION',updated_at=clock_timestamp(),version=version+1 WHERE usuario_id=?",block,owner);
+            throw error(HttpStatus.CONFLICT,"ACCOUNT_CLOSURE_BLOCKED","O encerramento aguarda custódia, obrigação ou reconciliação pendente: "+block);
+        }
+        Map<String,Object> closure=jdbc.queryForMap("SELECT * FROM encerramento_conta WHERE usuario_id=? FOR UPDATE",owner);
+        if ("ENCERRADA".equals(closure.get("estado"))) return;
+        jdbc.update("UPDATE encerramento_conta SET estado='EM_EXECUCAO',bloqueio_codigo=NULL,detalhe_codigo=NULL,updated_at=clock_timestamp(),version=version+1 WHERE usuario_id=?",owner);
+        byte[] oldEmail=jdbc.queryForObject("SELECT email_busca FROM usuario WHERE id=?",byte[].class,owner);
+        jdbc.update("UPDATE sessao SET revogada_em=coalesce(revogada_em,clock_timestamp()),updated_at=clock_timestamp() WHERE usuario_id=?",owner);
+        jdbc.update("DELETE FROM desafio_conta WHERE usuario_id=?",owner);
+        jdbc.update("DELETE FROM mfa_totp WHERE usuario_id=?",owner);
+        jdbc.update("UPDATE autorizacao_paciente SET revogada_em=coalesce(revogada_em,clock_timestamp()),updated_at=clock_timestamp(),version=version+1 WHERE familiar_id=? OR concedida_por=? OR paciente_id IN (SELECT id FROM paciente WHERE usuario_id=?)",owner,owner,owner);
+        jdbc.update("UPDATE convite_familiar SET estado='REVOGADO',revogado_em=coalesce(revogado_em,clock_timestamp()),updated_at=clock_timestamp(),version=version+1 WHERE paciente_id IN (SELECT id FROM paciente WHERE usuario_id=?) OR destinatario_email_busca=? OR aceito_por=?",owner,oldEmail,owner);
+        jdbc.update("UPDATE membro_instituicao SET revogado_em=coalesce(revogado_em,clock_timestamp()) WHERE usuario_id=?",owner);
+        jdbc.update("UPDATE papel_global SET revogado_em=coalesce(revogado_em,clock_timestamp()),motivo='ACCOUNT_CLOSED' WHERE usuario_id=?",owner);
+        jdbc.update("UPDATE entregador SET estado='SUSPENSO',updated_at=clock_timestamp(),version=version+1 WHERE usuario_id=? AND estado<>'SUSPENSO'",owner);
+        String pseudonym="conta-encerrada:"+owner;
+        jdbc.update("UPDATE usuario SET email_cifrado=?,email_busca=?,senha_hash=?,nome_cifrado=?,telefone_cifrado=NULL,estado='ENCERRADO',updated_at=clock_timestamp(),version=version+1 WHERE id=?",protector.encrypt(pseudonym+"@invalid.local"),protector.lookup(pseudonym+"@invalid.local"),Passwords.hash(protector.token()),protector.encrypt("Conta encerrada"),owner);
+        jdbc.update("UPDATE paciente SET cpf_cifrado=?,cpf_busca=?,nascimento=DATE '1900-01-01',identidade_estado='REJEITADA',verificado_em=NULL,updated_at=clock_timestamp(),version=version+1 WHERE usuario_id=?",protector.encrypt("cpf-encerrado:"+owner),protector.lookup("cpf-encerrado:"+owner),owner);
+        for (UUID order : jdbc.queryForList("SELECT DISTINCT p.id FROM pedido p LEFT JOIN paciente pa ON pa.id=p.paciente_id WHERE p.solicitante_id=? OR p.destinatario_id=? OR pa.usuario_id=?",UUID.class,owner,owner,owner))
+            jdbc.update("UPDATE pedido SET origem_cifrada=?,destino_cifrada=?,origem_lat=0,origem_lon=0,destino_lat=0,destino_lon=0,updated_at=clock_timestamp(),version=version+1 WHERE id=?",protector.encrypt("endereco removido:"+order),protector.encrypt("endereco removido:"+order),order);
+        live.revokeUser(owner);
+        jdbc.update("UPDATE encerramento_conta SET estado='ENCERRADA',anonimizado_em=clock_timestamp(),encerrado_em=clock_timestamp(),detalhe_codigo=NULL,updated_at=clock_timestamp(),version=version+1 WHERE usuario_id=?",owner);
+    }
+
+    private String closureBlock(UUID owner) {
+        if (jdbc.queryForObject("SELECT count(*) FROM custodia c JOIN pedido p ON p.id=c.pedido_id LEFT JOIN paciente pa ON pa.id=p.paciente_id WHERE c.encerrada_em IS NULL AND (p.solicitante_id=? OR p.destinatario_id=? OR pa.usuario_id=?)",Long.class,owner,owner,owner)>0) return "CUSTODY_OPEN";
+        if (jdbc.queryForObject("SELECT count(*) FROM operacao_financeira o JOIN pedido p ON p.id=o.pedido_id LEFT JOIN paciente pa ON pa.id=p.paciente_id WHERE o.estado IN ('PENDENTE','PROCESSANDO','INCERTA','RECONCILIAR') AND (p.solicitante_id=? OR p.destinatario_id=? OR pa.usuario_id=?)",Long.class,owner,owner,owner)>0) return "FINANCIAL_OPERATION_PENDING";
+        if (jdbc.queryForObject("SELECT count(*) FROM repasse r JOIN pedido p ON p.id=r.pedido_id LEFT JOIN paciente pa ON pa.id=p.paciente_id WHERE r.estado IN ('OBRIGACAO_REGISTRADA','SOLICITADO','INCERTO') AND (p.solicitante_id=? OR p.destinatario_id=? OR pa.usuario_id=?)",Long.class,owner,owner,owner)>0) return "PAYOUT_PENDING";
+        if (jdbc.queryForObject("SELECT count(*) FROM reserva_subsidio r JOIN pedido p ON p.id=r.pedido_id LEFT JOIN paciente pa ON pa.id=p.paciente_id WHERE r.estado IN ('RESERVADA','PARCIAL') AND (p.solicitante_id=? OR p.destinatario_id=? OR pa.usuario_id=?)",Long.class,owner,owner,owner)>0) return "SUBSIDY_RESERVATION_PENDING";
+        return null;
     }
 
     private void target(UUID execution,String type,String reference,String state,String reason) {
@@ -242,7 +279,12 @@ class PrivacyService {
             preserved=jdbc.queryForObject("SELECT count(*) FROM expurgo_alvo WHERE execucao_id=? AND estado='PRESERVADO'",Integer.class,row.get("expurgo_id"));
         }
         byte[] response=(byte[])row.get("resposta_cifrada");
-        return new PrivacyRequestView(id,(String)row.get("protocolo"),(String)row.get("tipo"),(String)row.get("estado"),instant(row.get("created_at")),response==null?null:protector.decrypt(response),execution==null?null:(String)execution.get("estado"),execution==null?null:instant(execution.get("executada_em")),execution==null?null:instant(execution.get("verificada_em")),pending,preserved,((Number)row.get("version")).longValue());
+        Map<String,Object> closure;
+        try { closure=jdbc.queryForMap("SELECT estado,anonimizado_em FROM encerramento_conta WHERE solicitacao_id=?",id); }
+        catch (EmptyResultDataAccessException ex) { closure=Map.of("estado","NAO_APLICAVEL"); }
+        String closureStatus=(String)closure.get("estado");
+        String anonymizationStatus="NAO_APLICAVEL".equals(closureStatus)?"NAO_APLICAVEL":(closure.get("anonimizado_em")==null?"PENDENTE":"TRANSFORMADA_NAO_INTEGRAL");
+        return new PrivacyRequestView(id,(String)row.get("protocolo"),(String)row.get("tipo"),(String)row.get("estado"),instant(row.get("created_at")),response==null?null:protector.decrypt(response),execution==null?null:(String)execution.get("estado"),execution==null?null:instant(execution.get("executada_em")),execution==null?null:instant(execution.get("verificada_em")),pending,preserved,((Number)row.get("version")).longValue(),closureStatus,anonymizationStatus);
     }
     private static Instant instant(Object value) { return value==null?null:((Timestamp)value).toInstant(); }
     private static byte[] sha256(String value) { try { return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)); } catch (Exception ex) { throw new IllegalStateException(ex); } }

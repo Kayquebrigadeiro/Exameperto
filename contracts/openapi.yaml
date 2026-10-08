@@ -6382,6 +6382,8 @@ components:
       - purgeStatus
       - procedurePending
       - preserved
+      - closureStatus
+      - anonymizationStatus
       - version
       properties:
         id:
@@ -6434,6 +6436,15 @@ components:
           type: integer
           minimum: 0
           description: Recursos preservados por regra explícita, incluindo finanças enquanto a retenção estiver pendente.
+        closureStatus:
+          type: string
+          nullable: true
+          enum: [NAO_APLICAVEL, PENDENTE, BLOQUEADA, EM_EXECUCAO, ENCERRADA, FALHA]
+          description: Estado separado do fechamento da conta; BLOQUEADA indica custódia, obrigação ou reconciliação pendente.
+        anonymizationStatus:
+          type: string
+          enum: [NAO_APLICAVEL, PENDENTE, TRANSFORMADA_NAO_INTEGRAL]
+          description: Identificadores controlados foram transformados, mas mapeamentos internos e referências financeiras impedem declarar anonimização integral.
         version:
           $ref: '#/components/schemas/Version'
     FamilyInvitationInput:

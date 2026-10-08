@@ -55,13 +55,13 @@ flowchart LR
 
 Solicitação respondida não é exclusão executada, e execução não é verificação. `VERIFICADA` limita-se aos recursos locais controlados; finanças são preservadas e dispositivos, backups e fornecedores permanecem fora da comprovação local.
 
-### Backup, diário externo e restauração (V16)
+### Encerramento, diário externo e restauração (V17)
 
 ```mermaid
 flowchart LR
   Q[Escritas suspensas] --> B[Dump PostgreSQL + objetos]
   B --> M[Manifesto + SHA-256]
-  X[Expurgo V15 verificado] --> J[(Diário PostgreSQL externo)]
+  X[Expurgo/encerramento V17 verificado] --> J[(Diário PostgreSQL externo)]
   M --> R[(Alvo isolado)]
   R --> G[Gate BLOQUEADO]
   J --> A[Reaplicar expurgos]
@@ -70,9 +70,12 @@ flowchart LR
   V --> E[Gate VERIFICADO]
   E --> L[Liberação humana explícita]
   L --> N[Gate NORMAL]
+  C{Custódia ou obrigação pendente?} -->|sim| K[BLOQUEADA: preservar responsabilidade]
+  C -->|não| T[Revogar sessões/MFA/concessões e transformar campos]
+  T --> J
 ```
 
-O diário não integra o backup restaurado. Rede isolada e efeitos externos desligados são pré-condições, e `VERIFICADO` ainda bloqueia a API até `release-access.sh`. Checksum detecta corrupção acidental, mas a autenticidade/cifragem do destino depende da infraestrutura real.
+O diário não integra o backup restaurado. Rede isolada e efeitos externos desligados são pré-condições, e `VERIFICADO` ainda bloqueia a API até `release-access.sh`. Encerramentos registrados no diário reaplicam revogações e transformações de perfil/endereço antes da liberação. Checksum detecta corrupção acidental, mas a autenticidade/cifragem do destino depende da infraestrutura real.
 
 ## Módulos do backend
 

@@ -55,6 +55,7 @@ class PrivacyFlowTest {
     @Autowired DataProtector protector;
     @Autowired ObjectMapper json;
     @Autowired PrivateObjectStore objects;
+    @Autowired TrackingLiveRegistry live;
     final HttpClient http=HttpClient.newHttpClient();
     final String password="Senha-sintetica-123";
 
@@ -99,18 +100,22 @@ class PrivacyFlowTest {
     @Test @Order(2)
     void purgeIsAuthorizedExecutedRetriedAndVerifiedWithoutDeletingFinancialEvidence() throws Exception {
         Account owner=account("purge-owner");
+        Account family=account("purge-family");
         Account operator=account("privacy-operator");
         grantOperator(operator);
         mfa(operator);
         UUID ordinaryDocument=document(owner,"IDENTIDADE","ordinary.pdf");
         UUID financialDocument=document(owner,"FINANCIAMENTO","financial.pdf");
         FinancialFixture financial=financialFixture(owner,account("tracking-driver"));
+        linkExistingPatientFamily(owner,family);
         String ordinaryKey=jdbc.queryForObject("SELECT objeto_chave FROM documento WHERE id=?",String.class,ordinaryDocument);
         String financialKey=jdbc.queryForObject("SELECT objeto_chave FROM documento WHERE id=?",String.class,financialDocument);
         UUID queued=UUID.randomUUID();
         jdbc.update("INSERT INTO outbox(id,tipo,chave,payload_saneado,estado,disponivel_em) VALUES (?,'EMAIL_VERIFICACAO',?,jsonb_build_object('usuarioId',?::text),'PENDENTE',clock_timestamp())",queued,"privacy:"+queued,owner.id.toString());
 
         JsonNode request=create(owner,"EXCLUSAO","Solicito exclusão da conta.","purge-request");
+        String originalEmail=protector.decrypt(jdbc.queryForObject("SELECT email_cifrado FROM usuario WHERE id=?",byte[].class,owner.id));
+        live.connected("closure-socket",new TrackingLiveRegistry.TrackingPrincipal(owner.id,owner.sessionId));
         UUID requestId=UUID.fromString(request.get("id").asText());
         HttpResponse<String> answered=request(operator,"POST","/privacy-requests/"+requestId+"/response",Map.of("status","RESPONDIDA","response","Solicitação identificada e analisada."),null);
         assertThat(answered.statusCode()).as(answered.body()).isEqualTo(200);
@@ -158,6 +163,38 @@ class PrivacyFlowTest {
         assertThat(jdbc.queryForObject("SELECT count(*) FROM pedido_idempotencia WHERE ator_id=? AND operacao='CRIAR'",Long.class,owner.id)).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM tombstone_expurgo WHERE execucao_id=?",Long.class,execution)).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM expurgo_alvo WHERE execucao_id=? AND tipo IN ('FORNECEDOR','DISPOSITIVO','BACKUP') AND estado='PROCEDIMENTO_PENDENTE'",Long.class,execution)).isEqualTo(3);
+        assertThat(jdbc.queryForObject("SELECT estado FROM encerramento_conta WHERE usuario_id=?",String.class,owner.id)).isEqualTo("ENCERRADA");
+        assertThat(jdbc.queryForObject("SELECT estado FROM usuario WHERE id=?",String.class,owner.id)).isEqualTo("ENCERRADO");
+        assertThat(jdbc.queryForObject("SELECT revogada_em IS NOT NULL FROM sessao WHERE id=?",Boolean.class,owner.sessionId)).isTrue();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM autorizacao_paciente WHERE familiar_id=? OR concedida_por=? AND revogada_em IS NULL",Long.class,owner.id,owner.id)).isZero();
+        assertThat(live.hasUser(owner.id)).isFalse();
+        assertThat(protector.decrypt(jdbc.queryForObject("SELECT email_cifrado FROM usuario WHERE id=?",byte[].class,owner.id))).isNotEqualTo(originalEmail);
+        assertThat(protector.decrypt(jdbc.queryForObject("SELECT nome_cifrado FROM usuario WHERE id=?",byte[].class,owner.id))).isEqualTo("Conta encerrada");
+        assertThat(jdbc.queryForObject("SELECT nascimento FROM paciente WHERE usuario_id=?",java.sql.Date.class,owner.id).toLocalDate().toString()).isEqualTo("1900-01-01");
+        assertThat(jdbc.queryForObject("SELECT origem_lat FROM pedido WHERE id=?",java.math.BigDecimal.class,financial.order)).isEqualByComparingTo("0");
+        assertThat(protector.decrypt(jdbc.queryForObject("SELECT origem_cifrada FROM pedido WHERE id=?",byte[].class,financial.order))).startsWith("endereco removido:");
+    }
+
+    @Test @Order(4)
+    void pendingObligationBlocksClosureThenResumesWithoutDeletingResponsibility() throws Exception {
+        Account owner=account("pending-owner");
+        Account operator=account("pending-operator");
+        grantOperator(operator); mfa(operator);
+        FinancialFixture financial=financialFixture(owner,account("pending-driver"));
+        jdbc.update("UPDATE operacao_financeira SET estado='PENDENTE' WHERE id=?",financial.operation);
+        UUID requestId=UUID.fromString(create(owner,"EXCLUSAO","Encerrar após resolver obrigação.","pending-close").get("id").asText());
+        request(operator,"POST","/privacy-requests/"+requestId+"/response",Map.of("status","RESPONDIDA","response","Analisada."),null);
+        assertThat(request(operator,"POST","/privacy-requests/"+requestId+"/purge",null,null).statusCode()).isEqualTo(200);
+        assertThat(request(operator,"POST","/privacy-requests/"+requestId+"/purge/execute",null,null).statusCode()).isEqualTo(200);
+        HttpResponse<String> blocked=request(operator,"POST","/privacy-requests/"+requestId+"/purge/verify",null,null);
+        assertThat(blocked.statusCode()).isEqualTo(409);
+        assertThat(jdbc.queryForObject("SELECT estado FROM encerramento_conta WHERE usuario_id=?",String.class,owner.id)).isEqualTo("BLOQUEADA");
+        assertThat(jdbc.queryForObject("SELECT estado FROM operacao_financeira WHERE id=?",String.class,financial.operation)).isEqualTo("PENDENTE");
+        jdbc.update("UPDATE operacao_financeira SET estado='CONFIRMADA' WHERE id=?",financial.operation);
+        HttpResponse<String> resumed=request(operator,"POST","/privacy-requests/"+requestId+"/purge/verify",null,null);
+        assertThat(resumed.statusCode()).as(resumed.body()).isEqualTo(200);
+        assertThat(jdbc.queryForObject("SELECT estado FROM encerramento_conta WHERE usuario_id=?",String.class,owner.id)).isEqualTo("ENCERRADA");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM operacao_financeira WHERE id=?",Long.class,financial.operation)).isOne();
     }
 
     @Test @Order(1)
@@ -219,15 +256,24 @@ class PrivacyFlowTest {
         jdbc.update("INSERT INTO posicao_tarefa(id,pedido_id,designacao_id,sequencia,capturada_em,latitude,longitude,precisao_m) VALUES (?,?,?,1,clock_timestamp(),-23,-46,10)",position,order,assignment);
         jdbc.update("INSERT INTO pedido_idempotencia(ator_id,operacao,chave,request_hash,pedido_id) VALUES (?,'CRIAR',?,decode(md5(?),'hex'),?)",owner.id,"key-"+order,order.toString(),order);
         UUID operation=UUID.randomUUID();
-        jdbc.update("INSERT INTO operacao_financeira(id,pedido_id,tipo,chave_negocio,valor,moeda,estado,provedor,beneficiario_referencia) VALUES (?,?,'COBRANCA',?,10,'BRL','PENDENTE','controlled-test',?)",operation,order,"charge:"+order,owner.id.toString());
+        jdbc.update("INSERT INTO operacao_financeira(id,pedido_id,tipo,chave_negocio,valor,moeda,estado,provedor,beneficiario_referencia) VALUES (?,?,'COBRANCA',?,10,'BRL','CONFIRMADA','controlled-test',?)",operation,order,"charge:"+order,owner.id.toString());
         jdbc.update("INSERT INTO financeiro_outbox(id,operacao_id,pedido_id,tipo,chave,payload_saneado,estado) VALUES (?,?,?,'CRIAR_COBRANCA',?,jsonb_build_object('operationId',?::text),'PENDENTE')",UUID.randomUUID(),operation,order,"charge:"+order,operation);
-        return new FinancialFixture(position,operation);
+        return new FinancialFixture(position,operation,order);
     }
     private void grantOperator(Account account) { jdbc.update("INSERT INTO papel_global(usuario_id,papel) VALUES (?,'ANALISTA_OPERACIONAL')",account.id); }
     private void linkFamilyWithoutPrivacyScope(Account owner,Account family) {
         UUID patient=UUID.randomUUID();
         String cpf=String.format("%011d",Integer.toUnsignedLong(patient.hashCode()));
         jdbc.update("INSERT INTO paciente(id,usuario_id,cpf_cifrado,cpf_busca,nascimento,identidade_estado) VALUES (?,?,?,?,DATE '1980-01-01','VERIFICADA')",patient,owner.id,protector.encrypt(cpf),protector.lookup(cpf));
+        UUID invitation=UUID.randomUUID();
+        jdbc.update("INSERT INTO convite_familiar(id,paciente_id,destinatario_email_busca,token_hash,estado,expira_em,consumido_em,aceito_por,aceito_em,confirmado_em) VALUES (?,?,?,?, 'CONFIRMADO',clock_timestamp()+interval '1 day',clock_timestamp(),?,clock_timestamp(),clock_timestamp())",invitation,patient,protector.lookup("family-"+family.id),protector.lookup("token-"+invitation),family.id);
+        jdbc.update("INSERT INTO convite_familiar_escopo(convite_id,escopo) VALUES (?,'PEDIDOS')",invitation);
+        UUID grant=UUID.randomUUID();
+        jdbc.update("INSERT INTO autorizacao_paciente(id,paciente_id,familiar_id,concedida_por,convite_id,confirmada_em,expira_em) VALUES (?,?,?,?,?,clock_timestamp(),clock_timestamp()+interval '1 day')",grant,patient,family.id,owner.id,invitation);
+        jdbc.update("INSERT INTO autorizacao_escopo(autorizacao_id,escopo) VALUES (?,'PEDIDOS')",grant);
+    }
+    private void linkExistingPatientFamily(Account owner,Account family) {
+        UUID patient=jdbc.queryForObject("SELECT id FROM paciente WHERE usuario_id=?",UUID.class,owner.id);
         UUID invitation=UUID.randomUUID();
         jdbc.update("INSERT INTO convite_familiar(id,paciente_id,destinatario_email_busca,token_hash,estado,expira_em,consumido_em,aceito_por,aceito_em,confirmado_em) VALUES (?,?,?,?, 'CONFIRMADO',clock_timestamp()+interval '1 day',clock_timestamp(),?,clock_timestamp(),clock_timestamp())",invitation,patient,protector.lookup("family-"+family.id),protector.lookup("token-"+invitation),family.id);
         jdbc.update("INSERT INTO convite_familiar_escopo(convite_id,escopo) VALUES (?,'PEDIDOS')",invitation);
@@ -257,5 +303,5 @@ class PrivacyFlowTest {
         return http.send(builder.method(method,serialized==null?HttpRequest.BodyPublishers.noBody():HttpRequest.BodyPublishers.ofString(serialized)).build(),HttpResponse.BodyHandlers.ofString());
     }
     record Account(UUID id,UUID sessionId,String token) {}
-    record FinancialFixture(UUID position,UUID operation) {}
+    record FinancialFixture(UUID position,UUID operation,UUID order) {}
 }

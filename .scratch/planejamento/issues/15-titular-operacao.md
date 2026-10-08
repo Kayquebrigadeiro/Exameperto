@@ -23,6 +23,8 @@ Evidência local: `PrivacyFlowTest` passou em HTTP/PostgreSQL 17.6/objetos tempo
 
 V16 adiciona gate persistente e recibos idempotentes. O bundle local contém dump PostgreSQL, objetos privados, manifesto de dependências e checksums; um PostgreSQL independente preserva o registro mínimo de expurgos posteriores. A restauração exige isolamento e efeitos externos desligados, permanece bloqueada durante interrupção/retry e só libera após verificação e comando separado. `BackupRestoreFlowTest` demonstrou dados/objetos sintéticos, backup anterior ao expurgo V15, captura externa, restauração em outro container, reaplicação, preservação financeira/deduplicação, interrupção, reexecução e corrupção recusada. Ver [procedimento](../../../docs/BACKUP-RESTAURACAO.md).
 
+V17 adiciona `encerramento_conta` e o ensaio de fechamento/transformação controlada: solicitação do titular, bloqueio explícito por custódia/obrigação/reserva, revogação de sessões/tokens/MFA/concessões/conexões, saneamento de perfil/CPF/endereço e reaplicação dessas conclusões no restore. `PrivacyFlowTest` e `BackupRestoreFlowTest` usam somente dados sintéticos; a saída é `TRANSFORMADA_NAO_INTEGRAL`, pois UUIDs, mapeamentos, diário, auditoria e referências financeiras permanecem. Ver [especificação](../../../docs/ENCERRAMENTO-CONTA.md).
+
 ## Ajuste D01–D12 — 30/09/2026
 
 D07/D08/D12: primeiro marco é versão funcional local, sem piloto operacional presumido. Validar inventário, expurgo e backups com política de teste isolada; prazos propostos não viram retenção aprovada. Prazo financeiro e responsáveis continuam pendentes; evidência local não habilita operação particular/subsidiada ou deploy.

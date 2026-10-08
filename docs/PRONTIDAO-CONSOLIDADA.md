@@ -1,19 +1,19 @@
 # Revisão consolidada de prontidão
 
-Data: 08/10/2026 · base auditada: `a8fbdc2` · branch: `docs/planejamento-tecnico`.
+Data: 08/10/2026 · base auditada: `a97ffef` · branch: `docs/planejamento-tecnico`.
 
 Esta revisão conferiu o código, migrações, configuração e testes atuais; os relatórios anteriores foram usados apenas como índice. Não houve deploy, operação externa, movimentação financeira ou exclusão de dados reais.
 
 ## Decisão curta
 
-O recorte local é verificável em banco/objetos descartáveis e a interface web pode ser publicada somente como portfólio honesto, com integrações indisponíveis e sem cadastros, saldos ou contas fictícias. Backup/restore do adaptador local passou em ambiente descartável com reaplicação de expurgos, mas a operação real com pacientes, entregadores e instituições não está pronta: infraestrutura/captura monitorada/cifragem/RPO/RTO, anonimização integral, políticas financeiras/retensão, homologações externas, aparelho móvel e operação privilegiada ainda bloqueiam publicação operacional.
+O recorte local é verificável em banco/objetos descartáveis e a interface web pode ser publicada somente como portfólio honesto, com integrações indisponíveis e sem cadastros, saldos ou contas fictícias. V17 acrescenta encerramento idempotente e transformação controlada, mas não anonimização integral; a operação real com pacientes, entregadores e instituições não está pronta: infraestrutura/captura monitorada/cifragem/RPO/RTO, políticas financeiras/retensão, homologações externas, aparelho móvel e operação privilegiada ainda bloqueiam publicação operacional.
 
 ## Prioridades auditadas
 
 | Prioridade | O que o código prova | Lacuna/bloqueio |
 |---|---|---|
-| Backup, restauração e reaplicação | V16: dump/objetos, manifesto/checksums, diário PostgreSQL externo, gate e recibos; ensaio cobre interrupção, retry e corrupção | Sem infraestrutura real, cifragem/autenticidade do destino, captura automática monitorada, escala, rotação ou RPO/RTO aprovados |
-| Anonimização e finanças | Documentos/GPS/outbox não financeira são saneados; operação, comprovante, outbox financeira e deduplicação são preservados | Não há anonimização integral de `usuario`, paciente, sessões, representações e referências operacionais; retenção financeira ainda não foi aprovada |
+| Backup, restauração e reaplicação | V16/V17: dump/objetos, manifesto/checksums, diário PostgreSQL externo, gate, recibos e reexecução de encerramento; ensaio cobre interrupção, retry e corrupção | Sem infraestrutura real, cifragem/autenticidade do destino, captura automática monitorada, escala, rotação ou RPO/RTO aprovados |
+| Encerramento, anonimização e finanças | V17 revoga credenciais/concessões, transforma perfil/CPF/endereço e bloqueia obrigações; documentos/GPS/outbox não financeira são saneados; operação, comprovante, outbox financeira e deduplicação são preservados | Não há anonimização integral por causa de UUIDs, mapeamentos, diário, auditoria e referências; retenção financeira ainda não foi aprovada |
 | Permissões e sessões | Auth revalida sessão/acesso; WebSocket rejeita CONNECT/SUBSCRIBE/SEND indevidos e remove conexão aberta revogada no próximo publish | Falta homologação externa de identidade e ensaio prolongado em infraestrutura real; nenhum bug demonstrado nesta rodada |
 | Recursos de teste | Defaults desabilitam e-mail, tracking e purge; não há contas/seed fictícios em `main`; mocks ficam nos testes | Ainda falta uma verificação automatizada de que perfil normal nunca habilita recursos exclusivos de teste |
 | Financeiro | Reserva/custódia/obrigação/repasse têm transação, locks, referências estáveis, deduplicação e estados INCERTO/DIVERGENTE | Provedor real, cancelamento, parcialidade, disputa, beneficiários e homologação contábil/fiscal não existem |
@@ -41,7 +41,7 @@ O recorte local é verificável em banco/objetos descartáveis e a interface web
 
 ## Testes e composição da contagem
 
-`mvn -q test` descobriu 58 casos: 50 executados (0 falhas/erros) e 8 opt-ins ignorados sem `browserTest=true`. O caso novo é `BackupRestoreFlowTest`; os oito opt-ins permanecem `BrowserFlowTest`, `FamilyBrowserFlowTest`, `FundingBrowserFlowTest`, `OrderBrowserFlowTest`, `AcceptanceBrowserFlowTest`, `AssignmentBrowserFlowTest`, `CustodyBrowserFlowTest` e o caso browser de `PayoutFlowTest`. A execução histórica `-DbrowserTest=true` dos oito passou na revisão de `a8fbdc2`; não foi repetida porque esta rodada não alterou web/browser.
+`mvn -q test` descobriu 59 casos: 51 executados (0 falhas/erros) e 8 opt-ins ignorados sem `browserTest=true`. O caso novo é `BackupRestoreFlowTest`; os oito opt-ins permanecem `BrowserFlowTest`, `FamilyBrowserFlowTest`, `FundingBrowserFlowTest`, `OrderBrowserFlowTest`, `AcceptanceBrowserFlowTest`, `AssignmentBrowserFlowTest`, `CustodyBrowserFlowTest` e o caso browser de `PayoutFlowTest`. A execução histórica `-DbrowserTest=true` dos oito passou na revisão de `a8fbdc2`; não foi repetida porque esta rodada não alterou web/browser.
 
 Comparação verificável no histórico: ticket 13 tinha 50 casos/7 opt-ins; ticket 14, 53/7; a revisão `a8fbdc2`, 57/8; esta rodada, 58/8. O caso adicional é o ensaio de backup/restauração. Nenhum teste foi removido.
 

@@ -110,6 +110,8 @@ class BackupRestoreFlowTest {
         assertThat(restored.queryForObject("SELECT count(*) FROM financeiro_outbox WHERE operacao_id=?",Long.class,fixture.operation)).isOne();
         assertThat(restored.queryForObject("SELECT count(*) FROM pedido_idempotencia WHERE ator_id=? AND operacao='CRIAR'",Long.class,owner)).isOne();
         assertThat(restored.queryForObject("SELECT count(*) FROM restauracao_expurgo_aplicado",Long.class)).isOne();
+        assertThat(restored.queryForObject("SELECT estado FROM usuario WHERE id=?",String.class,owner)).isEqualTo("ENCERRADO");
+        assertThat(restored.queryForObject("SELECT estado FROM encerramento_conta WHERE usuario_id=?",String.class,owner)).isEqualTo("ENCERRADA");
 
         jdbc.update("UPDATE controle_restauracao SET estado='BLOQUEADO',backup_id=? WHERE singleton",UUID.randomUUID());
         MockHttpServletResponse blocked=new MockHttpServletResponse();
@@ -173,7 +175,7 @@ class BackupRestoreFlowTest {
         jdbc.update("INSERT INTO posicao_tarefa(id,pedido_id,designacao_id,sequencia,capturada_em,latitude,longitude,precisao_m) VALUES (?,?,?,1,clock_timestamp(),-23,-46,10)",position,order,assignment);
         jdbc.update("INSERT INTO pedido_idempotencia(ator_id,operacao,chave,request_hash,pedido_id) VALUES (?,'CRIAR',?,decode(md5(?),'hex'),?)",owner,"key:"+order,order.toString(),order);
         UUID operation=UUID.randomUUID();
-        jdbc.update("INSERT INTO operacao_financeira(id,pedido_id,tipo,chave_negocio,valor,moeda,estado,provedor,beneficiario_referencia) VALUES (?,?,'COBRANCA',?,10,'BRL','PENDENTE','controlled-test',?)",operation,order,"charge:"+order,owner.toString());
+        jdbc.update("INSERT INTO operacao_financeira(id,pedido_id,tipo,chave_negocio,valor,moeda,estado,provedor,beneficiario_referencia) VALUES (?,?,'COBRANCA',?,10,'BRL','CONFIRMADA','controlled-test',?)",operation,order,"charge:"+order,owner.toString());
         jdbc.update("INSERT INTO financeiro_outbox(id,operacao_id,pedido_id,tipo,chave,payload_saneado,estado) VALUES (?,?,?,'CRIAR_COBRANCA',?,jsonb_build_object('operationId',?::text),'PENDENTE')",UUID.randomUUID(),operation,order,"charge:"+order,operation);
         return new Fixture(position,operation,order);
     }

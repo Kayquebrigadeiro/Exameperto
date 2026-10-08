@@ -1,6 +1,6 @@
 # Relatório de prontidão — ticket 15
 
-Data: 08/10/2026. Base autorizada: `880b457`. Escopo: implementação e verificação local das partes independentes; sem deploy, dados reais, contratação ou operação externa.
+Data: 08/10/2026. Base autorizada: `a97ffef`. Escopo: implementação e verificação local das partes independentes; sem deploy, dados reais, contratação ou operação externa.
 
 Esta evidência foi consolidada na [revisão de prontidão](PRONTIDAO-CONSOLIDADA.md), auditada novamente a partir de `3b78b64`, incluindo a matriz dos tickets e os três recortes de publicação.
 
@@ -10,7 +10,7 @@ O recorte local implementa solicitações próprias de acesso, correção e excl
 
 Políticas são versionadas por categoria e exigem finalidade, gatilho, prazo explícito, base/finalidade validada, verificação de descarte e responsável ativo. Uma versão desativada ou futura não autoriza execução; somente uma versão ativa por categoria pode existir. A aplicação não contém política semeada e o expurgo fica desligado por padrão. Os prazos propostos em D08 não foram promovidos a configuração operacional.
 
-O inventário de expurgo registra banco, objetos, versões, temporários, filas, caches, referências, dispositivos, fornecedores e backups. O executor local remove objetos documentais não financeiros, saneia suas linhas sem quebrar FKs, elimina posições GPS relacionadas, remove outbox de conta não financeira e encerra conexões de rastreamento em cache. Retry sob lock é idempotente e gera tombstone sem conteúdo. Documentos e referências financeiras, operações, outbox financeira e deduplicação são preservados; a retenção financeira continua pendente.
+O inventário de expurgo registra banco, objetos, versões, temporários, filas, caches, referências, dispositivos, fornecedores e backups. V17 acrescenta `encerramento_conta`: revoga sessões/tokens/MFA/concessões/conexões, transforma campos identificadores e endereços, e bloqueia custódia/obrigações sem cascata. Retry sob lock é idempotente e gera tombstone sem conteúdo. Documentos e referências financeiras, operações, outbox financeira e deduplicação são preservados; a retenção financeira continua pendente. Consulte [ENCERRAMENTO-CONTA](ENCERRAMENTO-CONTA.md) para o inventário por categoria.
 
 `VERIFICADA` significa somente que a ausência foi reconferida nos recursos locais efetivamente controlados. Temporários sem vínculo por conta, dispositivos, fornecedores e backups ficam como `PROCEDIMENTO_PENDENTE`; versão no armazenamento local atual é `NAO_APLICAVEL`; finanças ficam `PRESERVADO`. Esses estados não comprovam exclusão externa.
 
@@ -18,10 +18,10 @@ O inventário de expurgo registra banco, objetos, versões, temporários, filas,
 
 - `PrivacyFlowTest`, HTTP real + Spring + PostgreSQL 17.6/Testcontainers + armazenamento privado temporário: 3 cenários aprovados.
 - Cobertura: outra conta e familiar com concessão limitada a `PEDIDOS`, sem escopo de privacidade, recebem 404; sessão revogada recebe 401; ACESSO/CORRECAO/EXCLUSAO, respostas de acesso/correção e replay idempotente; política ausente, futura/desativada e responsável inativo; exceção de conservação; resposta distinta de execução; papel AO revogado durante o processamento; falha de alvo e retry; duas execuções concorrentes; execução repetida; verificação posterior; ausência de objeto, metadado documental, posição GPS e fila controlada; tombstone único; preservação de documento financeiro, operação, outbox financeira e chave de idempotência.
-- Flyway aplicou V1–V16 em banco novo no teste específico. `VehicleLinkFlowTest` também comprovou o upgrade V5→V16.
+- Flyway aplicou V1–V17 em banco novo no teste específico. `VehicleLinkFlowTest` também comprovou o upgrade V5→V17.
 - Configuração padrão conferida: `EXAME_PERTO_PRIVACY_PURGE_ENABLED=false`, assim como e-mail e rastreamento; chaves de cifra/busca/assinatura não têm valor padrão.
 - Objetos privados usam diretório `0700` e arquivo `0600` quando POSIX está disponível, coberto por `PrivateObjectStoreTest`.
-- Suíte Maven comum após V16: 58 testes descobertos, 50 aprovados, 0 falhas/erros e 8 opt-ins de navegador ignorados. A execução de navegador permanece a evidência histórica de `a8fbdc2`; esta rodada não alterou web/browser. Upgrade V5→V16 e banco novo V1→V16 passaram.
+- Suíte Maven comum após V17: 59 testes descobertos, 51 aprovados, 0 falhas/erros e 8 opt-ins de navegador ignorados (a confirmar no fechamento). A execução de navegador permanece a evidência histórica; esta rodada não alterou web/browser. Upgrade V5→V17 e banco novo V1→V17 passam no foco de privacidade/restauração.
 - Web: build aprovado; Playwright comum com 2 testes aprovados e 8 integrações opt-in ignoradas. A mensagem genérica preserva agora a causa sanitizada da indisponibilidade em vez de presumir transferência financeira para qualquer integração.
 - Mobile: typecheck e export Android aprovados, com 590 módulos e bundle de 1,5 MB; isso não equivale a execução em aparelho. `expo-doctor` aprovou 20/21 verificações e manteve incompatibilidades em `expo-location` 19.0.8 (esperado `~57.0.20`) e Expo 57.0.26 (esperado `~57.0.27`).
 - Contrato OpenAPI 3.0.3 permaneceu inalterado e foi parseado sem erro: 126 operações/`operationId` únicos e 1.095 referências internas resolvidas na validação anterior. Nesta rodada, 110 links Markdown locais existem e 18 blocos Mermaid passaram em `mermaid.parse` 12.0.0.
