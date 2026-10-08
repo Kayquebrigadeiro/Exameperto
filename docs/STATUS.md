@@ -1,4 +1,16 @@
-# Status — atualizado em 07/10/2026
+# Status — atualizado em 08/10/2026
+
+## Ticket 15 — titular, retenção e expurgo (implementação independente parcial, 08/10/2026)
+
+Base autorizada: `880b457`; implementação local `dfad651`; branch `docs/planejamento-tecnico`; `referencia.md` preservada, não rastreada e sem alteração.
+
+Implementada V15 com solicitações próprias de ACESSO/CORRECAO/EXCLUSAO, protocolo, descrição/resposta cifradas, acompanhamento e autorização proporcional. Familiar sem concessão não consulta o protocolo. Resposta (`RESPONDIDA`/`NEGADA`) não conclui exclusão; a sequência `EXPURGO_SOLICITADO` → `VERIFICADA` exige operador nominal, MFA, política validada e configuração explícita. O expurgo é idempotente sob lock, produz tombstone sem conteúdo e cobre o registro de recursos para banco, objeto, versão, temporário, fila, cache, referência, fornecedor e backup. FINANCIAMENTO/COMPROVANTE e chaves de deduplicação não são removidos.
+
+Contrato, modelo, segurança e diagrama foram atualizados. `privacy.purge-enabled=false` continua o padrão; prazos propostos D08 não foram promovidos a política. Retenção financeira permanece pendente. Fornecedores, dispositivos, backups/restauração e RPO/RTO exigem procedimento/contrato e não são declarados comprovados. Não houve exclusão de dados reais, operação externa ou deploy.
+
+Verificações locais desta rodada: suíte Maven comum com 57 testes descobertos, 49 aprovados, 0 falhas/erros e 8 opt-ins ignorados; os 8 opt-ins de navegador passaram separadamente. `PrivacyFlowTest` passou 3 cenários com PostgreSQL 17.6/objetos isolados, e Flyway cobriu banco novo V1–V15 e upgrade V5→V15. Web build e 2 Playwright comuns passaram; mobile typecheck/export Android passaram sem aparelho. OpenAPI 3.0.3 (126 operações e 1.095 referências), 104 links locais, 17 diagramas, diff e padrões de segredos foram conferidos. Web auditou sem vulnerabilidades; mobile mantém 23 nós sinalizados e incompatibilidade Expo (`expo-location`/patch do Expo), logo exige correção compatível e novo ensaio antes de publicação.
+
+Bloqueios: não há política/responsável operacional real, inventário integral por categoria, scheduler, anonimização integral da conta, infraestrutura para ensaio de backup/restore, contrato/evidência de fornecedores ou homologação externa/mobile física. Retenção financeira e descarte de evidências/deduplicação continuam pendentes e preservados, sem retenção infinita aprovada. Próxima ação: revisão humana do conjunto e decisões de política/infraestrutura; deploy continua sem autorização. Ver [relatório de prontidão](PRONTIDAO-TICKET-15.md). O projeto não está pronto para produção.
 
 ## Ticket 14 — repasse e conciliação (implementação independente, 07/10/2026)
 

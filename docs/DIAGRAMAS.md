@@ -35,6 +35,26 @@ flowchart TB
 
 Nenhum cliente acessa o banco diretamente. O backend autoriza cada consulta, envio de posição e assinatura ao vivo. Fotos operacionais são entregues somente a participantes autorizados da tarefa; documentos de análise não são publicados.
 
+### Titular, retenção e expurgo (V15)
+
+```mermaid
+flowchart LR
+  T[Titular autenticado] --> R[Solicitação + protocolo]
+  R --> A[Resposta auditada]
+  A --> P{Política validada?}
+  P -- não --> B[POLICY_UNDEFINED / sem expurgo]
+  P -- sim --> X[Expurgo autorizado + MFA]
+  X --> C[Execução idempotente por alvo]
+  C --> V[Verificação local separada]
+  V --> H[Tombstone sem conteúdo]
+  H --> Z[Restore reaplica tombstones antes do acesso]
+  C --> L[Financeiro preservado: prazo pendente]
+  C --> O[Fornecedor/dispositivo/backup: procedimento pendente]
+  E[Exceção: fundamento, escopo, responsável] --> K[Bloqueia somente o expurgo abrangido]
+```
+
+Solicitação respondida não é exclusão executada, e execução não é verificação. `VERIFICADA` limita-se aos recursos locais controlados; finanças são preservadas e dispositivos, backups e fornecedores permanecem fora da comprovação local.
+
 ## Módulos do backend
 
 ```mermaid
@@ -156,7 +176,7 @@ erDiagram
   OPERACAO_FINANCEIRA o|--o{ EVENTO_EXTERNO : concilia
 ```
 
-Visão resumida do [modelo físico](MODELO-DADOS.md). V1–V14 materializam conta/sessão, representação, evidências e revisão local, benefício/aporte, pedido/orçamento, aceite/cobertura, designação, custódia/entrega comprovada, posições de tarefa ativa e obrigação/repasse reconciliável. V13 deduplica posição por designação/sequência e indexa a última posição; habilitação real continua bloqueada pela retenção não aprovada. V14 separa liquidação local de transferência externa, preserva referência em timeout e mantém divergências auditáveis. Pedido particular não depende de instituição/reserva, mas só vira oferta após pagamento confirmado; subsidiado só vira oferta com reserva integral ainda ativa. Evidências clínicas e financeiras permanecem fora da projeção operacional.
+Visão resumida do [modelo físico](MODELO-DADOS.md). V1–V15 materializam conta/sessão, representação, evidências e revisão local, benefício/aporte, pedido/orçamento, aceite/cobertura, designação, custódia/entrega comprovada, posições de tarefa ativa, obrigação/repasse reconciliável e a trilha de solicitação/expurgo. V13 deduplica posição por designação/sequência e indexa a última posição; habilitação real continua bloqueada pela retenção não aprovada. V14 separa liquidação local de transferência externa, preserva referência em timeout e mantém divergências auditáveis. V15 não promove os prazos propostos a política e limita `VERIFICADA` aos recursos controlados. Pedido particular não depende de instituição/reserva, mas só vira oferta após pagamento confirmado; subsidiado só vira oferta com reserva integral ainda ativa. Evidências clínicas e financeiras permanecem fora da projeção operacional.
 
 ### Ticket 06 — vínculo e revisão versionada
 

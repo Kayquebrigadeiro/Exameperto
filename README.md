@@ -4,7 +4,7 @@ Nome de trabalho de uma plataforma de retirada autorizada e entrega de resultado
 
 ## Estado do projeto
 
-**Planejamento técnico com a fatia 03A implementada localmente.** A stack foi escolhida pelo autor em 29/09/2026. Não há contas predefinidas, dados de demonstração ou integrações simuladas no produto previsto; o cadastro permanece explicitamente indisponível sem e-mail real.
+**Planejamento técnico com fatias independentes implementadas e verificadas localmente até o ticket 15.** O estado detalhado e os bloqueios de cada ticket estão em [STATUS](docs/STATUS.md); o projeto não está pronto para produção ou deploy. Não há contas predefinidas, dados de demonstração ou integrações simuladas no produto previsto; cadastro e operações externas permanecem indisponíveis sem as configurações e homologações reais correspondentes.
 
 O caso que motivou o projeto é o deslocamento de uma familiar entre Santana de Parnaíba e Barueri para realizar exames e, depois, buscar resultados. O primeiro escopo cobre a entrega de resultados/documentos em envelope fechado, não coleta de amostras ou transporte de pacientes.
 

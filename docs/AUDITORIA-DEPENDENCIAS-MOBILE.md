@@ -67,3 +67,7 @@ O audit final reporta 23 nós (16 altos e 7 moderados, zero críticos). Isso nã
 | `uuid` 7.0.3, GHSA-w5hq-g745-h8pq | Expo → config plugins → `xcode` 3.0.1 → `uuid` | prebuild iOS; métodos v3/v5/v6 com buffer fornecido não foram chamados pelo app | correção exigiria romper a faixa de `xcode`; aguardar upstream compatível |
 
 O próprio audit sugere downgrades para Expo 44.0.6 e React Native 0.72.17. Eles são incompatíveis com a matriz oficial do SDK 57 e reintroduziriam stacks antigas; portanto não são correções aceitáveis. Os alertas acima não foram ignorados, suprimidos nem classificados como resolvidos. Antes de distribuição, repetir o audit e a análise de alcance, atualizar quando houver release estável compatível e executar o roteiro em aparelho/emulador.
+
+## Rechecagem no ticket 15 — 08/10/2026
+
+O typecheck e o export Android voltaram a passar (590 módulos, bundle de 1,5 MB), ainda sem execução em aparelho. `npm audit --omit=dev` manteve 23 nós sinalizados: 16 altos, 7 moderados e nenhum crítico, nas mesmas cadeias de tooling descritas acima. Após excluir `.expo` do Git, `expo-doctor` aprovou 20 de 21 verificações; a restante aponta `expo-location` 19.0.8 quando o SDK espera `~57.0.20` e Expo 57.0.26 quando espera `~57.0.27`. `expo install --check` confirmou as mesmas divergências. Nenhum downgrade, override ou atualização não revisada foi aplicado. A correção compatível, novo audit/doctor e o ensaio em aparelho permanecem bloqueios de publicação.
