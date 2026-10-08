@@ -7,7 +7,7 @@
 **Status:** implementação independente parcial — não pronto para produção
 
 - [x] Banco e API permitem protocolo próprio de acesso/correção/exclusão, acompanhamento e resposta auditada; familiar sem escopo não lê a solicitação. Resposta e exclusão executada/verificada são estados distintos.
-- [x] Executar em PostgreSQL/armazenamento isolados expurgo de documentos/GPS/fila/cache conforme política sintética, com retry, concorrência, verificação separada e tombstone. A infraestrutura de backups/fornecedores e RPO/RTO medidos continua pendente; o expurgo permanece desligado por padrão e finanças não são apagadas.
+- [x] Executar em PostgreSQL/armazenamento isolados expurgo de documentos/GPS/fila/cache conforme política sintética, com retry, concorrência, verificação separada e tombstone. V16 e `ops/recovery/` cobrem backup/restore local com diário externo, gate, interrupção/reexecução e corrupção. Infraestrutura real, captura monitorada, cifragem do destino, fornecedores e RPO/RTO aprovados continuam pendentes; finanças não são apagadas.
 - [ ] Verificar jornada ponta a ponta externa, isolamento institucional completo, infraestrutura/logs e build mobile real com limites acordados. A fatia local cobre conta/familiar sem escopo, revogação durante processamento, segredos/configuração e regressão registrada no relatório.
 - [ ] Deploy continua etapa separada: apresentar evidências e pendências para autorização, sem transformar revisão documental em aprovação de produção.
 
@@ -18,6 +18,10 @@ Proposta de backlog; não iniciado. Base de revisão documental: `4ff66bf2332de2
 V15 adiciona `solicitacao_privacidade`, `politica_retencao`, `execucao_expurgo`, `expurgo_alvo`, `tombstone_expurgo` e `retencao_excecao`. Dados de solicitação/resposta são cifrados; ações operacionais exigem papel nominal e MFA verificado em cada etapa. Política sem categoria/finalidade/gatilho, responsável, base, prazo e verificação de descarte retorna `POLICY_UNDEFINED`; configuração padrão mantém `privacy.purge-enabled=false`. Resposta, execução (`EXPURGADA`) e verificação (`VERIFICADA`) são separadas. O executor é idempotente sob lock, permite retry de falha, preserva evidências/chaves financeiras e registra tombstone sem conteúdo.
 
 Evidência local: `PrivacyFlowTest` passou em HTTP/PostgreSQL 17.6/objetos temporários com três cenários, incluindo outra conta, familiar com concessão `PEDIDOS` sem escopo de privacidade, respostas de acesso/correção, sessão e papel revogados, política ausente/futura/desativada, responsável inativo, exceção de conservação, concorrência, idempotência, falha recuperável, ausência de documento/GPS/fila/cache controlados e preservação financeira. A suíte comum teve 49 aprovados e 8 opt-ins ignorados; os 8 opt-ins passaram separadamente. Banco novo V1–V15 e upgrade V5→V15, web build/Playwright, mobile typecheck/export, contrato e documentação foram validados. Ver [relatório de prontidão](../../../docs/PRONTIDAO-TICKET-15.md). Não há comprovação de fornecedores, dispositivos, temporários não vinculados, backups externos/restore, RPO/RTO, anonimização integral da conta ou execução mobile real; não houve exclusão de dados reais, dinheiro ou deploy.
+
+## Backup/restauração — base a8fbdc2 — 08/10/2026
+
+V16 adiciona gate persistente e recibos idempotentes. O bundle local contém dump PostgreSQL, objetos privados, manifesto de dependências e checksums; um PostgreSQL independente preserva o registro mínimo de expurgos posteriores. A restauração exige isolamento e efeitos externos desligados, permanece bloqueada durante interrupção/retry e só libera após verificação e comando separado. `BackupRestoreFlowTest` demonstrou dados/objetos sintéticos, backup anterior ao expurgo V15, captura externa, restauração em outro container, reaplicação, preservação financeira/deduplicação, interrupção, reexecução e corrupção recusada. Ver [procedimento](../../../docs/BACKUP-RESTAURACAO.md).
 
 ## Ajuste D01–D12 — 30/09/2026
 

@@ -11,13 +11,15 @@ final class MailEmailGateway implements EmailGateway {
     private final ObjectProvider<JavaMailSender> provider;
     private final String from;
     private final boolean enabled;
+    private final RecoveryGuard recovery;
     MailEmailGateway(ObjectProvider<JavaMailSender> provider,
                      @Value("${email.from:}") String from,
-                     @Value("${email.enabled:false}") boolean enabled) {
-        this.provider = provider; this.from = from; this.enabled = enabled;
+                     @Value("${email.enabled:false}") boolean enabled, RecoveryGuard recovery) {
+        this.provider = provider; this.from = from; this.enabled = enabled; this.recovery=recovery;
     }
     @Override public boolean configured() { return enabled && !from.isBlank() && provider.getIfAvailable() != null; }
     @Override public void send(String recipient, String subject, String text) {
+        recovery.requireExternalEffectsAllowed();
         if (!configured()) throw new IllegalStateException("SMTP indisponível.");
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(from); message.setTo(recipient); message.setSubject(subject); message.setText(text);

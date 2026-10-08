@@ -16,13 +16,14 @@ public class AccountMailService {
     private final EmailGateway email;
     private final Duration resendWindow, emailTtl, recoveryTtl;
     private final boolean privacyApproved;
+    private final RecoveryGuard recovery;
     AccountMailService(JdbcTemplate jdbc, DataProtector protector, EmailGateway email,
         @Value("${registration.email-resend-window:PT1M}") Duration resendWindow,
         @Value("${registration.email-token-ttl:PT30M}") Duration emailTtl,
         @Value("${registration.recovery-token-ttl:PT30M}") Duration recoveryTtl,
-        @Value("${registration.privacy-approved:false}") boolean privacyApproved) {
+        @Value("${registration.privacy-approved:false}") boolean privacyApproved, RecoveryGuard recovery) {
         this.jdbc=jdbc; this.protector=protector; this.email=email; this.resendWindow=resendWindow;
-        this.emailTtl=emailTtl; this.recoveryTtl=recoveryTtl; this.privacyApproved=privacyApproved;
+        this.emailTtl=emailTtl; this.recoveryTtl=recoveryTtl; this.privacyApproved=privacyApproved; this.recovery=recovery;
     }
     @Transactional
     public void request(String address, String type) {
@@ -40,6 +41,7 @@ public class AccountMailService {
 
     @Transactional
     public void deliver(UUID outboxId) {
+        recovery.requireExternalEffectsAllowed();
         var jobs=jdbc.queryForList("SELECT * FROM outbox WHERE id=? AND estado='PENDENTE' FOR UPDATE SKIP LOCKED",outboxId);
         if (jobs.isEmpty()) return;
         var job=jobs.getFirst();

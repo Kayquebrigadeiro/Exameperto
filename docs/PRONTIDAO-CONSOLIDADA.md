@@ -1,18 +1,18 @@
 # Revisão consolidada de prontidão
 
-Data: 08/10/2026 · base auditada: `3b78b64` · branch: `docs/planejamento-tecnico`.
+Data: 08/10/2026 · base auditada: `a8fbdc2` · branch: `docs/planejamento-tecnico`.
 
 Esta revisão conferiu o código, migrações, configuração e testes atuais; os relatórios anteriores foram usados apenas como índice. Não houve deploy, operação externa, movimentação financeira ou exclusão de dados reais.
 
 ## Decisão curta
 
-O recorte local é verificável em banco/objetos descartáveis e a interface web pode ser publicada somente como portfólio honesto, com integrações indisponíveis e sem cadastros, saldos ou contas fictícias. A operação real com pacientes, entregadores e instituições não está pronta: backup/restore, anonimização integral, políticas financeiras/retensão, homologações externas, aparelho móvel e operação privilegiada ainda bloqueiam publicação operacional.
+O recorte local é verificável em banco/objetos descartáveis e a interface web pode ser publicada somente como portfólio honesto, com integrações indisponíveis e sem cadastros, saldos ou contas fictícias. Backup/restore do adaptador local passou em ambiente descartável com reaplicação de expurgos, mas a operação real com pacientes, entregadores e instituições não está pronta: infraestrutura/captura monitorada/cifragem/RPO/RTO, anonimização integral, políticas financeiras/retensão, homologações externas, aparelho móvel e operação privilegiada ainda bloqueiam publicação operacional.
 
 ## Prioridades auditadas
 
 | Prioridade | O que o código prova | Lacuna/bloqueio |
 |---|---|---|
-| Backup, restauração e reaplicação | V15 registra tombstone e exige reconferência; retry é idempotente nos recursos locais | Não há infraestrutura de backup/restore, ensaio RPO/RTO, nem reaplicação automática de expurgos antes de reabrir acesso |
+| Backup, restauração e reaplicação | V16: dump/objetos, manifesto/checksums, diário PostgreSQL externo, gate e recibos; ensaio cobre interrupção, retry e corrupção | Sem infraestrutura real, cifragem/autenticidade do destino, captura automática monitorada, escala, rotação ou RPO/RTO aprovados |
 | Anonimização e finanças | Documentos/GPS/outbox não financeira são saneados; operação, comprovante, outbox financeira e deduplicação são preservados | Não há anonimização integral de `usuario`, paciente, sessões, representações e referências operacionais; retenção financeira ainda não foi aprovada |
 | Permissões e sessões | Auth revalida sessão/acesso; WebSocket rejeita CONNECT/SUBSCRIBE/SEND indevidos e remove conexão aberta revogada no próximo publish | Falta homologação externa de identidade e ensaio prolongado em infraestrutura real; nenhum bug demonstrado nesta rodada |
 | Recursos de teste | Defaults desabilitam e-mail, tracking e purge; não há contas/seed fictícios em `main`; mocks ficam nos testes | Ainda falta uma verificação automatizada de que perfil normal nunca habilita recursos exclusivos de teste |
@@ -37,13 +37,13 @@ O recorte local é verificável em banco/objetos descartáveis e a interface web
 | 12 | Custódia, ocorrência e código de recebimento em `CustodyFlowTest` e browser | Retorno/reentrega/cancelamento e liquidação completa | Entrega física e operação | Local sintético; portfólio sem promessa de entrega; real bloqueado |
 | 13 | GPS HTTP/STOMP, reautorização e conexão revogada em `TrackingFlowTest` | Job/retenção GPS e ensaio físico/background | Android, rede, bateria e política | Local verificável; web sem rastreamento real; real pendente |
 | 14 | Apuração, obrigação, repasse e conciliação em transação; `PayoutFlowTest` + browser | Provedor, beneficiários, disputa e regras fiscal/contábil | Homologação bancária | Local sem dinheiro; portfólio sem saldo simulado; real bloqueado |
-| 15 | Solicitações próprias ACESSO/CORRECAO/EXCLUSAO, protocolo, autorização, expurgo idempotente e retenção versionada em `PrivacyFlowTest` | Backup/restore, scheduler, anonimização integral e execução externa | Fornecedores, backups, políticas e controlador | Local verificável; portfólio só informa limitações; real bloqueado |
+| 15 | Solicitações/expurgo em `PrivacyFlowTest`; backup/restauração/reaplicação local em `BackupRestoreFlowTest` | Scheduler/captura monitorada, anonimização integral, infraestrutura/cifragem e execução externa | Fornecedores, backups reais, políticas e controlador | Local verificável; portfólio só informa limitações; real bloqueado |
 
 ## Testes e composição da contagem
 
-`mvn -q test` descobriu 57 casos: 49 executados (0 falhas/erros) e 8 opt-ins ignorados sem `browserTest=true`. Os oito opt-ins são `BrowserFlowTest`, `FamilyBrowserFlowTest`, `FundingBrowserFlowTest`, `OrderBrowserFlowTest`, `AcceptanceBrowserFlowTest`, `AssignmentBrowserFlowTest`, `CustodyBrowserFlowTest` e o caso browser de `PayoutFlowTest`. Com `-DbrowserTest=true`, os oito passaram após corrigir a mensagem de integração indisponível em `web/src/main.tsx`; `npm run build && npm run test` também passou (2 testes comuns, 8 opt-ins ignorados).
+`mvn -q test` descobriu 58 casos: 50 executados (0 falhas/erros) e 8 opt-ins ignorados sem `browserTest=true`. O caso novo é `BackupRestoreFlowTest`; os oito opt-ins permanecem `BrowserFlowTest`, `FamilyBrowserFlowTest`, `FundingBrowserFlowTest`, `OrderBrowserFlowTest`, `AcceptanceBrowserFlowTest`, `AssignmentBrowserFlowTest`, `CustodyBrowserFlowTest` e o caso browser de `PayoutFlowTest`. A execução histórica `-DbrowserTest=true` dos oito passou na revisão de `a8fbdc2`; não foi repetida porque esta rodada não alterou web/browser.
 
-Comparação verificável no histórico: ticket 13 tinha 50 casos/7 opt-ins; ticket 14, 53/7; a revisão atual tem 57/8. Não houve renomeação ou remoção (`git diff --name-status 719357e..3b78b64 -- backend/src/test/java` mostra apenas adições de `PayoutFlowTest`, `PrivacyFlowTest` e alteração de `VehicleLinkFlowTest`). O aumento resulta de quatro casos de repasse, três de privacidade e um caso adicional de migração; o oitavo opt-in é o browser financeiro. Logo, a variação não indica regressão por quantidade.
+Comparação verificável no histórico: ticket 13 tinha 50 casos/7 opt-ins; ticket 14, 53/7; a revisão `a8fbdc2`, 57/8; esta rodada, 58/8. O caso adicional é o ensaio de backup/restauração. Nenhum teste foi removido.
 
 Verificações adicionais: foco `PrivacyFlowTest,TrackingFlowTest,PayoutFlowTest,CustodyFlowTest,QuoteAcceptanceFlowTest,AssignmentFlowTest,RepresentationFlowTest,AuthFlowTest,VehicleLinkFlowTest`; Flyway V1–V15 em banco novo; upgrade V5→V15; OpenAPI 3.0.3 (126 operações, referências internas resolvidas); links/diagramas; padrões de segredo; permissões de armazenamento privado. Mobile typecheck/export passaram sem aparelho. O audit mobile permanece pendente; não há scanner CVE JVM configurado.
 
@@ -55,7 +55,7 @@ Verificações adicionais: foco `PrivacyFlowTest,TrackingFlowTest,PayoutFlowTest
 
 ## Tickets pequenos propostos
 
-- **P0 — Backup/restore com reaplicação:** backup isolado versionado; restaurar cópia, reaplicar tombstones/expurgos antes de liberar sessão e produzir evidência auditável; critérios: ensaio repetível, falha recuperável, RPO/RTO aprovados e nenhum dado eliminado reaberto.
+- **P0 — Backup/restore com reaplicação (local atendido, operação pendente):** o ensaio repetível impede reabertura do dado eliminado e recupera interrupção. Faltam armazenamento/cifragem e diário reais, captura/alerta, escala, rotação, falhas de fornecedor e RPO/RTO aprovados.
 - **P0 — Anonimização integral por categoria:** inventariar conta, paciente, sessão, representação, documentos e índices; anonimizar apenas campos autorizados e preservar referências financeiras justificadas; critérios: teste de ausência por recurso, vínculo financeiro íntegro e aprovação do responsável.
 - **P0 — Retenção financeira e deduplicação:** decidir prazo, disputa, obrigação e chaves; critérios: nenhuma exclusão sem regra ativa, expurgo idempotente e trilha de fundamento/escopo/responsável.
 - **P1 — Guarda de configuração normal:** teste CI que inicie perfil normal e prove que recursos `TEST`, seeds, mocks e endpoints de ensaio não são acessíveis; critérios: falha fechada e relatório de configuração.

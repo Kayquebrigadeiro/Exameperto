@@ -1,10 +1,18 @@
 # Status — atualizado em 08/10/2026
 
+## Backup/restauração com reaplicação — base `a8fbdc2` — 08/10/2026
+
+Implementada V16 e a operação local em `ops/recovery/`: dump consistente sob suspensão confirmada de escritas, cópia dos objetos privados, manifesto de formato/versões/dependências, SHA-256, diário mínimo de expurgos em PostgreSQL independente, gate persistente, recibos idempotentes e liberação explícita. Enquanto o gate não está `NORMAL`, HTTP retorna `503 RESTORE_BLOCKED` e envio de e-mail falha fechado; pagamento/repasse atuais dependem das rotas bloqueadas. O procedimento exige ainda isolamento de rede e efeitos externos desligados.
+
+`BackupRestoreFlowTest` passou com três PostgreSQL 17.6 e objetos sintéticos: criou dados/documentos/GPS/financeiro, autorizou expurgo V15, fez backup anterior, executou/verificou/capturou o expurgo, restaurou em outro container, interrompeu com gate `BLOQUEADO`, retomou e repetiu idempotentemente, verificou ausência de documento/objeto/GPS/outbox, preservou documento/operação/outbox financeira e chaves de negócio/deduplicação, confirmou bloqueio mesmo sem a linha do gate, liberou separadamente e recusou dump corrompido. Na execução focal final, a classe levou 21,83 s e o cenário 4,280 s; isso não é RTO. A suíte comum descobriu 58 testes: 50 executados, 0 falhas/erros e 8 opt-ins ignorados.
+
+Limites: checksum não autentica contra atacante e o bundle não cifra a si próprio; diário/captura/alerta, armazenamento e chaves reais, grande volume, rotação, PITR, perda de host/fornecedor/região, falha simultânea e RPO/RTO continuam pendentes. GPS, backups, evidências financeiras e conteúdo privado mantêm suas categorias; nenhum prazo foi promovido. Anonimização integral, retenção financeira/deduplicação e fornecedores continuam bloqueios separados. Ver [procedimento](BACKUP-RESTAURACAO.md) e [prontidão consolidada](PRONTIDAO-CONSOLIDADA.md).
+
 ## Revisão consolidada a partir de `3b78b64` — 08/10/2026
 
 Código, migrações, configuração e testes foram conferidos diretamente. A suíte comum descobriu 57 casos: 49 executados, 0 falhas/erros e 8 opt-ins; a execução `-DbrowserTest=true` dos oito opt-ins passou após corrigir a mensagem web que não explicitava “indisponível”. O foco de privacidade, sessões/WebSocket, financeiro, custódia, designação e upgrade também passou. A correção foi somente de texto sanitizado em `web/src/main.tsx`.
 
-O recorte local é verificável com PostgreSQL/Testcontainers e objetos descartáveis. A versão de portfólio pode ser publicada apenas com limitações explícitas, sem contas fictícias ou saldo simulado. Operação real permanece bloqueada por backup/restore com reaplicação de expurgos, anonimização integral da conta, retenção financeira, homologações externas, aparelho móvel e revisão de configuração/test-only. Mobile mantém 23 alertas transitivos (16 altos/7 moderados) e incompatibilidade de patch Expo; não há scanner CVE JVM configurado. Nenhum dado real foi excluído, nenhum dinheiro movimentado e nenhum deploy ocorreu.
+O recorte local é verificável com PostgreSQL/Testcontainers e objetos descartáveis. A versão de portfólio pode ser publicada apenas com limitações explícitas, sem contas fictícias ou saldo simulado. Operação real permanece bloqueada pela infraestrutura real de backup/diário/cifragem e seus RPO/RTO, anonimização integral da conta, retenção financeira, homologações externas, aparelho móvel e revisão de configuração/test-only. Mobile mantém 23 alertas transitivos (16 altos/7 moderados) e incompatibilidade de patch Expo; não há scanner CVE JVM configurado. Nenhum dado real foi excluído, nenhum dinheiro movimentado e nenhum deploy ocorreu.
 
 Ver [revisão consolidada](PRONTIDAO-CONSOLIDADA.md) para a matriz 01–15, composição histórica 50/7 → 53/7 → 57/8, lacunas técnicas, tickets P0/P1 e recortes local/portfólio/operação. Próxima ação: revisão humana das políticas e dos tickets de seguimento; não declarar prontidão produtiva.
 

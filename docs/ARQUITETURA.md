@@ -117,7 +117,7 @@ Integração desabilitada retorna estado explícito de indisponibilidade; não u
 
 ## Operação e validação
 
-PostgreSQL e arquivos persistem entre reinícios; migrações Flyway são versionadas. Dados reais nunca entram no repositório ou no pacote de distribuição. Backup e restauração são critérios de deploy, não apenas existência de um comando.
+PostgreSQL e arquivos persistem entre reinícios; migrações Flyway são versionadas. Dados reais nunca entram no repositório ou no pacote de distribuição. O [procedimento de backup/restauração](BACKUP-RESTAURACAO.md) cobre o adaptador local em ensaio descartável: cópia com escritas suspensas, manifesto/checksums, diário de expurgos externo, gate persistente e liberação separada. Infraestrutura real, cifragem do destino, rotação e RPO/RTO continuam critérios de deploy.
 
 Testes essenciais: isolamento entre famílias/instituições, revogação, documentos privados, duas aceitações concorrentes, duas reservas concorrentes, repetição de webhook, cancelamento, código de recebimento, GPS antigo e perda de conexão.
 
@@ -141,6 +141,6 @@ A publicação da documentação no GitHub está autorizada nesta etapa, em bran
 
 ## Fatias de identidade implementadas
 
-Backend/React, Flyway V1–V15 e PostgreSQL cobrem as fatias locais registradas em [STATUS](STATUS.md). V15 adiciona solicitações próprias de acesso, correção e exclusão com protocolo, resposta cifrada e acompanhamento; familiar ou outra conta não atua em nome do titular por esse endpoint. Resposta, autorização do expurgo, execução e verificação são transições diferentes. Cada ação privilegiada revalida sessão, papel nominal e MFA.
+Backend/React, Flyway V1–V16 e PostgreSQL cobrem as fatias locais registradas em [STATUS](STATUS.md). V15 adiciona solicitações próprias de acesso, correção e exclusão com protocolo, resposta cifrada e acompanhamento; familiar ou outra conta não atua em nome do titular por esse endpoint. Resposta, autorização do expurgo, execução e verificação são transições diferentes. Cada ação privilegiada revalida sessão, papel nominal e MFA.
 
-O executor V15 inventaria e trata banco, objetos locais, posições GPS, outbox não financeira e cache de conexões. Versões inexistentes são `NAO_APLICAVEL`; temporários sem vínculo, dispositivos, fornecedores e backups ficam `PROCEDIMENTO_PENDENTE`, nunca como remoção comprovada. Referências financeiras são `PRESERVADO` enquanto a retenção específica não for validada. Tombstones não contêm o dado removido e precisam ser reaplicados num restore antes de liberar acesso. A implementação não fornece infraestrutura de backup/restore, integração com fornecedor ou comando operacional automático; `privacy.purge-enabled=false` é o padrão.
+O executor V15 inventaria e trata banco, objetos locais, posições GPS, outbox não financeira e cache de conexões. Versões inexistentes são `NAO_APLICAVEL`; temporários sem vínculo, dispositivos e fornecedores ficam `PROCEDIMENTO_PENDENTE`, nunca como remoção comprovada. Referências financeiras são `PRESERVADO` enquanto a retenção específica não for validada. V16 adiciona gate/recibos de restore; os comandos em `ops/recovery/` reaplicam o diário externo antes de liberar acesso. O ensaio não fornece infraestrutura externa, captura automática monitorada do diário ou política de rotação; `privacy.purge-enabled=false` é o padrão.
