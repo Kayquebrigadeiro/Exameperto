@@ -4,6 +4,12 @@ Data: 08/10/2026 · base auditada: `a97ffef` · branch: `docs/planejamento-tecni
 
 Esta revisão conferiu o código, migrações, configuração e testes atuais; os relatórios anteriores foram usados apenas como índice. Não houve deploy, operação externa, movimentação financeira ou exclusão de dados reais.
 
+## Portfólio V1 a partir de `f0db46f`
+
+O recorte concreto está em [PORTFOLIO-V1](PORTFOLIO-V1.md). Cadastro, confirmação de e-mail, login e logout são fluxos implementados, porém condicionais a SMTP, chaves, origem HTTPS e política aprovados; sem isso continuam fechados. Autorização familiar depende do mesmo canal privado. A interface atual não oferece painel de perfil básico nem acompanhamento de solicitações/encerramento: essas capacidades existem na API ou em testes, não devem ser anunciadas como jornada executável do visitante. Entrega, benefícios, GPS, pagamentos e repasses permanecem indisponíveis.
+
+No encerramento, a API separa `closureStatus`, `purgeStatus` e `anonymizationStatus`; `TRANSFORMADA_NAO_INTEGRAL` continua explícito. UUIDs, diário, auditoria, referências financeiras, chaves de deduplicação, backups, logs e cópias externas têm finalidade/acesso restritos e política ainda pendente. A ausência de uma tela não será compensada por dados fictícios ou uma promessa de anonimização total.
+
 ## Decisão curta
 
 O recorte local é verificável em banco/objetos descartáveis e a interface web pode ser publicada somente como portfólio honesto, com integrações indisponíveis e sem cadastros, saldos ou contas fictícias. V17 acrescenta encerramento idempotente e transformação controlada, mas não anonimização integral; a operação real com pacientes, entregadores e instituições não está pronta: infraestrutura/captura monitorada/cifragem/RPO/RTO, políticas financeiras/retensão, homologações externas, aparelho móvel e operação privilegiada ainda bloqueiam publicação operacional.

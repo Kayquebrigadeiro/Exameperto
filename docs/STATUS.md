@@ -1,5 +1,11 @@
 # Status — atualizado em 08/10/2026
 
+## Escopo do portfólio V1 — base `f0db46f` — 08/10/2026
+
+O recorte para entrevistas e visita está documentado em [PORTFOLIO-V1](PORTFOLIO-V1.md). Acesso web, cadastro/confirmação de e-mail, login/logout e autorização familiar só são utilizáveis após SMTP, chaves, origem HTTPS e política de privacidade serem configurados e homologados com endereço controlado pelo autor. A interface ainda não expõe perfil básico nem acompanhamento de solicitações/encerramento; a API os trata parcialmente e os testes locais não substituem uma jornada de usuário. Portanto não anunciar encerramento como botão disponível.
+
+Entrega, benefício, rastreamento, pagamento e repasse ficam bloqueados e desabilitados por padrão. O plano lista banco, objetos privados, backup/restore, diário e custos a pesquisar sem escolher fornecedor, criar dados fictícios, contratar ou fazer deploy. Mobile continua uma pendência separada da publicação web.
+
 ## Encerramento e transformação controlada — base `a97ffef` — 08/10/2026
 
 Implementada V17 para solicitação autorizada, acompanhamento e conclusão verificável. O fluxo revoga sessões, tokens, MFA, concessões, convites, papéis e conexões locais; remove recursos não financeiros já abrangidos pelo expurgo e transforma perfil, CPF/HMAC, nascimento e endereços para preservar somente as invariantes necessárias. `encerramento_conta` é retomável/idempotente e fica `BLOQUEADA` quando há custódia, operação financeira não terminal, obrigação de repasse ou reserva ativa; nenhuma responsabilidade é apagada por cascata.

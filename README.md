@@ -4,7 +4,7 @@ Nome de trabalho de uma plataforma de retirada autorizada e entrega de resultado
 
 ## Estado do projeto
 
-**Planejamento técnico com fatias independentes implementadas e verificadas localmente até o ticket 15.** O estado detalhado e os bloqueios de cada ticket estão em [STATUS](docs/STATUS.md); o projeto não está pronto para produção ou deploy. Não há contas predefinidas, dados de demonstração ou integrações simuladas no produto previsto; cadastro e operações externas permanecem indisponíveis sem as configurações e homologações reais correspondentes.
+**Planejamento técnico com fatias independentes implementadas e verificadas localmente até V17/ticket 15.** O estado detalhado, o recorte de portfólio e os bloqueios de cada ticket estão em [STATUS](docs/STATUS.md); o projeto não está pronto para produção ou deploy. Não há contas predefinidas, dados de demonstração ou integrações simuladas no produto previsto; cadastro e operações externas permanecem indisponíveis sem as configurações e homologações reais correspondentes.
 
 O caso que motivou o projeto é o deslocamento de uma familiar entre Santana de Parnaíba e Barueri para realizar exames e, depois, buscar resultados. O primeiro escopo cobre a entrega de resultados/documentos em envelope fechado, não coleta de amostras ou transporte de pacientes.
 
@@ -34,6 +34,7 @@ Versões exatas e dependências serão fixadas na implementação. Hospedagem e 
 - [Glossário do domínio](CONTEXT.md)
 - [Spec e backlog proposto](.scratch/planejamento/README.md)
 - [Progresso, validações e próxima ação](docs/STATUS.md)
+- [Escopo concreto do portfólio V1](docs/PORTFOLIO-V1.md)
 
 O GitHub renderiza os diagramas Mermaid presentes na documentação. Cada alteração de fluxo, entidade ou responsabilidade deve atualizar o diagrama correspondente no mesmo commit do código.
 
@@ -47,7 +48,7 @@ docker compose -f infra/compose.yaml up -d
 export DATABASE_PASSWORD="$EXAME_PERTO_POSTGRES_PASSWORD"
 ```
 
-O backend inicia com `mvn -f backend/pom.xml spring-boot:run`; a web prepara dependências com `npm ci --prefix web` e inicia com `npm run dev --prefix web`. O cadastro permanece bloqueado até configurar o adaptador SMTP real e validar a política de privacidade; não há conta de demonstração nem entrega simulada.
+O backend inicia com `mvn -f backend/pom.xml spring-boot:run`; a web prepara dependências com `npm ci --prefix web` e inicia com `npm run dev --prefix web`. Para o portfólio, cadastro e confirmação só podem ser habilitados após configurar e homologar o SMTP com endereço controlado pelo autor e validar a política de privacidade; no estado atual permanecem bloqueados. Não há conta de demonstração nem entrega simulada. O recorte executável e seus limites estão em [PORTFOLIO-V1](docs/PORTFOLIO-V1.md).
 
 Configuração completa, comandos de teste e homologação pendente: [conta e e-mail](docs/CONTA-EMAIL.md). Confirmação, sessão e recuperação estão implementadas; entrega real de e-mail ainda não foi homologada.
 
