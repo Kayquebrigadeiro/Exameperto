@@ -2,6 +2,8 @@
 
 Data: 08/10/2026. Base autorizada: `880b457`. Escopo: implementação e verificação local das partes independentes; sem deploy, dados reais, contratação ou operação externa.
 
+Esta evidência foi consolidada na [revisão de prontidão](PRONTIDAO-CONSOLIDADA.md), auditada novamente a partir de `3b78b64`, incluindo a matriz dos tickets e os três recortes de publicação.
+
 ## Resultado
 
 O recorte local implementa solicitações próprias de acesso, correção e exclusão, com identificação pela sessão ativa, idempotência vinculada ao conteúdo, protocolo e acompanhamento. Resposta/negação, autorização do expurgo, execução e verificação são estados distintos. Operadores precisam de conta nominal, papel AO vigente e MFA de sessão em cada transição privilegiada.

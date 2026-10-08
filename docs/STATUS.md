@@ -1,5 +1,13 @@
 # Status — atualizado em 08/10/2026
 
+## Revisão consolidada a partir de `3b78b64` — 08/10/2026
+
+Código, migrações, configuração e testes foram conferidos diretamente. A suíte comum descobriu 57 casos: 49 executados, 0 falhas/erros e 8 opt-ins; a execução `-DbrowserTest=true` dos oito opt-ins passou após corrigir a mensagem web que não explicitava “indisponível”. O foco de privacidade, sessões/WebSocket, financeiro, custódia, designação e upgrade também passou. A correção foi somente de texto sanitizado em `web/src/main.tsx`.
+
+O recorte local é verificável com PostgreSQL/Testcontainers e objetos descartáveis. A versão de portfólio pode ser publicada apenas com limitações explícitas, sem contas fictícias ou saldo simulado. Operação real permanece bloqueada por backup/restore com reaplicação de expurgos, anonimização integral da conta, retenção financeira, homologações externas, aparelho móvel e revisão de configuração/test-only. Mobile mantém 23 alertas transitivos (16 altos/7 moderados) e incompatibilidade de patch Expo; não há scanner CVE JVM configurado. Nenhum dado real foi excluído, nenhum dinheiro movimentado e nenhum deploy ocorreu.
+
+Ver [revisão consolidada](PRONTIDAO-CONSOLIDADA.md) para a matriz 01–15, composição histórica 50/7 → 53/7 → 57/8, lacunas técnicas, tickets P0/P1 e recortes local/portfólio/operação. Próxima ação: revisão humana das políticas e dos tickets de seguimento; não declarar prontidão produtiva.
+
 ## Ticket 15 — titular, retenção e expurgo (implementação independente parcial, 08/10/2026)
 
 Base autorizada: `880b457`; implementação local `dfad651`; branch `docs/planejamento-tecnico`; `referencia.md` preservada, não rastreada e sem alteração.

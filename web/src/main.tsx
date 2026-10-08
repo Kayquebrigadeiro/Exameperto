@@ -76,7 +76,7 @@ async function parse(response: Response) {
   if (!response.ok) {
     const message =
       result.code === "INTEGRATION_UNAVAILABLE"
-        ? `Não foi possível concluir a solicitação. ${result.message ?? "A integração necessária está indisponível; nenhum efeito externo foi confirmado."}`
+        ? `Não foi possível concluir a solicitação. A integração necessária está indisponível. ${result.message ?? "Nenhum efeito externo foi confirmado."}`
         : result.code === "POLICY_UNDEFINED"
           ? "A operação aguarda a validação da política aplicável."
           : (result.message ?? "Não foi possível concluir a solicitação.");
