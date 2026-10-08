@@ -72,3 +72,5 @@ tracking:
   rate-maximum: 8
   max-payload-bytes: 1024
   low-accuracy-meters: 100
+privacy:
+  purge-enabled: ${EXAME_PERTO_PRIVACY_PURGE_ENABLED:false}

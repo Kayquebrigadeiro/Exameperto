@@ -17,6 +17,8 @@ class TrackingLiveRegistry {
     void subscribed(String socketSession,UUID orderId){Connection connection=connections.get(socketSession);if(connection!=null)connection.orders.add(orderId);}
     void disconnected(String socketSession){connections.remove(socketSession);}
     @org.springframework.context.event.EventListener void revokeAuthSession(AuthService.SessionRevokedEvent event){connections.entrySet().removeIf(entry->entry.getValue().principal.authSessionId().equals(event.sessionId()));}
+    void revokeUser(UUID userId){connections.entrySet().removeIf(entry->entry.getValue().principal.userId().equals(userId));}
+    boolean hasUser(UUID userId){return connections.values().stream().anyMatch(connection->connection.principal.userId().equals(userId));}
     void publish(UUID orderId,LocationView location){for(var entry:connections.entrySet()){Connection connection=entry.getValue();if(!connection.orders.contains(orderId))continue;TrackingPrincipal p=connection.principal;if(!access.sessionActive(p.userId(),p.authSessionId())||!access.canView(p.userId(),orderId)){connection.orders.remove(orderId);continue;}messaging.convertAndSendToUser(p.getName(),"/queue/orders/"+orderId+"/locations",location);}}
     record Connection(TrackingPrincipal principal,Set<UUID> orders){}
     record TrackingPrincipal(UUID userId,UUID authSessionId) implements Principal {public String getName(){return userId+":"+authSessionId;}}

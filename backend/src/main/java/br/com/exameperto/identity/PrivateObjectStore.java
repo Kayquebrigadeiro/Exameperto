@@ -43,7 +43,12 @@ final class PrivateObjectStore {
         } catch (IOException | IllegalArgumentException ex) { throw new IllegalStateException("Objeto não encontrado."); }
     }
     void remove(String key) {
-        try { Files.deleteIfExists(resolve(key)); } catch (IOException | IllegalArgumentException ignored) { }
+        try { Files.deleteIfExists(resolve(key)); }
+        catch (IOException | IllegalArgumentException ex) { throw new IllegalStateException("Falha ao remover objeto privado.", ex); }
+    }
+    boolean exists(String key) {
+        try { Path path=resolve(key); return Files.isRegularFile(path,LinkOption.NOFOLLOW_LINKS) && !Files.isSymbolicLink(path); }
+        catch (IOException | IllegalArgumentException ex) { throw new IllegalStateException("Falha ao verificar objeto privado.", ex); }
     }
     private Path resolve(String key) throws IOException { Path path=root.resolve(key).normalize();if(!path.startsWith(root)||Files.isSymbolicLink(path)||Files.isSymbolicLink(path.getParent()))throw new IllegalArgumentException();return path; }
     private void privateDirectory(Path path)throws IOException{try{Files.setPosixFilePermissions(path,Set.of(PosixFilePermission.OWNER_READ,PosixFilePermission.OWNER_WRITE,PosixFilePermission.OWNER_EXECUTE));}catch(UnsupportedOperationException ignored){}}

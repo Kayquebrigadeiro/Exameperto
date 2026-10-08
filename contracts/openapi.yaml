@@ -632,6 +632,97 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/PrivacyRequestInput'
+  /me/privacy-requests/{id}:
+    get:
+      operationId: getPrivacyRequest
+      summary: Acompanhar solicitação própria
+      tags: [me]
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Protocolo e estado, sem conteúdo de terceiros
+          content: {application/json: {schema: {$ref: '#/components/schemas/PrivacyRequest'}}}
+        '401': {$ref: '#/components/responses/Error401'}
+        '404': {$ref: '#/components/responses/Error404'}
+  /privacy-requests/{id}/response:
+    post:
+      operationId: respondPrivacyRequest
+      summary: Responder solicitação sem afirmar que eventual exclusão foi executada
+      tags: [privacy]
+      x-permission: Analista operacional nominal com MFA; autorização revalidada na chamada
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/PrivacyResponseInput'}}}
+      responses:
+        '200': {description: "Solicitação respondida ou negada, ainda sem comprovar expurgo", content: {application/json: {schema: {$ref: '#/components/schemas/PrivacyRequest'}}}}
+        '400': {$ref: '#/components/responses/Error400'}
+        '401': {$ref: '#/components/responses/Error401'}
+        '403': {$ref: '#/components/responses/Error403'}
+        '404': {$ref: '#/components/responses/Error404'}
+        '409': {$ref: '#/components/responses/Error409'}
+  /privacy-requests/{id}/purge:
+    post:
+      operationId: authorizePrivacyPurge
+      summary: Autorizar expurgo com política validada e inventário de recursos
+      tags: [privacy]
+      x-permission: Analista operacional nominal com MFA; configuração explícita de expurgo
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200': {description: "Expurgo autorizado, não executado", content: {application/json: {schema: {$ref: '#/components/schemas/PrivacyRequest'}}}}
+        '401': {$ref: '#/components/responses/Error401'}
+        '403': {$ref: '#/components/responses/Error403'}
+        '404': {$ref: '#/components/responses/Error404'}
+        '409': {$ref: '#/components/responses/Error409'}
+        '422': {$ref: '#/components/responses/Error422'}
+        '503': {$ref: '#/components/responses/Error503'}
+  /privacy-requests/{id}/purge/execute:
+    post:
+      operationId: executePrivacyPurge
+      summary: Executar ou retomar expurgo idempotente dos recursos controlados
+      tags: [privacy]
+      x-permission: Analista operacional nominal com MFA; papel e sessão revalidados
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200': {description: Estado da execução; pendências externas e preservações permanecem explícitas, content: {application/json: {schema: {$ref: '#/components/schemas/PrivacyRequest'}}}}
+        '401': {$ref: '#/components/responses/Error401'}
+        '403': {$ref: '#/components/responses/Error403'}
+        '409': {$ref: '#/components/responses/Error409'}
+        '503': {$ref: '#/components/responses/Error503'}
+  /privacy-requests/{id}/purge/verify:
+    post:
+      operationId: verifyPrivacyPurge
+      summary: Verificar ausência nos recursos efetivamente controlados
+      tags: [privacy]
+      description: VERIFICADA limita-se aos recursos locais controlados. Dispositivos, fornecedores e backups continuam como procedimento pendente e não recebem comprovação fictícia.
+      x-permission: Analista operacional nominal com MFA; papel e sessão revalidados
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200': {description: Verificação local concluída com contadores de ressalvas, content: {application/json: {schema: {$ref: '#/components/schemas/PrivacyRequest'}}}}
+        '401': {$ref: '#/components/responses/Error401'}
+        '403': {$ref: '#/components/responses/Error403'}
+        '409': {$ref: '#/components/responses/Error409'}
+        '503': {$ref: '#/components/responses/Error503'}
   /patients/{patientId}/grants:
     post:
       operationId: grantFamily
@@ -3223,7 +3314,7 @@ paths:
       description: GF nominal da instituição, com vínculo ativo e MFA verificado. Mostra somente repasses da própria instituição, sem dados bancários.
       x-permission: GF da instituição com MFA
       responses:
-        '200': {description: Obrigações, divergências e resultados incertos, content: {application/json: {schema: {$ref: '#/components/schemas/PayoutPage'}}}}
+        '200': {description: "Obrigações, divergências e resultados incertos", content: {application/json: {schema: {$ref: '#/components/schemas/PayoutPage'}}}}
         '401': {$ref: '#/components/responses/Error401'}
         '403': {$ref: '#/components/responses/Error403'}
   /payouts/{payoutId}:
@@ -3384,44 +3475,6 @@ paths:
           $ref: '#/components/responses/Error503'
       parameters:
       - name: benefitId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-  /me/privacy-requests/{requestId}:
-    get:
-      operationId: getPrivacyRequest
-      summary: Consultar protocolo próprio de privacidade
-      tags:
-      - benefits
-      description: Somente usuário que abriu a solicitação; resposta não expõe dados de outro titular.
-      x-permission: Usuário titular da solicitação
-      responses:
-        '200':
-          description: Protocolo e resposta quando disponíveis.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PrivacyRequest'
-        '400':
-          $ref: '#/components/responses/Error400'
-        '401':
-          $ref: '#/components/responses/Error401'
-        '403':
-          $ref: '#/components/responses/Error403'
-        '404':
-          $ref: '#/components/responses/Error404'
-        '409':
-          $ref: '#/components/responses/Error409'
-        '422':
-          $ref: '#/components/responses/Error422'
-        '429':
-          $ref: '#/components/responses/Error429'
-        '503':
-          $ref: '#/components/responses/Error503'
-      parameters:
-      - name: requestId
         in: path
         required: true
         schema:
@@ -4007,17 +4060,6 @@ paths:
       security: [{bearerAuth: []}]
       responses:
         '200': {description: Histórico, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Document'}}}}}
-  /documents/{id}/download:
-    get:
-      operationId: downloadApprovedDocument
-      summary: Baixar documento aprovado por proxy
-      description: Somente o proprietário autorizado; inspeção aprovada obrigatória; resposta no-store e nunca URL direta do objeto.
-      x-permission: Conta autenticada; proprietário e documento aprovado
-      security: [{bearerAuth: []}]
-      parameters: [{in: path, name: id, required: true, schema: {type: string, format: uuid}}]
-      responses:
-        '200': {description: Conteúdo aprovado, headers: {Cache-Control: {schema: {type: string, enum: [no-store]}}}, content: {application/octet-stream: {schema: {type: string, format: binary}}}}
-        '404': {$ref: '#/components/responses/Error404'}
   /analyst/reviews:
     get:
       operationId: listAssignedDelivererReviews
@@ -4425,7 +4467,7 @@ components:
       additionalProperties: false
       properties:
         id: {type: string, format: uuid}
-        category: {type: string, enum: [IDENTIDADE, HABILITACAO, VEICULO, FOTO_OPERACIONAL]}
+        category: {type: string, enum: [IDENTIDADE, HABILITACAO, VEICULO, FOTO_OPERACIONAL, IDADE, DEFICIENCIA, RENDA, FINANCIAMENTO, COMPROVANTE, AUTORIZACAO_RETIRADA]}
         mime: {type: string}
         size: {type: integer, minimum: 1, maximum: 10485760}
         status: {type: string, enum: [QUARENTENA, INSPECAO_PENDENTE, INSPECAO_APROVADA, REJEITADO, EXPURGADO]}
@@ -4793,41 +4835,6 @@ components:
         com apuração pendente e AO atribuído podem submeter apenas essas categorias no pedido, sem acesso a documentos
         clínicos. Documento de autorização inicial do paciente pode anteceder pedido; vinculado pelo servidor na
         criação do pedido.'
-    Document:
-      type: object
-      additionalProperties: false
-      properties:
-        id:
-          type: string
-          format: uuid
-        category:
-          type: string
-          enum:
-          - IDENTIDADE
-          - HABILITACAO
-          - VEICULO
-          - FOTO_OPERACIONAL
-          - IDADE
-          - DEFICIENCIA
-          - RENDA
-          - RETIRADA
-          - FINANCIAMENTO
-          - COMPROVANTE
-        status:
-          type: string
-          enum:
-          - AGUARDANDO_UPLOAD
-          - QUARENTENA
-          - DISPONIVEL
-          - REJEITADO
-          - EXPURGADO
-        version:
-          $ref: '#/components/schemas/Version'
-      required:
-      - id
-      - category
-      - status
-      - version
     Upload:
       type: object
       additionalProperties: false
@@ -6068,10 +6075,22 @@ components:
         description:
           type: string
           minLength: 1
-          maxLength: 1000
+          maxLength: 4000
       required:
       - type
       - description
+    PrivacyResponseInput:
+      type: object
+      additionalProperties: false
+      required: [status, response]
+      properties:
+        status:
+          type: string
+          enum: [RESPONDIDA, NEGADA]
+        response:
+          type: string
+          minLength: 1
+          maxLength: 4000
     GrantPage:
       type: object
       additionalProperties: false
@@ -6356,14 +6375,21 @@ components:
       additionalProperties: false
       required:
       - id
+      - protocol
       - type
       - status
       - createdAt
+      - purgeStatus
+      - procedurePending
+      - preserved
       - version
       properties:
         id:
           type: string
           format: uuid
+        protocol:
+          type: string
+          description: Protocolo de acompanhamento; não comprova exclusão executada ou verificada.
         type:
           type: string
           enum:
@@ -6376,12 +6402,38 @@ components:
           - PENDENTE
           - EM_ANALISE
           - RESPONDIDA
+          - NEGADA
+          - EXPURGO_SOLICITADO
+          - EXPURGADA
+          - VERIFICADA
         createdAt:
           type: string
           format: date-time
         response:
           type: string
           maxLength: 4000
+          nullable: true
+        purgeStatus:
+          type: string
+          nullable: true
+          enum: [AUTORIZADA, EXECUTADA, VERIFICADA, FALHA]
+          description: Estado operacional do expurgo; FALHA permanece retomável e não equivale a exclusão.
+        executedAt:
+          type: string
+          format: date-time
+          nullable: true
+        verifiedAt:
+          type: string
+          format: date-time
+          nullable: true
+        procedurePending:
+          type: integer
+          minimum: 0
+          description: Recursos fora do controle local que ainda dependem de procedimento ou contrato.
+        preserved:
+          type: integer
+          minimum: 0
+          description: Recursos preservados por regra explícita, incluindo finanças enquanto a retenção estiver pendente.
         version:
           $ref: '#/components/schemas/Version'
     FamilyInvitationInput:
