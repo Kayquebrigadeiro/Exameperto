@@ -8,6 +8,8 @@ Implementada V16 e a operação local em `ops/recovery/`: dump consistente sob s
 
 Limites: checksum não autentica contra atacante e o bundle não cifra a si próprio; diário/captura/alerta, armazenamento e chaves reais, grande volume, rotação, PITR, perda de host/fornecedor/região, falha simultânea e RPO/RTO continuam pendentes. GPS, backups, evidências financeiras e conteúdo privado mantêm suas categorias; nenhum prazo foi promovido. Anonimização integral, retenção financeira/deduplicação e fornecedores continuam bloqueios separados. Ver [procedimento](BACKUP-RESTAURACAO.md) e [prontidão consolidada](PRONTIDAO-CONSOLIDADA.md).
 
+Próxima ação: selecionar infraestrutura/gestão de chaves autorizada, automatizar e monitorar a captura do diário e ensaiar escala/falhas reais com RPO/RTO aprovados. Até lá, manter dados reais e publicação operacional bloqueados; esta rodada não autoriza deploy nem anonimização integral.
+
 ## Revisão consolidada a partir de `3b78b64` — 08/10/2026
 
 Código, migrações, configuração e testes foram conferidos diretamente. A suíte comum descobriu 57 casos: 49 executados, 0 falhas/erros e 8 opt-ins; a execução `-DbrowserTest=true` dos oito opt-ins passou após corrigir a mensagem web que não explicitava “indisponível”. O foco de privacidade, sessões/WebSocket, financeiro, custódia, designação e upgrade também passou. A correção foi somente de texto sanitizado em `web/src/main.tsx`.

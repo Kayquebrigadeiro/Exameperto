@@ -28,7 +28,7 @@ O recorte local é verificável em banco/objetos descartáveis e a interface web
 | 03 | Cadastro/sessão/recuperação e expiração testados em `AuthFlowTest`/`Registration*` | E-mail transacional real e recuperação operacional | SMTP e suporte | Local verificável; portfólio não promete e-mail; real pendente |
 | 04 | Representação concedida/revogada e escopo testados em `RepresentationFlowTest` | Fluxos humanos/documentais completos | Aprovação profissional/familiar | Local limitado; portfólio sem contas reais; real pendente |
 | 05 | Comprovações e revisão persistem com escopo/versão | Reuso por outro entregador e decisão profissional | Antimalware, revisão e dispositivos | Local parcial; portfólio pode exibir fluxo; real não |
-| 06 | Vínculo veículo/entregador e upgrade V5→V15 em `VehicleLinkFlowTest` | Suspensão e estado operacional completo | Consulta documental/órgão | Local parcial; web sem operação; real pendente |
+| 06 | Vínculo veículo/entregador e upgrade V5→V16 em `VehicleLinkFlowTest` | Suspensão e estado operacional completo | Consulta documental/órgão | Local parcial; web sem operação; real pendente |
 | 07 | Benefício, revisão distinta, MFA e isolamento em `BenefitFlowTest`/`FundingFlowTest` | Política e aprovação profissional | Instituições e elegibilidade | Local sintético; portfólio sem saldo; real bloqueado |
 | 08 | Aporte/reserva/ledger e replay idempotente | Provedor, disputa e política financeira | Banco/instituição | Local com mocks controlados; web declara indisponível; real bloqueado |
 | 09 | Pedido, cobertura e orçamento com adaptador indisponível por padrão | Rota/preço/cancelamento reais | Mapas, unidade e política | Local sintético; portfólio sem tarifa real; real pendente |
