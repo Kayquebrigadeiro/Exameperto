@@ -13,6 +13,8 @@ type Mode =
   | "recovery/complete";
 type Tokens = { accessToken: string; expiresIn: number };
 type Notice = { tone: "error" | "info"; text: string };
+type Profile = { id: string; email: string; name: string; phone: string | null; status: string; emailVerifiedAt: string | null; version: number };
+type PrivacyRequest = { id: string; protocol: string; type: "ACESSO" | "CORRECAO" | "EXCLUSAO"; status: string; createdAt: string; response: string | null; purgeStatus: string | null; executedAt: string | null; verifiedAt: string | null; procedurePending: number; preserved: number; version: number; closureStatus: string; anonymizationStatus: string };
 type Patient = { id: string; identityStatus: string; version: number };
 type Invitation = {
   id: string;
@@ -99,6 +101,63 @@ function ScopeFields() {
       </div>
     </fieldset>
   );
+}
+
+function ProfilePanel({ session }: { session: Tokens }) {
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<Notice | null>(null);
+
+  async function api(init: RequestInit = {}) {
+    return parse(await fetch("/api/v1/me/profile", { ...init, credentials: "same-origin", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.accessToken}`, ...(init.headers ?? {}) } }));
+  }
+  async function load() {
+    const { result } = await api();
+    const value = result as Profile;
+    setProfile(value); setName(value.name); setPhone(value.phone ?? "");
+  }
+  useEffect(() => { load().catch(error => setNotice({ tone: "error", text: error instanceof Error ? error.message : "Perfil indisponível." })); }, [session.accessToken]);
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); if (!profile || busy) return;
+    setBusy(true); setNotice(null);
+    try {
+      const { result } = await api({ method: "PUT", headers: { "If-Match": `"${profile.version}"` }, body: JSON.stringify({ name, phone: phone || null }) });
+      const value = result as Profile; setProfile(value); setName(value.name); setPhone(value.phone ?? "");
+      setNotice({ tone: "info", text: "Perfil atualizado. O e-mail permanece confirmado e não é alterado por este formulário." });
+    } catch (error) { setNotice({ tone: "error", text: error instanceof Error ? error.message : "Não foi possível atualizar o perfil." }); }
+    finally { setBusy(false); }
+  }
+  return <section className="family profile-panel" aria-labelledby="profile-title">
+    <div className="section-heading"><span className="eyebrow dark">CONTA BÁSICA</span><h2 id="profile-title">Seu perfil</h2><p>Consulte e edite somente nome e telefone. E-mail e estado da conta são exibidos como informação protegida.</p></div>
+    {profile ? <div className="work-grid"><form className="work-card" onSubmit={save}><h3>Dados permitidos</h3><label htmlFor="profile-name">Nome</label><input id="profile-name" value={name} onChange={event => setName(event.target.value)} maxLength={160} required /><label htmlFor="profile-phone">Telefone (opcional)</label><input id="profile-phone" value={phone} onChange={event => setPhone(event.target.value)} maxLength={40} inputMode="tel" /><button disabled={busy}>{busy ? "Salvando…" : "Salvar alterações"}</button></form><aside className="work-card profile-facts" aria-label="Estado da conta"><h3>Estado da conta</h3><p><strong>E-mail</strong><span>{profile.email}</span></p><p><strong>Estado</strong><span>{profile.status}</span></p><p><strong>Confirmação</strong><span>{profile.emailVerifiedAt ? "Confirmado" : "Pendente"}</span></p><p className="quiet-note">O encerramento revoga a sessão e transforma campos controlados. Isso não é anonimização integral.</p></aside></div> : <p className="feedback info" role="status">Carregando perfil…</p>}
+    {notice && <p className={`feedback ${notice.tone}`} role="alert">{notice.text}</p>}
+  </section>;
+}
+
+function PrivacyPanel({ session }: { session: Tokens }) {
+  const [requests, setRequests] = useState<PrivacyRequest[]>([]);
+  const [type, setType] = useState<PrivacyRequest["type"]>("ACESSO");
+  const [description, setDescription] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<Notice | null>(null);
+  async function api(path: string, init: RequestInit = {}) { return parse(await fetch(`/api/v1${path}`, { ...init, credentials: "same-origin", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.accessToken}`, ...(init.headers ?? {}) } })); }
+  async function load() { const { result } = await api("/me/privacy-requests"); setRequests(result as PrivacyRequest[]); }
+  useEffect(() => { load().catch(error => setNotice({ tone: "error", text: error instanceof Error ? error.message : "Solicitações indisponíveis." })); }, [session.accessToken]);
+  async function create(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); if (busy || !description.trim()) return;
+    setBusy(true); setNotice(null);
+    try { await api("/me/privacy-requests", { method: "POST", headers: { "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify({ type, description: description.trim() }) }); setDescription(""); await load(); setNotice({ tone: "info", text: type === "EXCLUSAO" ? "Solicitação de encerramento registrada. A execução depende de análise, política e verificação; esta tela não apaga conteúdo imediatamente." : "Solicitação registrada. O protocolo acompanha a análise e não confirma execução." }); }
+    catch (error) { setNotice({ tone: "error", text: error instanceof Error ? error.message : "Não foi possível registrar a solicitação." }); }
+    finally { setBusy(false); }
+  }
+  return <section className="family privacy-panel" aria-labelledby="privacy-title">
+    <div className="section-heading"><span className="eyebrow dark">PRIVACIDADE</span><h2 id="privacy-title">Solicitações e encerramento</h2><p>Registre uma demanda e acompanhe o protocolo. Exclusão de conteúdo, conservação obrigatória e transformação de conta são estados diferentes.</p></div>
+    <div className="work-grid"><form className="work-card" onSubmit={create}><h3>Nova solicitação</h3><label htmlFor="privacy-type">Tipo</label><select id="privacy-type" value={type} onChange={event => setType(event.target.value as PrivacyRequest["type"])}><option value="ACESSO">Consultar meus dados</option><option value="CORRECAO">Corrigir meus dados</option><option value="EXCLUSAO">Solicitar encerramento e exclusão conforme política</option></select><label htmlFor="privacy-description">Descrição</label><textarea id="privacy-description" value={description} onChange={event => setDescription(event.target.value)} maxLength={4000} required rows={5} /><button disabled={busy}>{busy ? "Registrando…" : "Registrar solicitação"}</button></form><aside className="work-card residual-note" aria-label="Limites do encerramento"><h3>Se pedir encerramento</h3><p><strong>TRANSFORMADA_NAO_INTEGRAL</strong></p><p>O conteúdo abrangido pela política pode ser expurgado. UUIDs, protocolos, auditoria, diário de expurgos, invariantes financeiras, deduplicação, backups e obrigações podem permanecer com acesso restrito.</p><p>Custódia aberta, obrigação financeira, repasse incerto ou reserva ativa bloqueiam a conclusão sem apagar responsabilidades.</p><p className="unavailable">Entrega, benefícios, rastreamento e pagamentos continuam indisponíveis.</p></aside></div>
+    <div className="registers" aria-live="polite"><article><h3>Meus protocolos</h3>{requests.length ? requests.map(item => <div className="privacy-record" key={item.id}><p><code>{item.protocol}</code><strong>{item.status}</strong><span>{item.type}</span></p><dl><div><dt>Expurgo</dt><dd>{item.purgeStatus ?? "NÃO APLICÁVEL"}</dd></div><div><dt>Encerramento</dt><dd>{item.closureStatus}</dd></div><div><dt>Transformação</dt><dd>{item.anonymizationStatus}</dd></div><div><dt>Ressalvas</dt><dd>{item.procedurePending} pendentes · {item.preserved} preservados</dd></div></dl>{item.response && <p className="record-response">Resposta: {item.response}</p>}</div>) : <p className="empty">Nenhuma solicitação registrada.</p>}</article></div>
+    {notice && <p className={`feedback ${notice.tone}`} role="alert">{notice.text}</p>}
+  </section>;
 }
 
 function PayoutPanel({ session }: { session: Tokens }) {
@@ -1024,6 +1083,8 @@ function AccountPage() {
       </main>
       {session && !expired && (
         <>
+          <ProfilePanel session={session} />
+          <PrivacyPanel session={session} />
           <FamilyPanel session={session} />
           <DelivererPanel session={session} />
           <VehicleReviewPanel session={session} />

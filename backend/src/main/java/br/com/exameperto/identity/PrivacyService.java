@@ -56,6 +56,11 @@ class PrivacyService {
 
     PrivacyRequestView get(UUID actor, UUID id) { owner(actor,id); return viewAny(id); }
 
+    List<PrivacyRequestView> list(UUID actor) {
+        return jdbc.queryForList("SELECT id FROM solicitacao_privacidade WHERE usuario_id=? ORDER BY created_at DESC,id DESC", UUID.class, actor)
+            .stream().map(id -> viewAny(id)).toList();
+    }
+
     @Transactional
     PrivacyRequestView respond(AuthService.SessionPrincipal principal, UUID id, PrivacyResponseInput input) {
         privileged(principal);

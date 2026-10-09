@@ -1,8 +1,18 @@
 # Status — atualizado em 08/10/2026
 
-## Escopo do portfólio V1 — base `f0db46f` — 08/10/2026
+## Interfaces web V1 — base `4827096` — 08/10/2026
 
-O recorte para entrevistas e visita está documentado em [PORTFOLIO-V1](PORTFOLIO-V1.md). Acesso web, cadastro/confirmação de e-mail, login/logout e autorização familiar só são utilizáveis após SMTP, chaves, origem HTTPS e política de privacidade serem configurados e homologados com endereço controlado pelo autor. A interface ainda não expõe perfil básico nem acompanhamento de solicitações/encerramento; a API os trata parcialmente e os testes locais não substituem uma jornada de usuário. Portanto não anunciar encerramento como botão disponível.
+Implementados painel de perfil próprio (nome/telefone com ETag e e-mail somente leitura), lista/registro de solicitações de privacidade e acompanhamento visual do encerramento, além da gestão familiar já existente. A API ganhou `GET/PUT /me/profile`, `GET /me/privacy-requests` e rota explícita 404 para perfis alheios; regras de autorização, retenção e execução não foram alteradas. A interface diferencia `purgeStatus`, `closureStatus` e `anonymizationStatus`, exibe `TRANSFORMADA_NAO_INTEGRAL`, resíduos e bloqueios por custódia/obrigações/política.
+
+Evidência: `AuthFlowTest` (11/11) cobriu perfil próprio, edição otimista, conflito de versão e tentativa de rota alheia; `PrivacyFlowTest` (4/4) permaneceu aprovado. `BrowserFlowTest -DbrowserTest=true` passou após instalar o Chromium de teste: fluxo navegador→API→PostgreSQL criou conta sintética, confirmou e-mail, editou perfil, registrou/acompanhou acesso e encerramento, verificou residual, viewport 390×844 e Axe nos painéis novos, e continuou login/logout/recuperação. O build web, YAML OpenAPI e scripts de validação passaram.
+
+Limite de acessibilidade: o Axe foi deliberadamente escopado a `.profile-panel` e `.privacy-panel`; a análise de toda a página revelou pendências de labels em painéis legados de veículo/pedido e não permite declarar acessibilidade integral. O ensaio usou somente PostgreSQL/Testcontainers, mailbox mock de teste e Chromium local; não homologa SMTP externo, deploy ou operação.
+
+O recorte para entrevistas e visita está documentado em [PORTFOLIO-V1](PORTFOLIO-V1.md). Cadastro/confirmação de e-mail continuam condicionais a SMTP, chaves, origem HTTPS e política homologados. Entrega, benefício, rastreamento, pagamento e repasse permanecem bloqueados e desabilitados por padrão. Mobile continua separado.
+
+## Registro histórico do portfólio V1 — base `f0db46f` — 08/10/2026
+
+Este registro descreve o estado anterior à rodada `4827096`; a seção de interfaces V1 acima é a referência atual. Naquele estado, a interface ainda não expunha perfil básico nem acompanhamento de solicitações/encerramento. O recorte atual mantém as mesmas condições de SMTP, chaves, origem HTTPS e política de privacidade, mas acrescenta as telas e evidências descritas acima.
 
 Entrega, benefício, rastreamento, pagamento e repasse ficam bloqueados e desabilitados por padrão. O plano lista banco, objetos privados, backup/restore, diário e custos a pesquisar sem escolher fornecedor, criar dados fictícios, contratar ou fazer deploy. Mobile continua uma pendência separada da publicação web.
 

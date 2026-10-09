@@ -593,6 +593,14 @@ paths:
         '404':
           $ref: '#/components/responses/Error404'
   /me/privacy-requests:
+    get:
+      operationId: listOwnPrivacyRequests
+      summary: Listar solicitações próprias
+      tags: [me]
+      x-permission: Conta autenticada; somente protocolos próprios
+      responses:
+        '200': {description: Protocolos próprios, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/PrivacyRequest'}}}}}
+        '401': {$ref: '#/components/responses/Error401'}
     post:
       operationId: requestPrivacy
       summary: Registrar solicitação do titular
@@ -632,6 +640,43 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/PrivacyRequestInput'
+  /me/profile:
+    get:
+      operationId: getOwnProfile
+      summary: Consultar perfil básico próprio
+      tags: [me]
+      description: Retorna somente os campos permitidos da própria conta. E-mail não é alterado por esta operação; conta encerrada perde a sessão e deve ser acompanhada pelo protocolo de privacidade.
+      x-permission: Conta autenticada; próprio perfil
+      responses:
+        '200':
+          description: Perfil próprio
+          headers:
+            ETag: {schema: {type: string}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/Profile'}}}
+        '401': {$ref: '#/components/responses/Error401'}
+        '404': {$ref: '#/components/responses/Error404'}
+    put:
+      operationId: updateOwnProfile
+      summary: Editar campos permitidos do perfil próprio
+      tags: [me]
+      description: Atualiza nome e telefone com controle otimista de versão. Não altera e-mail, estado, identidade, políticas ou papéis.
+      x-permission: Conta autenticada; próprio perfil; Origin/CSRF web
+      parameters:
+      - name: If-Match
+        in: header
+        required: true
+        schema: {type: string, pattern: '^"[0-9]+"$'}
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/ProfileInput'}}}
+      responses:
+        '200': {description: Perfil atualizado, content: {application/json: {schema: {$ref: '#/components/schemas/Profile'}}}}
+        '400': {$ref: '#/components/responses/Error400'}
+        '401': {$ref: '#/components/responses/Error401'}
+        '403': {$ref: '#/components/responses/Error403'}
+        '404': {$ref: '#/components/responses/Error404'}
+        '412': {$ref: '#/components/responses/Error412'}
+        '428': {$ref: '#/components/responses/Error428'}
   /me/privacy-requests/{id}:
     get:
       operationId: getPrivacyRequest
@@ -6079,6 +6124,25 @@ components:
       required:
       - type
       - description
+    ProfileInput:
+      type: object
+      additionalProperties: false
+      properties:
+        name: {type: string, minLength: 1, maxLength: 160}
+        phone: {type: string, maxLength: 40, nullable: true}
+      required: [name]
+    Profile:
+      type: object
+      additionalProperties: false
+      properties:
+        id: {type: string, format: uuid}
+        email: {type: string, format: email}
+        name: {type: string}
+        phone: {type: string, nullable: true}
+        status: {type: string, enum: [ATIVO]}
+        emailVerifiedAt: {type: string, format: date-time, nullable: true}
+        version: {$ref: '#/components/schemas/Version'}
+      required: [id, email, name, phone, status, emailVerifiedAt, version]
     PrivacyResponseInput:
       type: object
       additionalProperties: false

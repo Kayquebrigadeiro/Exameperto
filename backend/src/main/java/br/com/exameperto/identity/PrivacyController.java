@@ -2,6 +2,7 @@ package br.com.exameperto.identity;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,7 @@ class PrivacyController {
         mutation(auth,request); return ResponseEntity.status(HttpStatus.ACCEPTED).body(service.create(user(auth),input,key));
     }
     @GetMapping("/me/privacy-requests/{id}") PrivacyRequestView get(Authentication auth,@PathVariable UUID id) { return service.get(user(auth),id); }
+    @GetMapping("/me/privacy-requests") List<PrivacyRequestView> list(Authentication auth) { return service.list(user(auth)); }
     @PostMapping("/privacy-requests/{id}/response") PrivacyRequestView response(Authentication auth,HttpServletRequest request,@PathVariable UUID id,@Valid @RequestBody PrivacyResponseInput input) { mutation(auth,request); return service.respond(principal(auth),id,input); }
     @PostMapping("/privacy-requests/{id}/purge") PrivacyRequestView authorize(Authentication auth,HttpServletRequest request,@PathVariable UUID id) { mutation(auth,request); return service.authorizePurge(principal(auth),id); }
     @PostMapping("/privacy-requests/{id}/purge/execute") PrivacyRequestView execute(Authentication auth,HttpServletRequest request,@PathVariable UUID id) { mutation(auth,request); return service.execute(principal(auth),id); }

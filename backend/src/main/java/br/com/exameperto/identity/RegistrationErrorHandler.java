@@ -35,6 +35,9 @@ public class RegistrationErrorHandler {
     @ExceptionHandler(PrivacyService.PrivacyException.class)
     ResponseEntity<ApiError> privacy(PrivacyService.PrivacyException ex) { return ResponseEntity.status(ex.getStatusCode()).header("Cache-Control", "no-store").body(ex.body()); }
 
+    @ExceptionHandler(ProfileService.ProfileException.class)
+    ResponseEntity<ApiError> profile(ProfileService.ProfileException ex) { return ResponseEntity.status(ex.getStatusCode()).header("Cache-Control", "no-store").body(ex.body()); }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ApiError> invalid(MethodArgumentNotValidException ignored) {
         return ResponseEntity.badRequest().body(new ApiError("INVALID_INPUT", "Confira os campos informados.", UUID.randomUUID(), false));

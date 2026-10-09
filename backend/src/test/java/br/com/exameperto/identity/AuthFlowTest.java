@@ -166,12 +166,25 @@ class AuthFlowTest {
         for(int i=0;i<5;i++) assertThat(login(address).statusCode()).isEqualTo(401);
         assertThat(login(address).statusCode()).isEqualTo(429);
     }
+    @Test void ownProfileCanBeReadAndEditedButOtherProfileRouteIsNotExposed() throws Exception {
+        String address=active(); var logged=body(login(address)); String access=logged.get("accessToken").toString();
+        var own=get("/me/profile", "Authorization", "Bearer "+access);
+        assertThat(own.statusCode()).isEqualTo(200); var profile=body(own);
+        assertThat(profile).containsEntry("email", address).containsEntry("name", "Conta Sintética").containsEntry("status", "ATIVO");
+        String etag=own.headers().firstValue("ETag").orElseThrow();
+        var updated=put("/me/profile", Map.of("name","Nome Editado Sintético","phone","11999990000"), "Authorization", "Bearer "+access, "If-Match", etag);
+        assertThat(updated.statusCode()).isEqualTo(200); assertThat(body(updated)).containsEntry("name", "Nome Editado Sintético").containsEntry("phone", "11999990000");
+        assertThat(put("/me/profile", Map.of("name","Conflito"), "Authorization", "Bearer "+access, "If-Match", etag).statusCode()).isEqualTo(412);
+        assertThat(get("/me/profile/"+UUID.randomUUID(), "Authorization", "Bearer "+access).statusCode()).isEqualTo(404);
+    }
     String register() throws Exception {
         String address=UUID.randomUUID()+"@example.test";
         assertThat(post("register",Map.of("name","Conta Sintética","email",address,"password",PASSWORD)).statusCode()).isEqualTo(202); return address;
     }
     String active() throws Exception { String address=register(); assertThat(post("verification",Map.of("token",messages.get(address+":Confirme seu e-mail"))).statusCode()).isEqualTo(200); return address; }
     HttpResponse<String> login(String address) throws Exception { return post("login",Map.of("email",address,"password",PASSWORD,"client","MOBILE")); }
+    HttpResponse<String> get(String path,String... headers) throws Exception { var request=HttpRequest.newBuilder(URI.create("http://127.0.0.1:"+port+"/api/v1"+path)); if(headers.length>0)request.headers(headers); return client.send(request.GET().build(),HttpResponse.BodyHandlers.ofString()); }
+    HttpResponse<String> put(String path,Map<String,Object> body,String... headers) throws Exception { var request=HttpRequest.newBuilder(URI.create("http://127.0.0.1:"+port+"/api/v1"+path)).header("Content-Type","application/json"); if(headers.length>0)request.headers(headers); return client.send(request.PUT(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body))).build(),HttpResponse.BodyHandlers.ofString()); }
     String awaitMessage(String address,String subject) throws Exception { for(int i=0;i<100;i++){ String token=messages.get(address+":"+subject); if(token!=null)return token; Thread.sleep(50); } throw new AssertionError("Test email boundary not reached"); }
     List<Integer> race(String path,Map<String,Object> body) throws Exception {
         try(var pool=Executors.newVirtualThreadPerTaskExecutor()) {

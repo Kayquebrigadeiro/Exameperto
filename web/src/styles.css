@@ -39,6 +39,26 @@ button.danger { grid-column: 1 / -1; justify-self: start; margin: .3rem 0 0; pad
 .review-panel { background: #d9e3da; }
 .review-decision { margin: 1rem 0 0; background: #8f493c; }
 @media (max-width: 760px) { .inline-fields { grid-template-columns: 1fr; } }
+.profile-panel { background: #dbe8de; }
+.privacy-panel { background: #eee9da; }
+textarea { border: 1px solid #c4cec6; border-radius: .45rem; background: #fafbf5; padding: .9rem 1rem; color: #20322e; font: inherit; resize: vertical; min-height: 8rem; }
+textarea:focus { border-color: #377f69; box-shadow: 0 0 0 3px rgba(55,127,105,.16); outline: none; }
+.profile-facts p { display: grid; grid-template-columns: 7rem 1fr; gap: .8rem; margin: .55rem 0; color: #52645d; font-size: .8rem; }
+.profile-facts p strong { color: #275f50; font: 500 .68rem DM Mono,monospace; text-transform: uppercase; }
+.profile-facts .quiet-note, .residual-note p { display: block; margin-top: 1.1rem; color: #65756f; line-height: 1.55; font-size: .78rem; }
+.residual-note { border-left: .35rem solid #ad683c; }
+.residual-note strong { color: #8f493c; font: 500 .72rem DM Mono,monospace; letter-spacing: .08em; }
+.unavailable { color: #863a2b !important; }
+.privacy-record { padding: .8rem 0; border-bottom: 1px solid #40534c; }
+.privacy-record:last-child { border-bottom: 0; }
+.privacy-record > p { display: grid; grid-template-columns: 1fr auto; gap: .45rem 1rem; margin: 0; }
+.privacy-record > p span { grid-column: 1 / -1; color: #aebeb8; font-size: .7rem; }
+.privacy-record dl { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .6rem; margin: .8rem 0 0; }
+.privacy-record dl div { padding: .6rem; background: #2b4039; border-radius: .35rem; }
+.privacy-record dt { color: #9db8ad; font: 500 .62rem DM Mono,monospace; text-transform: uppercase; }
+.privacy-record dd { margin: .35rem 0 0; color: #e9efe9; font-size: .72rem; overflow-wrap: anywhere; }
+.record-response { display: block !important; margin-top: .8rem !important; color: #cfe4d8 !important; font-size: .75rem !important; line-height: 1.5; }
+@media (max-width: 760px) { .privacy-record dl { grid-template-columns: 1fr; } .profile-facts p { grid-template-columns: 1fr; gap: .2rem; } }
 .ledger { background: #eee9da; }
 .ledger-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; margin:1.2rem 0; background:#aab8ae; border:1px solid #aab8ae; }
 .ledger-summary article { display:grid; gap:.25rem; padding:1.2rem; background:#20322e; color:#e9efe9; }
