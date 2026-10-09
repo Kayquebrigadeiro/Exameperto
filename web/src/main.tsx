@@ -71,6 +71,9 @@ const labels: Record<Mode, string> = {
   recovery: "Recuperar acesso",
   "recovery/complete": "Trocar senha",
 };
+// Os módulos operacionais legados continuam no código e protegidos pelo backend,
+// mas não pertencem à navegação pública do portfólio V1.
+const operationalPanelsInPortfolioV1 = false;
 
 async function parse(response: Response) {
   const result =
@@ -131,7 +134,7 @@ function ProfilePanel({ session }: { session: Tokens }) {
   }
   return <section className="family profile-panel" aria-labelledby="profile-title">
     <div className="section-heading"><span className="eyebrow dark">CONTA BÁSICA</span><h2 id="profile-title">Seu perfil</h2><p>Consulte e edite somente nome e telefone. E-mail e estado da conta são exibidos como informação protegida.</p></div>
-    {profile ? <div className="work-grid"><form className="work-card" onSubmit={save}><h3>Dados permitidos</h3><label htmlFor="profile-name">Nome</label><input id="profile-name" value={name} onChange={event => setName(event.target.value)} maxLength={160} required /><label htmlFor="profile-phone">Telefone (opcional)</label><input id="profile-phone" value={phone} onChange={event => setPhone(event.target.value)} maxLength={40} inputMode="tel" /><button disabled={busy}>{busy ? "Salvando…" : "Salvar alterações"}</button></form><aside className="work-card profile-facts" aria-label="Estado da conta"><h3>Estado da conta</h3><p><strong>E-mail</strong><span>{profile.email}</span></p><p><strong>Estado</strong><span>{profile.status}</span></p><p><strong>Confirmação</strong><span>{profile.emailVerifiedAt ? "Confirmado" : "Pendente"}</span></p><p className="quiet-note">O encerramento revoga a sessão e transforma campos controlados. Isso não é anonimização integral.</p></aside></div> : <p className="feedback info" role="status">Carregando perfil…</p>}
+    {profile ? <div className="work-grid"><form className="work-card" onSubmit={save}><h3>Dados permitidos</h3><label htmlFor="profile-name">Nome</label><input id="profile-name" value={name} onChange={event => setName(event.target.value)} maxLength={160} required /><label htmlFor="profile-phone">Telefone (opcional)</label><input id="profile-phone" value={phone} onChange={event => setPhone(event.target.value)} maxLength={40} inputMode="tel" /><button disabled={busy}>{busy ? "Salvando…" : "Salvar alterações"}</button></form><div className="work-card profile-facts"><h3>Estado da conta</h3><p><strong>E-mail</strong><span>{profile.email}</span></p><p><strong>Estado</strong><span>{profile.status}</span></p><p><strong>Confirmação</strong><span>{profile.emailVerifiedAt ? "Confirmado" : "Pendente"}</span></p><p className="quiet-note">O encerramento revoga a sessão e transforma campos controlados. Isso não é anonimização integral.</p></div></div> : <p className="feedback info" role="status">Carregando perfil…</p>}
     {notice && <p className={`feedback ${notice.tone}`} role="alert">{notice.text}</p>}
   </section>;
 }
@@ -154,7 +157,7 @@ function PrivacyPanel({ session }: { session: Tokens }) {
   }
   return <section className="family privacy-panel" aria-labelledby="privacy-title">
     <div className="section-heading"><span className="eyebrow dark">PRIVACIDADE</span><h2 id="privacy-title">Solicitações e encerramento</h2><p>Registre uma demanda e acompanhe o protocolo. Exclusão de conteúdo, conservação obrigatória e transformação de conta são estados diferentes.</p></div>
-    <div className="work-grid"><form className="work-card" onSubmit={create}><h3>Nova solicitação</h3><label htmlFor="privacy-type">Tipo</label><select id="privacy-type" value={type} onChange={event => setType(event.target.value as PrivacyRequest["type"])}><option value="ACESSO">Consultar meus dados</option><option value="CORRECAO">Corrigir meus dados</option><option value="EXCLUSAO">Solicitar encerramento e exclusão conforme política</option></select><label htmlFor="privacy-description">Descrição</label><textarea id="privacy-description" value={description} onChange={event => setDescription(event.target.value)} maxLength={4000} required rows={5} /><button disabled={busy}>{busy ? "Registrando…" : "Registrar solicitação"}</button></form><aside className="work-card residual-note" aria-label="Limites do encerramento"><h3>Se pedir encerramento</h3><p><strong>TRANSFORMADA_NAO_INTEGRAL</strong></p><p>O conteúdo abrangido pela política pode ser expurgado. UUIDs, protocolos, auditoria, diário de expurgos, invariantes financeiras, deduplicação, backups e obrigações podem permanecer com acesso restrito.</p><p>Custódia aberta, obrigação financeira, repasse incerto ou reserva ativa bloqueiam a conclusão sem apagar responsabilidades.</p><p className="unavailable">Entrega, benefícios, rastreamento e pagamentos continuam indisponíveis.</p></aside></div>
+    <div className="work-grid"><form className="work-card" onSubmit={create}><h3>Nova solicitação</h3><label htmlFor="privacy-type">Tipo</label><select id="privacy-type" value={type} onChange={event => setType(event.target.value as PrivacyRequest["type"])}><option value="ACESSO">Consultar meus dados</option><option value="CORRECAO">Corrigir meus dados</option><option value="EXCLUSAO">Solicitar encerramento e exclusão conforme política</option></select><label htmlFor="privacy-description">Descrição</label><textarea id="privacy-description" value={description} onChange={event => setDescription(event.target.value)} maxLength={4000} required rows={5} /><button disabled={busy}>{busy ? "Registrando…" : "Registrar solicitação"}</button></form><div className="work-card residual-note"><h3>Se pedir encerramento</h3><p><strong>TRANSFORMADA_NAO_INTEGRAL</strong></p><p>O conteúdo abrangido pela política pode ser expurgado. UUIDs, protocolos, auditoria, diário de expurgos, invariantes financeiras, deduplicação, backups e obrigações podem permanecer com acesso restrito.</p><p>Custódia aberta, obrigação financeira, repasse incerto ou reserva ativa bloqueiam a conclusão sem apagar responsabilidades.</p><p className="unavailable">Entrega, benefícios, rastreamento e pagamentos continuam indisponíveis.</p></div></div>
     <div className="registers" aria-live="polite"><article><h3>Meus protocolos</h3>{requests.length ? requests.map(item => <div className="privacy-record" key={item.id}><p><code>{item.protocol}</code><strong>{item.status}</strong><span>{item.type}</span></p><dl><div><dt>Expurgo</dt><dd>{item.purgeStatus ?? "NÃO APLICÁVEL"}</dd></div><div><dt>Encerramento</dt><dd>{item.closureStatus}</dd></div><div><dt>Transformação</dt><dd>{item.anonymizationStatus}</dd></div><div><dt>Ressalvas</dt><dd>{item.procedurePending} pendentes · {item.preserved} preservados</dd></div></dl>{item.response && <p className="record-response">Resposta: {item.response}</p>}</div>) : <p className="empty">Nenhuma solicitação registrada.</p>}</article></div>
     {notice && <p className={`feedback ${notice.tone}`} role="alert">{notice.text}</p>}
   </section>;
@@ -1086,16 +1089,18 @@ function AccountPage() {
           <ProfilePanel session={session} />
           <PrivacyPanel session={session} />
           <FamilyPanel session={session} />
-          <DelivererPanel session={session} />
-          <VehicleReviewPanel session={session} />
-          <section className="family" aria-label="Benefícios"><button type="button" onClick={() => setShowBenefits(value => !value)}>{showBenefits ? "Ocultar benefícios" : "Abrir benefícios"}</button></section>
-          {showBenefits && <BenefitPanel session={session} />}
-          <section className="family" aria-label="Aportes"><button type="button" onClick={() => setShowFunding(value => !value)}>{showFunding ? "Ocultar aportes" : "Abrir aportes"}</button></section>
-          {showFunding && <FundingPanel session={session} />}
-          <section className="family" aria-label="Pedidos"><button type="button" onClick={() => setShowOrders(value => !value)}>{showOrders ? "Ocultar pedidos" : "Abrir pedidos"}</button></section>
-          {showOrders && <OrderPanel session={session} />}
-          <section className="family" aria-label="Repasses"><button type="button" onClick={() => setShowPayouts(value => !value)}>{showPayouts ? "Ocultar repasses" : "Abrir repasses"}</button></section>
-          {showPayouts && <PayoutPanel session={session} />}
+          {operationalPanelsInPortfolioV1 && <>
+            <DelivererPanel session={session} />
+            <VehicleReviewPanel session={session} />
+            <section className="family" aria-label="Benefícios"><button type="button" onClick={() => setShowBenefits(value => !value)}>{showBenefits ? "Ocultar benefícios" : "Abrir benefícios"}</button></section>
+            {showBenefits && <BenefitPanel session={session} />}
+            <section className="family" aria-label="Aportes"><button type="button" onClick={() => setShowFunding(value => !value)}>{showFunding ? "Ocultar aportes" : "Abrir aportes"}</button></section>
+            {showFunding && <FundingPanel session={session} />}
+            <section className="family" aria-label="Pedidos"><button type="button" onClick={() => setShowOrders(value => !value)}>{showOrders ? "Ocultar pedidos" : "Abrir pedidos"}</button></section>
+            {showOrders && <OrderPanel session={session} />}
+            <section className="family" aria-label="Repasses"><button type="button" onClick={() => setShowPayouts(value => !value)}>{showPayouts ? "Ocultar repasses" : "Abrir repasses"}</button></section>
+            {showPayouts && <PayoutPanel session={session} />}
+          </>}
         </>
       )}
     </>

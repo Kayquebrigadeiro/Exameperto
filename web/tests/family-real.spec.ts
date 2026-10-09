@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
 import { readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -50,4 +51,10 @@ test('navegador → backend → PostgreSQL: perfil, convite, aceite, confirmaç�
   await confirmation.getByLabel('Expira em').fill(local); await confirmation.getByLabel('Senha do paciente').fill(password); await confirmation.getByRole('button',{name:'Confirmar e ativar'}).click();
   await expect(page.locator('.family .feedback')).toContainText('Autorização ativada'); await expect(page.getByText('VIGENTE',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Revogar',exact:true}).click(); await expect(page.locator('.family .feedback')).toContainText('revogada imediatamente'); await expect(page.getByText('REVOGADA',{exact:true})).toBeVisible();
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  expect((await new AxeBuilder({page}).analyze()).violations).toEqual([]);
+  await page.setViewportSize({width:1280,height:900});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  expect((await new AxeBuilder({page}).analyze()).violations).toEqual([]);
 });

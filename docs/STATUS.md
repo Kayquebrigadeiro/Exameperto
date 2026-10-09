@@ -1,4 +1,14 @@
-# Status — atualizado em 08/10/2026
+# Status — atualizado em 09/10/2026
+
+## Acessibilidade V1 e preparação externa — base `b9b83be` — 09/10/2026
+
+O recorte web autenticado foi fechado em perfil, solicitações/encerramento e gestão familiar. Cadastro de entregador, revisão de veículo, benefício, aporte, pedido/rastreamento e repasse permanecem no código legado e sob as permissões existentes do backend, mas deixaram de ser montados na navegação V1; nenhuma autorização de API foi ampliada. Foram corrigidos overflow de campos em 390 px, foco visível de inputs/select/textarea e landmarks complementares aninhados.
+
+`BrowserFlowTest -DbrowserTest=true` passou com Chromium → API → PostgreSQL 17.6 descartável. O fluxo cobriu cadastro, confirmação, login, perfil, solicitações de acesso/encerramento, renovação/logout e recuperação; verificou teclado/foco inicial, foco após validação inválida, rótulos, alertas, ausência dos painéis excluídos, ausência de overflow e Axe sem violações na página autenticada inteira em 390×844 e 1280×900. `FamilyBrowserFlowTest -DbrowserTest=true` também passou e repetiu Axe/overflow nos dois tamanhos depois de perfil, convite, aceite, confirmação e revogação. Axe não comprova acessibilidade completa: leitor de tela humano, zoom/reflow adicional, alto contraste, movimento reduzido, outros navegadores/dispositivos e uso prolongado por teclado continuam pendentes.
+
+`PORTFOLIO-V1` agora concentra a checklist externa com os nomes realmente aceitos pelo código, separa decisões/credenciais do autor das ações locais do projeto e registra o roteiro de homologação de cadastro, confirmação e recuperação. A implementação atual de objetos é POSIX por `EXAME_PERTO_PRIVATE_ROOT`; S3/objeto externo não foi declarado configurável. A regressão Maven descobriu 60 testes: 52 executados, 0 falhas/erros e 8 opt-ins ignorados; build web e os dois Playwright comuns passaram. OpenAPI 3.0.3 foi validado com `openapi-spec-validator 0.7.2`; links Markdown locais, padrões de segredo e `git diff --check` passaram. Nenhum provedor foi contratado, nenhuma mensagem externa foi enviada, nenhuma política nova foi habilitada e não houve deploy.
+
+Próxima ação: o autor escolher o provedor SMTP e fornecer por canal privado remetente verificado, caixa de homologação e autorização do envio, junto das decisões de HTTPS/origem, cofre de segredos, PostgreSQL/volume privado, backup/RPO/RTO e política/responsáveis mínimos. Então executar o roteiro controlado de e-mail e registrar aceitação SMTP e recebimento separadamente.
 
 ## Interfaces web V1 — base `4827096` — 08/10/2026
 

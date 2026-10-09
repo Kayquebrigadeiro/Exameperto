@@ -1,6 +1,6 @@
 # Revisão consolidada de prontidão
 
-Data: 08/10/2026 · base auditada: `a97ffef` · branch: `docs/planejamento-tecnico`.
+Data: 09/10/2026 · base de continuidade: `b9b83be` · branch: `docs/planejamento-tecnico`.
 
 Esta revisão conferiu o código, migrações, configuração e testes atuais; os relatórios anteriores foram usados apenas como índice. Não houve deploy, operação externa, movimentação financeira ou exclusão de dados reais.
 
@@ -9,6 +9,8 @@ Esta revisão conferiu o código, migrações, configuração e testes atuais; o
 O recorte concreto está em [PORTFOLIO-V1](PORTFOLIO-V1.md). Cadastro, confirmação de e-mail, login/logout, perfil próprio, autorizações familiares e solicitações/encerramento são fluxos web implementados; cadastro/família continuam condicionais a SMTP, chaves, origem HTTPS e política aprovados. A interface não executa resposta, expurgo ou verificação operacional privilegiados. Entrega, benefícios, GPS, pagamentos e repasses permanecem indisponíveis.
 
 No encerramento, a API separa `closureStatus`, `purgeStatus` e `anonymizationStatus`; `TRANSFORMADA_NAO_INTEGRAL` continua explícito. UUIDs, diário, auditoria, referências financeiras, chaves de deduplicação, backups, logs e cópias externas têm finalidade/acesso restritos e política ainda pendente. A ausência de uma tela não será compensada por dados fictícios ou uma promessa de anonimização total.
+
+A navegação V1 foi reduzida explicitamente a conta, perfil, privacidade/encerramento e família. Painéis operacionais legados de entregador, veículo, benefício, aporte, pedido/rastreamento e repasse não são montados nesse recorte; rotas e permissões do backend não mudaram. O ensaio integrado aplica Axe à página autenticada inteira em 390×844 e 1280×900, confere ausência de overflow, foco inicial visível, validação, rótulos/alertas e ausência dos painéis excluídos. Sem violações automatizadas não equivale a conformidade integral: avaliação humana com tecnologias assistivas e cenários adicionais permanece necessária.
 
 ## Decisão curta
 
@@ -24,6 +26,7 @@ O recorte local é verificável em banco/objetos descartáveis e a interface web
 | Recursos de teste | Defaults desabilitam e-mail, tracking e purge; não há contas/seed fictícios em `main`; mocks ficam nos testes | Ainda falta uma verificação automatizada de que perfil normal nunca habilita recursos exclusivos de teste |
 | Financeiro | Reserva/custódia/obrigação/repasse têm transação, locks, referências estáveis, deduplicação e estados INCERTO/DIVERGENTE | Provedor real, cancelamento, parcialidade, disputa, beneficiários e homologação contábil/fiscal não existem |
 | Mobile/dependências | Typecheck/export Android e 20/21 checks do Expo Doctor passam; web audit sem achados | Não há aparelho; `expo-location`/Expo têm incompatibilidade de patch e mobile mantém 23 avisos (16 altos, 7 moderados) |
+| Acessibilidade web V1 | Axe da página autenticada inteira, teclado/foco inicial, validação e layouts 390×844/1280×900 passaram no fluxo navegador/API/PostgreSQL | Leitor de tela humano, zoom/reflow adicional, alto contraste, movimento reduzido, outros navegadores/dispositivos e painéis operacionais excluídos não foram homologados |
 
 ## Matriz dos tickets
 
@@ -47,9 +50,9 @@ O recorte local é verificável em banco/objetos descartáveis e a interface web
 
 ## Testes e composição da contagem
 
-`mvn -q test` descobriu 59 casos: 51 executados (0 falhas/erros) e 8 opt-ins ignorados sem `browserTest=true`. O caso novo é `BackupRestoreFlowTest`; os oito opt-ins permanecem `BrowserFlowTest`, `FamilyBrowserFlowTest`, `FundingBrowserFlowTest`, `OrderBrowserFlowTest`, `AcceptanceBrowserFlowTest`, `AssignmentBrowserFlowTest`, `CustodyBrowserFlowTest` e o caso browser de `PayoutFlowTest`. A execução histórica `-DbrowserTest=true` dos oito passou na revisão de `a8fbdc2`; não foi repetida porque esta rodada não alterou web/browser.
+`mvn -q test` descobriu 60 casos nesta rodada: 52 executados (0 falhas/erros) e 8 opt-ins ignorados sem `browserTest=true`. Os oito opt-ins permanecem `BrowserFlowTest`, `FamilyBrowserFlowTest`, `FundingBrowserFlowTest`, `OrderBrowserFlowTest`, `AcceptanceBrowserFlowTest`, `AssignmentBrowserFlowTest`, `CustodyBrowserFlowTest` e o caso browser de `PayoutFlowTest`. `BrowserFlowTest` e `FamilyBrowserFlowTest` com `-DbrowserTest=true` foram repetidos e passaram após as mudanças web; os opt-ins operacionais restantes continuam fora do recorte V1 e não foram usados para ampliar a declaração de acessibilidade.
 
-Comparação verificável no histórico: ticket 13 tinha 50 casos/7 opt-ins; ticket 14, 53/7; a revisão `a8fbdc2`, 57/8; esta rodada, 58/8. O caso adicional é o ensaio de backup/restauração. Nenhum teste foi removido.
+Comparação verificável no histórico: ticket 13 tinha 50 casos/7 opt-ins; ticket 14, 53/7; a revisão `a8fbdc2`, 57/8; a revisão de backup/encerramento chegou a 59/8 e a base com perfil/privacidade usada nesta rodada contém 60/8. Nenhum teste foi removido.
 
 Verificações adicionais: foco `PrivacyFlowTest,TrackingFlowTest,PayoutFlowTest,CustodyFlowTest,QuoteAcceptanceFlowTest,AssignmentFlowTest,RepresentationFlowTest,AuthFlowTest,VehicleLinkFlowTest`; Flyway V1–V15 em banco novo; upgrade V5→V15; OpenAPI 3.0.3 (126 operações, referências internas resolvidas); links/diagramas; padrões de segredo; permissões de armazenamento privado. Mobile typecheck/export passaram sem aparelho. O audit mobile permanece pendente; não há scanner CVE JVM configurado.
 
