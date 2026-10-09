@@ -1,5 +1,13 @@
 # Status — atualizado em 09/10/2026
 
+## Orçamento zero e ordem de homologação — 09/10/2026
+
+R$ 0 passou a ser requisito eliminatório. A decisão registrada em [ORCAMENTO-ZERO-V1](ORCAMENTO-ZERO-V1.md) é homologar primeiro em `localhost`, com PostgreSQL/volume/backup locais e uma caixa SMTP já controlada pelo autor. Nenhuma conta externa foi criada, nenhum cartão/domínio foi cadastrado ou comprado, nenhuma cobrança foi habilitada, nenhum e-mail foi enviado e não houve deploy.
+
+Foram conferidos em fontes oficiais atuais cota, expiração, suspensão e persistência de Brevo Free, Neon Free, Cloudflare Pages Free, Render Free e Koyeb Free. Brevo é candidato futuro para e-mail, sem cartão e com 300 envios/dia, mas pode suspender envios e apaga contas gratuitas inativas após quatro meses. Neon e Pages são candidatos parciais; o worker que consulta o banco a cada segundo impede scale-to-zero e o frontend atual exige mesma origem. Render foi rejeitado porque bloqueia SMTP, perde arquivos e expira o PostgreSQL em 30 dias. Koyeb foi rejeitado porque exige cartão/pré-autorização e admite cobrança, além de não oferecer volume web persistente grátis.
+
+Não existe composição hospedada gratuita aprovada: faltam, sem enfraquecer controles, frontend/backend same-origin, adaptador de e-mail HTTPS para host que bloqueie SMTP, armazenamento privado durável, backup independente e adequação segura do worker/pool ao scale-to-zero. A próxima ação permanece privada e local: o autor indicar uma conta SMTP já existente, remetente/destinatário e autorização específica; depois configurar sem registrar segredos e executar o roteiro de cadastro, confirmação e recuperação.
+
 ## Acessibilidade V1 e preparação externa — base `b9b83be` — 09/10/2026
 
 O recorte web autenticado foi fechado em perfil, solicitações/encerramento e gestão familiar. Cadastro de entregador, revisão de veículo, benefício, aporte, pedido/rastreamento e repasse permanecem no código legado e sob as permissões existentes do backend, mas deixaram de ser montados na navegação V1; nenhuma autorização de API foi ampliada. Foram corrigidos overflow de campos em 390 px, foco visível de inputs/select/textarea e landmarks complementares aninhados.

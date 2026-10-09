@@ -6,7 +6,9 @@ Esta revisão conferiu o código, migrações, configuração e testes atuais; o
 
 ## Portfólio V1 a partir de `4827096`
 
-O recorte concreto está em [PORTFOLIO-V1](PORTFOLIO-V1.md). Cadastro, confirmação de e-mail, login/logout, perfil próprio, autorizações familiares e solicitações/encerramento são fluxos web implementados; cadastro/família continuam condicionais a SMTP, chaves, origem HTTPS e política aprovados. A interface não executa resposta, expurgo ou verificação operacional privilegiados. Entrega, benefícios, GPS, pagamentos e repasses permanecem indisponíveis.
+O recorte concreto está em [PORTFOLIO-V1](PORTFOLIO-V1.md). Cadastro, confirmação de e-mail, login/logout, perfil próprio, autorizações familiares e solicitações/encerramento são fluxos web implementados; cadastro/família continuam condicionais a SMTP, chaves, origem e política aprovados. A interface não executa resposta, expurgo ou verificação operacional privilegiados. Entrega, benefícios, GPS, pagamentos e repasses permanecem indisponíveis.
+
+O orçamento é estritamente R$ 0. [ORCAMENTO-ZERO-V1](ORCAMENTO-ZERO-V1.md) registra a homologação local como única próxima etapa aprovada e inventaria cotas, expiração, suspensão e persistência das opções gratuitas avaliadas. Nenhuma composição hospedada está pronta: não se remove cookie/Origin/CORS/CSRF, persistência privada, backup ou e-mail para caber em free tier; não se cadastra cartão, compra domínio ou ativa cobrança.
 
 No encerramento, a API separa `closureStatus`, `purgeStatus` e `anonymizationStatus`; `TRANSFORMADA_NAO_INTEGRAL` continua explícito. UUIDs, diário, auditoria, referências financeiras, chaves de deduplicação, backups, logs e cópias externas têm finalidade/acesso restritos e política ainda pendente. A ausência de uma tela não será compensada por dados fictícios ou uma promessa de anonimização total.
 
