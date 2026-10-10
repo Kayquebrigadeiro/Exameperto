@@ -5,6 +5,9 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
     command: 'npm run dev -- --port 5187', url: 'http://127.0.0.1:5187', reuseExistingServer: false,
-    env: { API_TARGET: process.env.API_TARGET ?? 'http://127.0.0.1:8080' },
+    env: {
+      API_TARGET: process.env.API_TARGET ?? 'http://127.0.0.1:8080',
+      VITE_ENABLE_OPERATIONAL_TEST_PANELS: process.env.VITE_ENABLE_OPERATIONAL_TEST_PANELS ?? 'false',
+    },
   },
 });

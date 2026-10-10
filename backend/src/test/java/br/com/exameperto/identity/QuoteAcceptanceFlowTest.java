@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
+import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -42,6 +43,15 @@ class QuoteAcceptanceFlowTest {
     final HttpClient client=HttpClient.newHttpClient(); static final String PASS="Senha-sintetica-123"; final java.util.concurrent.ConcurrentHashMap<String,String> mail=new java.util.concurrent.ConcurrentHashMap<>();
     @BeforeEach void setup(){when(email.configured()).thenReturn(true);org.mockito.Mockito.doAnswer(i->{mail.put(i.getArgument(0),i.getArgument(2));return null;}).when(email).send(any(),any(),any());when(routes.route(any(),any())).thenReturn(new RouteProvider.RouteResult("synthetic-router","route-"+UUID.randomUUID(),12500,1800,false,Instant.now()));}
     @AfterAll static void cleanup()throws Exception{if(Files.exists(ROOT))try(var p=Files.walk(ROOT)){p.sorted(java.util.Comparator.reverseOrder()).forEach(x->{try{Files.deleteIfExists(x);}catch(Exception ignored){}});}}
+
+    @Test void paymentEventLimitRunsBeforeTheProviderForChunkedBodies() throws Exception {
+        byte[] oversized = new byte[65537];
+        HttpRequest request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:"+port+"/api/v1/integrations/payments/events"))
+            .header("Content-Type","application/octet-stream")
+            .POST(HttpRequest.BodyPublishers.ofInputStream(() -> new ByteArrayInputStream(oversized))).build();
+        assertThat(client.send(request,HttpResponse.BodyHandlers.ofString()).statusCode()).isEqualTo(413);
+        org.mockito.Mockito.verify(payments, org.mockito.Mockito.never()).authenticateAndParse(any(), any());
+    }
 
     @Test void privateAcceptanceRequiresProviderAndAuthenticatedEventsAreDeduplicated() throws Exception {
         Account owner=active("accept-owner"), outsider=active("accept-outsider"); Setup s=order(owner,null);

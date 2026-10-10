@@ -73,7 +73,8 @@ const labels: Record<Mode, string> = {
 };
 // Os módulos operacionais legados continuam no código e protegidos pelo backend,
 // mas não pertencem à navegação pública do portfólio V1.
-const operationalPanelsInPortfolioV1 = false;
+const operationalPanelsInPortfolioV1 = import.meta.env.DEV
+  && import.meta.env.VITE_ENABLE_OPERATIONAL_TEST_PANELS === "true";
 
 async function parse(response: Response) {
   const result =

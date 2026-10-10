@@ -3161,6 +3161,7 @@ paths:
             schema:
               type: string
               format: binary
+              maxLength: 65536
       responses:
         '202':
           description: Evento autenticado persistido para processamento.

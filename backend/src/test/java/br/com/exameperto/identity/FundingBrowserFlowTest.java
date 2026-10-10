@@ -48,7 +48,7 @@ class FundingBrowserFlowTest {
         try {
             when(email.configured()).thenReturn(true); doAnswer(i->null).when(email).send(anyString(),anyString(),anyString());
             var builder=new ProcessBuilder("npm","run","test","--","tests/funding-real.spec.ts"); builder.directory(Path.of("..","web").toFile()); builder.redirectErrorStream(true); builder.redirectOutput(Path.of("target","funding-browser-playwright.log").toFile());
-            builder.environment().put("API_TARGET","http://127.0.0.1:"+port); builder.environment().put("FUNDING_PROGRAM_ID",program.toString()); builder.environment().put("FUNDING_REGISTRAR_EMAIL",registrar); builder.environment().put("FUNDING_REVIEWER_EMAIL",reviewer);
+            builder.environment().put("API_TARGET","http://127.0.0.1:"+port); builder.environment().put("VITE_ENABLE_OPERATIONAL_TEST_PANELS","true"); builder.environment().put("FUNDING_PROGRAM_ID",program.toString()); builder.environment().put("FUNDING_REGISTRAR_EMAIL",registrar); builder.environment().put("FUNDING_REVIEWER_EMAIL",reviewer);
             Process process=builder.start(); try{assertThat(process.waitFor(120,TimeUnit.SECONDS)).isTrue();assertThat(process.exitValue()).isZero();}finally{if(process.isAlive())process.destroyForcibly();}
             assertThat(jdbc.queryForObject("SELECT count(*) FROM aporte WHERE programa_id=? AND estado='CONFIRMADO'",Long.class,program)).isEqualTo(1); assertThat(jdbc.queryForObject("SELECT count(*) FROM lancamento_aporte WHERE programa_id=?",Long.class,program)).isEqualTo(1);
         } finally {try(var files=Files.list(mailbox)){for(Path f:files.toList())Files.deleteIfExists(f);}Files.deleteIfExists(mailbox);}

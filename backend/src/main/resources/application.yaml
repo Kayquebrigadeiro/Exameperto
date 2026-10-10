@@ -63,6 +63,8 @@ storage:
   private-root: ${EXAME_PERTO_PRIVATE_ROOT:${java.io.tmpdir}/exame-perto-private}
 review:
   file-safety-inspection-enabled: true
+payment:
+  max-event-payload-bytes: 65536
 tracking:
   enabled: ${EXAME_PERTO_TRACKING_ENABLED:false}
   max-age: PT2M
