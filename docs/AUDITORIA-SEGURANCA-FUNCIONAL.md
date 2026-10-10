@@ -30,9 +30,11 @@ Reprodução: o scheduler consultava o banco a cada segundo mesmo com SMTP desli
 
 Correção: `AccountMailWorker` retorna sem consultar quando `EmailGateway.configured()` é falso e consulta `RecoveryGuard` antes de buscar jobs; falha de banco continua sanitizada no bloco de captura. `AccountMailWorkerTest` prova os dois bloqueios e a entrega apenas quando ambos estão liberados.
 
-### F-004 — Média, não corrigida — alertas transitivos no toolchain mobile
+### F-004 — Média, parcialmente corrigida — alertas transitivos no toolchain mobile
 
-`npm audit --omit=dev` encontrou 23 nós (16 altos, 7 moderados, zero críticos), convergindo para `braces` 3.0.3 (GHSA-vfj7-8cjw-p6xm), `node-forge` 1.4.0 (GHSA-86w9-cpqp-85rv) e `uuid` 7.0.3 (GHSA-w5hq-g745-h8pq), em Expo/Metro/configuração de build. Os caminhos observados são tooling/prebuild/watch, não foram demonstrados no bundle de produção. O `npm audit fix --force` sugeriria downgrades incompatíveis; nenhum override foi aplicado. Repetir após release compatível e antes de distribuição.
+`expo-doctor` inicialmente reprovaria uma única checagem: `expo-location` 19.0.8 onde o SDK 57 exige `~57.0.20`, e `expo` 57.0.26 onde exige `~57.0.27`. As versões compatíveis existem; foram atualizadas com `expo install`, sem downgrade, override ou `audit fix --force`. O doctor agora passa 21/21, typecheck e export Android continuam verdes.
+
+Após a atualização, `npm audit --omit=dev` encontrou 22 nós (15 altos, 7 moderados, zero críticos), convergindo para `braces` 3.0.3 (GHSA-vfj7-8cjw-p6xm), `node-forge` 1.4.0 (GHSA-86w9-cpqp-85rv) e `uuid` 7.0.3 (GHSA-w5hq-g745-h8pq), em Expo/Metro/configuração de build. Os caminhos observados são tooling/prebuild/watch, não foram demonstrados no bundle de produção. Esses alertas permanecem pendentes de releases upstream compatíveis; Endor Labs é opcional e não bloqueia o projeto por si só.
 
 ## Controles revisados
 
@@ -47,9 +49,9 @@ Uploads usam raiz privada POSIX, normalização, `NOFOLLOW`, diretórios 0700/ar
 - Suíte final `mvn -DbrowserTest=true test`: 64/64 aprovados, 0 falhas/erros/skips; Flyway novo V1–V17 e PostgreSQL 17.6 descartável. A execução focal pós-correção (`QuoteAcceptanceFlowTest` 4, `TrackingFlowTest` 2 e `AccountMailWorkerTest` 3) também foi 9/9.
 - Opt-in browser corrigido para legado: `AcceptanceBrowserFlowTest -DbrowserTest=true` passou com Chromium → Vite → API → PostgreSQL. Os painéis legados só aparecem quando `VITE_ENABLE_OPERATIONAL_TEST_PANELS=true` em desenvolvimento; o build de produção remove esse ramo e a navegação V1 continua sem ele.
 - Web: build passou; Playwright comum passou 2 e ignorou 8 testes que exigem PostgreSQL/credenciais opt-in. Axe passou no formulário e nos fluxos V1 registrados; isso não substitui leitor de tela, zoom/reflow, alto contraste, outros navegadores ou uso prolongado por teclado.
-- Mobile: typecheck e export Android (590 módulos, bundle 1,5 MB) passaram; `expo-doctor` 20/21, falhando pela versão esperada de `expo-location` e patch do Expo. `adb`/`emulator` não estão instalados: GPS, segundo plano, permissões, bateria e uso físico permanecem não verificados.
+- Mobile: `expo-doctor` 21/21, typecheck e export Android (590 módulos, bundle 1,5 MB) passaram após alinhar `expo@~57.0.27` e `expo-location@~57.0.20`; `npm audit` mantém 22 alertas transitivos (15 altos/7 moderados). `adb`/`emulator` não estão instalados: GPS, segundo plano, permissões, bateria e uso físico permanecem não verificados.
 - Migrações: banco novo aplicado V1–V17; upgrade V5→versão atual exercitado por `VehicleLinkFlowTest`; restauração/expurgo e concorrência financeira cobertos pelos fluxos existentes. `openapi-spec-validator 0.7.2`, links Markdown e `git diff --check` passaram.
-- Endor Labs: binário instalado localmente com SHA-256 verificado (`efd51b…35d4f`), mas execução bloqueada: não há credencial e o namespace não foi fornecido. Não foi inventado namespace nem feito login. Não há scanner JVM/infra local equivalente configurado.
+- Endor Labs: binário instalado localmente com SHA-256 verificado (`efd51b…35d4f`), mas execução bloqueada: não há credencial e o namespace não foi fornecido. Não foi inventado namespace nem feito login. A análise efetiva desta rodada foi revisão de código/configuração, suíte Maven integrada, regressões focais, OpenAPI, builds/typecheck/export, Expo Doctor e npm audit; Endor Labs é ferramenta opcional e sua ausência não bloqueia a V1.
 
 ## Prontidão e riscos remanescentes
 

@@ -31,7 +31,7 @@ O recorte local é verificável em banco/objetos descartáveis e a interface web
 | Permissões e sessões | Auth revalida sessão/acesso; WebSocket rejeita CONNECT/SUBSCRIBE/SEND indevidos e remove conexão aberta revogada no próximo publish | Falta homologação externa de identidade e ensaio prolongado em infraestrutura real; nenhum bug demonstrado nesta rodada |
 | Recursos de teste | Defaults desabilitam e-mail, tracking e purge; não há contas/seed fictícios em `main`; mocks ficam nos testes | Ainda falta uma verificação automatizada de que perfil normal nunca habilita recursos exclusivos de teste |
 | Financeiro | Reserva/custódia/obrigação/repasse têm transação, locks, referências estáveis, deduplicação e estados INCERTO/DIVERGENTE | Provedor real, cancelamento, parcialidade, disputa, beneficiários e homologação contábil/fiscal não existem |
-| Mobile/dependências | Typecheck/export Android e 20/21 checks do Expo Doctor passam; web audit sem achados | Não há aparelho; `expo-location`/Expo têm incompatibilidade de patch e mobile mantém 23 avisos (16 altos, 7 moderados) |
+| Mobile/dependências | Typecheck/export Android e 21/21 checks do Expo Doctor passam; `expo@~57.0.27`/`expo-location@~57.0.20` alinhados | Não há aparelho; mobile mantém 22 alertas transitivos (15 altos, 7 moderados) em tooling e exige triagem/upstream antes de distribuição |
 | Acessibilidade web V1 | Axe da página autenticada inteira, teclado/foco inicial, validação e layouts 390×844/1280×900 passaram no fluxo navegador/API/PostgreSQL | Leitor de tela humano, zoom/reflow adicional, alto contraste, movimento reduzido, outros navegadores/dispositivos e painéis operacionais excluídos não foram homologados |
 
 ## Matriz dos tickets
@@ -75,7 +75,7 @@ Verificações adicionais: foco `PrivacyFlowTest,TrackingFlowTest,PayoutFlowTest
 - **P0 — Retenção financeira e deduplicação:** decidir prazo, disputa, obrigação e chaves; critérios: nenhuma exclusão sem regra ativa, expurgo idempotente e trilha de fundamento/escopo/responsável.
 - **P1 — Guarda de configuração normal:** teste CI que inicie perfil normal e prove que recursos `TEST`, seeds, mocks e endpoints de ensaio não são acessíveis; critérios: falha fechada e relatório de configuração.
 - **P1 — Sessões/WebSocket e instituições:** ensaio de revogação em múltiplas instâncias/conexões e matriz entre contas/instituições; critérios: zero mensagem após revogação e auditoria de cada rejeição.
-- **P1 — Mobile/dependências:** alinhar versões Expo compatíveis, resolver avisos sem downgrade inseguro e executar Android físico/background/rede; critérios: doctor limpo, auditoria triada e evidência em aparelho.
+- **P1 — Mobile/dependências:** doctor alinhado sem downgrade inseguro; permanecem alertas transitivos para triagem/upstream e execução Android físico/background/rede; critérios restantes: auditoria triada e evidência em aparelho.
 - **P1 — Homologação financeira/fornecedores:** contratos, sandbox e confirmação externa para rota, e-mail, objeto, pagamento e repasse; critérios: timeout/conciliação sem duplicidade e relatório externo anexado.
 
 Nenhum prazo acima é política operacional aprovada; são critérios de trabalho para decisão humana. Fornecedores, dispositivos e backups fora do controle local permanecem “procedimento/contrato pendente”, nunca “exclusão comprovada”.
