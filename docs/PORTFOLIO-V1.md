@@ -2,6 +2,8 @@
 
 Este recorte descreve o que um visitante poderá executar com uma conta real, sem dados de demonstração, deploy ou integração simulada. A publicação só pode ocorrer depois da configuração privada e homologação descritas abaixo; no ambiente atual, o SMTP continua desligado. O orçamento é estritamente R$ 0: a decisão vigente é homologar localmente com recursos já controlados pelo autor e apenas depois reavaliar a composição gratuita documentada em [ORCAMENTO-ZERO-V1](ORCAMENTO-ZERO-V1.md).
 
+Auditoria integrada e regressões de limites estão em [AUDITORIA-SEGURANCA-FUNCIONAL](AUDITORIA-SEGURANCA-FUNCIONAL.md). O limite de entrada do webhook de pagamento é `payment.max-event-payload-bytes` (padrão local 65536); localização usa `tracking.max-payload-bytes` (padrão 1024). O flag `VITE_ENABLE_OPERATIONAL_TEST_PANELS` só é aceito em desenvolvimento para opt-ins de teste e não habilita painéis legados no build de produção.
+
 ## Matriz curta
 
 | Fluxo | Estado para portfólio | Dependência para habilitar | Evidência disponível / pendência de teste |

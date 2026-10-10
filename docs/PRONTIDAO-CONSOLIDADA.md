@@ -4,6 +4,10 @@ Data: 09/10/2026 · base de continuidade: `b9b83be` · branch: `docs/planejament
 
 Esta revisão conferiu o código, migrações, configuração e testes atuais; os relatórios anteriores foram usados apenas como índice. Não houve deploy, operação externa, movimentação financeira ou exclusão de dados reais.
 
+## Auditoria integrada — 09/10/2026
+
+Consulte [AUDITORIA-SEGURANCA-FUNCIONAL](AUDITORIA-SEGURANCA-FUNCIONAL.md). A rodada corrigiu limites de corpo antes do MVC para pagamentos/GPS e impediu polling/mutação da outbox de e-mail sem provedor ou durante restauração. A suíte final com todos os opt-ins passou 64/64; contagem, browser, mobile e bloqueios desta rodada ficam registrados no relatório. V1 local segue condicionada à homologação de SMTP, e a operação completa permanece bloqueada por integrações, políticas, storage/backup, mobile físico e dependências transitivas.
+
 ## Portfólio V1 a partir de `4827096`
 
 O recorte concreto está em [PORTFOLIO-V1](PORTFOLIO-V1.md). Cadastro, confirmação de e-mail, login/logout, perfil próprio, autorizações familiares e solicitações/encerramento são fluxos web implementados; cadastro/família continuam condicionais a SMTP, chaves, origem e política aprovados. A interface não executa resposta, expurgo ou verificação operacional privilegiados. Entrega, benefícios, GPS, pagamentos e repasses permanecem indisponíveis.
@@ -52,7 +56,7 @@ O recorte local é verificável em banco/objetos descartáveis e a interface web
 
 ## Testes e composição da contagem
 
-`mvn -q test` descobriu 60 casos nesta rodada: 52 executados (0 falhas/erros) e 8 opt-ins ignorados sem `browserTest=true`. Os oito opt-ins permanecem `BrowserFlowTest`, `FamilyBrowserFlowTest`, `FundingBrowserFlowTest`, `OrderBrowserFlowTest`, `AcceptanceBrowserFlowTest`, `AssignmentBrowserFlowTest`, `CustodyBrowserFlowTest` e o caso browser de `PayoutFlowTest`. `BrowserFlowTest` e `FamilyBrowserFlowTest` com `-DbrowserTest=true` foram repetidos e passaram após as mudanças web; os opt-ins operacionais restantes continuam fora do recorte V1 e não foram usados para ampliar a declaração de acessibilidade.
+`mvn -q test` descobriu 64 casos nesta rodada: 56 executados (0 falhas/erros) e 8 opt-ins ignorados sem `browserTest=true`. A execução final `mvn -DbrowserTest=true test` passou 64/64, incluindo `BrowserFlowTest`, `FamilyBrowserFlowTest`, `FundingBrowserFlowTest`, `OrderBrowserFlowTest`, `AcceptanceBrowserFlowTest`, `AssignmentBrowserFlowTest`, `CustodyBrowserFlowTest` e o caso browser de `PayoutFlowTest`. Os painéis operacionais só aparecem nesses opt-ins por flag de desenvolvimento; continuam fora do recorte V1 e não ampliam a declaração de acessibilidade.
 
 Comparação verificável no histórico: ticket 13 tinha 50 casos/7 opt-ins; ticket 14, 53/7; a revisão `a8fbdc2`, 57/8; a revisão de backup/encerramento chegou a 59/8 e a base com perfil/privacidade usada nesta rodada contém 60/8. Nenhum teste foi removido.
 

@@ -1,5 +1,13 @@
 # Status — atualizado em 09/10/2026
 
+## Auditoria integrada de segurança — base `e11b1c1` — 09/10/2026
+
+Foi criada a [auditoria de segurança e funcionamento integrado](AUDITORIA-SEGURANCA-FUNCIONAL.md). A revisão corrigiu leitura ilimitada de webhook público, limite de GPS após desserialização e polling/mutação da outbox durante restauração. Os limites agora são aplicados antes do MVC (`payment.max-event-payload-bytes=65536` e `tracking.max-payload-bytes=1024`), sem habilitar provedor.
+
+Após a correção: a suíte final com todos os opt-ins (`mvn -DbrowserTest=true test`) passou 64/64, além dos testes focados (9/9), build web, opt-in de aceite no navegador e export/typecheck mobile. Banco novo aplica Flyway V1–V17 e o upgrade V5 é exercitado. Playwright comum passou 2 e manteve 8 opt-ins condicionais; `expo-doctor` ficou 20/21 pelos desalinhamentos `expo-location`/Expo e `npm audit` mantém 23 alertas transitivos mobile (16 altos/7 moderados). `adb`/emulador e Endor Labs ficaram bloqueados (falta de aparelho, credencial e namespace). Nenhum e-mail, contratação, dinheiro, dado real ou deploy ocorreu.
+
+Prontidão: V1 local está pronta apenas para homologação condicionada; operação completa permanece bloqueada por SMTP/chaves/origem/políticas, fornecedores, retenção, backup/RPO-RTO, antimalware, mobile físico, rate limit distribuído e alertas mobile. Próxima ação: autor fornecer SMTP/remetente/caixa de teste e autorizar envio local para o roteiro cadastro → confirmação → recuperação.
+
 ## Orçamento zero e ordem de homologação — 09/10/2026
 
 R$ 0 passou a ser requisito eliminatório. A decisão registrada em [ORCAMENTO-ZERO-V1](ORCAMENTO-ZERO-V1.md) é homologar primeiro em `localhost`, com PostgreSQL/volume/backup locais e uma caixa SMTP já controlada pelo autor. Nenhuma conta externa foi criada, nenhum cartão/domínio foi cadastrado ou comprado, nenhuma cobrança foi habilitada, nenhum e-mail foi enviado e não houve deploy.
