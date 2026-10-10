@@ -1,5 +1,13 @@
 # Status — atualizado em 10/10/2026
 
+## Roteiro local de interfaces — 10/10/2026
+
+Foi mapeada a navegação existente para paciente, familiar, entregador, revisão operacional e financeiro em [ROTEIRO-INTERFACES-LOCAL](ROTEIRO-INTERFACES-LOCAL.md). A web V1 mantém perfil, privacidade e família; os painéis operacionais legados podem ser montados somente pelo Vite em desenvolvimento com `VITE_ENABLE_OPERATIONAL_TEST_PANELS=true`. A condição conjunta com `import.meta.env.DEV` preserva o build de publicação, e nenhuma autorização do backend foi alterada. A execução de ofertas, tarefa, custódia e GPS do entregador existe somente no aplicativo mobile; filas operacionais de cadastro/benefício e ações de privacidade privilegiadas não têm interface gráfica própria.
+
+A configuração `.env.smtp.local` existente foi verificada apenas quanto a modo `0600`, presença das chaves necessárias e allowlist não vazia, sem imprimir endereço, senha, chaves ou tokens. Nenhuma conta, papel, política, programa, saldo, pedido, benefício, pagamento, repasse, entrega ou posição foi criado ou alterado. As portas locais estavam inativas, portanto nenhum serviço foi iniciado nesta rodada.
+
+Bloqueios: a conta real só pode ser reutilizada se o volume local ainda existir; familiar exige uma segunda conta real e destinatário expressamente autorizado; AO/AB/GF dependem de provisionamento nominal ainda pendente; decisões profissionais/benefícios, rota/tarifa/protocolo, provedores financeiros, retenção de GPS e ensaio em aparelho permanecem indisponíveis. Próxima ação: iniciar backend e Vite nos dois terminais indicados pelo roteiro, entrar somente com a conta real existente e inspecionar as áreas sem submeter operações bloqueadas.
+
 ## Homologação local de e-mail — em preparação — 10/10/2026
 
 O autor autorizou Gmail SMTP local e o roteiro controlado de cadastro, confirmação, login e recuperação, limitado ao mesmo remetente/destinatário sob seu controle. Foi adicionada uma allowlist obrigatória no gateway comum: sem `EXAME_PERTO_EMAIL_ALLOWED_RECIPIENTS`, o SMTP permanece indisponível; endereço alheio é recusado antes do transporte. A barreira cobre cadastro, recuperação, convites e worker da outbox. A configuração continua em loopback, com autenticação e STARTTLS obrigatório, sem deploy ou acesso público.

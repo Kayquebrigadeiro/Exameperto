@@ -35,6 +35,7 @@ Versões exatas e dependências serão fixadas na implementação. Hospedagem e 
 - [Spec e backlog proposto](.scratch/planejamento/README.md)
 - [Progresso, validações e próxima ação](docs/STATUS.md)
 - [Escopo concreto do portfólio V1](docs/PORTFOLIO-V1.md)
+- [Roteiro local das interfaces existentes](docs/ROTEIRO-INTERFACES-LOCAL.md)
 
 O GitHub renderiza os diagramas Mermaid presentes na documentação. Cada alteração de fluxo, entidade ou responsabilidade deve atualizar o diagrama correspondente no mesmo commit do código.
 
