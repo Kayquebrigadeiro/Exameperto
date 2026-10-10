@@ -17,6 +17,7 @@ import org.testcontainers.junit.jupiter.*;
 @org.springframework.test.annotation.DirtiesContext
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT,properties={
     "registration.privacy-approved=true", "email.enabled=true", "email.from=sender@example.test",
+    "email.allowed-recipients=smtp@example.test",
     "spring.mail.host=127.0.0.1", "spring.mail.port=1", "spring.mail.properties.mail.smtp.connectiontimeout=250",
     "security.data-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
     "security.search-key=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="})

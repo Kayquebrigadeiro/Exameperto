@@ -1,4 +1,12 @@
-# Status — atualizado em 09/10/2026
+# Status — atualizado em 10/10/2026
+
+## Homologação local de e-mail — em preparação — 10/10/2026
+
+O autor autorizou Gmail SMTP local e o roteiro controlado de cadastro, confirmação, login e recuperação, limitado ao mesmo remetente/destinatário sob seu controle. Foi adicionada uma allowlist obrigatória no gateway comum: sem `EXAME_PERTO_EMAIL_ALLOWED_RECIPIENTS`, o SMTP permanece indisponível; endereço alheio é recusado antes do transporte. A barreira cobre cadastro, recuperação, convites e worker da outbox. A configuração continua em loopback, com autenticação e STARTTLS obrigatório, sem deploy ou acesso público.
+
+Foram criados os scripts `configure-local-email.sh` e `start-local-email-homologation.sh`. O primeiro recebe endereço e senha de app sem eco, gera chaves locais e grava somente `.env.smtp.local` ignorado pelo Git e com modo `600`; mantém `REGISTRATION_PRIVACY_APPROVED=false`. Nenhuma credencial, endereço real, token ou link foi versionado ou registrado na evidência. Os testes focados passaram 4/4 (allowlist e rollback em falha SMTP). A suíte Maven comum descobriu 67 testes: 59 executados sem falhas/erros e 8 opt-ins ignorados. Sintaxe dos scripts, geração descartável, modo do arquivo, configuração Gmail esperada, links locais e `git diff --check` também passaram; `shellcheck` não estava instalado.
+
+Bloqueio atual: a política mínima de privacidade para o cadastro real de homologação ainda não foi aprovada. A decisão deve definir finalidade, dados mínimos, acesso, retenção/descarte e responsável apenas para o ensaio local. Por isso não houve envio real e não se declarou aceitação SMTP nem recebimento. Próxima ação: autor registrar essa decisão e inserir a senha de app pelo prompt local; então executar somente duas mensagens (confirmação e recuperação), registrar aceitação SMTP separadamente do recebimento e verificar uso único, login, troca de senha e revogação das sessões anteriores.
 
 ## Auditoria integrada de segurança — base `e11b1c1` — 09/10/2026
 

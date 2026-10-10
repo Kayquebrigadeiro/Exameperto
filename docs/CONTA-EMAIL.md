@@ -12,6 +12,7 @@ Configure no ambiente do processo, gerenciador de segredos ou arquivo privado fo
 | `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT` | Servidor e porta fornecidos pelo provedor escolhido |
 | `SPRING_MAIL_USERNAME`, `SPRING_MAIL_PASSWORD` | Credencial SMTP autorizada pelo provedor |
 | `EXAME_PERTO_EMAIL_FROM` | Remetente autorizado/verificado pelo provedor |
+| `EXAME_PERTO_EMAIL_ALLOWED_RECIPIENTS` | Lista explícita, separada por vírgulas, dos únicos destinatários autorizados; vazia mantém o gateway indisponível |
 | `EXAME_PERTO_EMAIL_ENABLED` | `true` somente após configuração e autorização de envio |
 | `EXAME_PERTO_DATA_KEY` | 32 bytes aleatórios, Base64; cifra AES-256-GCM dos contatos e nomes |
 | `EXAME_PERTO_SEARCH_KEY` | Outros 32 bytes aleatórios, Base64; HMAC de busca e CSRF |
@@ -22,6 +23,16 @@ Configure no ambiente do processo, gerenciador de segredos ou arquivo privado fo
 As três chaves devem ser independentes, estáveis entre reinícios e guardadas com backup restrito. Não trocar a chave de cifra/busca sem migração: os dados existentes ficariam ilegíveis/inacessíveis. O envelope da cifra identifica a versão `1`; rotação operacional de chaves ainda depende de procedimento de migração. Não há chaves padrão na aplicação.
 
 STARTTLS é habilitado e obrigatório, com verificação do nome do servidor e timeouts de conexão/leitura/escrita de 5 segundos. Para provedores com TLS implícito, configure `SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_ENABLE=true` e ajuste STARTTLS conforme o serviço; não desative validação de certificado. Debug SMTP e logging de corpos/credenciais devem permanecer desligados. Referência: [Spring Boot — envio de e-mail](https://docs.spring.io/spring-boot/3.5/reference/io/email.html).
+
+Durante homologação, `EXAME_PERTO_EMAIL_ALLOWED_RECIPIENTS` é uma barreira obrigatória no gateway comum. Cadastro, recuperação, convite familiar e worker de outbox passam por ela; um endereço ausente da lista é recusado antes da chamada ao transporte SMTP. O remetente e a lista ficam somente no arquivo local ignorado pelo Git, nunca na documentação ou em evidências versionadas.
+
+### Preparação local do Gmail
+
+Execute `./scripts/configure-local-email.sh` em um terminal local. O script solicita o endereço e a senha de app sem exibi-la, remove os espaços de apresentação da senha, gera chaves independentes e grava `.env.smtp.local` com modo `600`. O arquivo é coberto por `.gitignore`. A configuração fixa `smtp.gmail.com:587`; autenticação, STARTTLS obrigatório e verificação de hostname continuam definidos em `application.yaml`.
+
+O script mantém `REGISTRATION_PRIVACY_APPROVED=false`. A decisão concreta ainda necessária é aprovar uma política mínima de privacidade para esta homologação local, especificando finalidade, dados mínimos, acesso, retenção/descarte do cadastro de teste e responsável. Somente depois dessa decisão a variável pode ser alterada para `true` durante o ensaio. Isso não aprova política de produção nem habilita outras operações.
+
+Depois da decisão e da alteração local, `./scripts/start-local-email-homologation.sh` inicia apenas PostgreSQL em loopback e o backend em `127.0.0.1`. O roteiro usa um único cadastro real e o menor número de mensagens: confirmação inicial e recuperação. Reenvio, convite e mensagens adicionais de outbox não devem ser provocados.
 
 Cookie web: HttpOnly, Secure, SameSite=Lax, Path `/api/v1/auth`. Desenvolvimento usa localhost/loopback (exceção de contexto seguro do Chromium, verificada no ensaio); uso fora do loopback exige HTTPS e origem autorizada. O proxy Vite mantém a origem da web. A aplicação ignora `X-Forwarded-For`; implantação atrás de proxy exige desenho posterior de confiança/rate limit.
 
@@ -73,3 +84,5 @@ O ticket 04 tem verificação completa própria em `./scripts/verify-ticket-04.s
 Antes de qualquer envio real: configurar provedor/remetente/chaves/política e registrar autorização específica do autor, incluindo endereço sob seu controle e escopo dos envios (cadastro, reenvio, recuperação). O endereço e credenciais ficam somente no ambiente privado. A autorização de implementar não foi tratada como autorização para enviar mensagens reais.
 
 No ensaio autorizado, conferir recebimento na caixa controlada (inclusive spam), remetente, conteúdo, prazo, confirmação única, recuperação e inutilização das sessões antigas. Registrar data, provedor, resultado e referência não sensível da evidência; não publicar endereço, cabeçalhos privados, token ou captura contendo dados pessoais. Aceitação SMTP e recebimento devem ser registrados separadamente. Falha, timeout ou bounce não permite declarar homologação. Até esse ensaio: **SMTP implementado, entrega real não homologada**.
+
+Na rodada de 10/10/2026, a configuração Gmail e a autorização de envio local foram fornecidas pelo autor, mas a política mínima acima continuou pendente. A allowlist obrigatória foi adicionada e validada com endereços reservados. Nenhuma credencial, endereço real, token ou link foi incluído no repositório; nenhum envio real foi executado enquanto o bloqueio de política permaneceu ativo.
