@@ -34,7 +34,7 @@ grep -q '"code":"INVALID_INPUT"' /tmp/exame-perto-local-check.json || fail "corp
 
 docker compose --env-file "$ENV_FILE" -f "$ROOT_DIR/infra/compose.yaml" exec -T postgres \
   psql -U "$DATABASE_USER" -d exameperto -Atc \
-  "select case when (select max(installed_rank) from flyway_schema_history)=17 and (select estado from controle_restauracao where singleton)='NORMAL' then 'ok' else 'fail' end" \
+  "select case when (select max(installed_rank) from flyway_schema_history)=18 and (select estado from controle_restauracao where singleton)='NORMAL' then 'ok' else 'fail' end" \
   | grep -qx ok || fail "migrações ou gate de restauração não estão prontos"
 
-echo "OK: Vite → backend → PostgreSQL; V17 aplicada; restauração NORMAL; configuração privada estruturalmente válida."
+echo "OK: Vite → backend → PostgreSQL; V18 aplicada; restauração NORMAL; configuração privada estruturalmente válida."

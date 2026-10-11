@@ -12,13 +12,21 @@ Em um terminal na raiz do projeto, inicie PostgreSQL e backend com a configuraç
 ./scripts/start-local-email-homologation.sh
 ```
 
-Em outro terminal, inicie a web com os painéis operacionais visíveis somente no servidor de desenvolvimento:
+Em outro terminal, inicie a web:
 
 ```sh
-VITE_ENABLE_OPERATIONAL_TEST_PANELS=true ./scripts/start-local-web.sh
+./scripts/start-local-web.sh
 ```
 
-Acesse somente a origem local canônica <http://127.0.0.1:5173/>. Não alterne para `localhost`: login, CSRF, cookie, links locais, CORS e WebSocket precisam conservar a origem exata. Não há rotas web distintas por papel: autenticação e todos os painéis habilitados são montados nessa página, em sequência. O flag é combinado com `import.meta.env.DEV`; portanto não monta os painéis operacionais em build de publicação. Ele altera apenas a navegação, não as autorizações da API.
+Acesse somente a origem local canônica <http://127.0.0.1:5173/>. Não alterne para `localhost`: login, CSRF, cookie, links locais, origem autorizada e WebSocket conservam a origem exata. Após o login, o shell usa rotas por hash (`#inicio`, `#perfil`, `#familia`, `#beneficios`, `#pedidos`, `#privacidade`, `#entregador` e `#entregas`). Áreas privilegiadas aparecem somente conforme `/api/v1/me/capabilities`, mas cada operação continua sendo autorizada novamente pelo backend.
+
+Para conceder um papel à sua própria conta local já cadastrada e confirmada, encerre preferencialmente o backend e execute:
+
+```sh
+./scripts/provision-local-access.sh
+```
+
+Escolha `conceder` ou `revogar` e o papel. `ANALISTA_OPERACIONAL` e `OPERADOR_PRIVACIDADE` são globais e separados. `ANALISTA_BENEFICIO` exige o UUID de uma instituição que já exista. `GESTOR_FINANCEIRO` exige instituição e registra também a capacidade global exigida pelo backend. A ferramenta não cria instituição/programa e registra a alteração em `auditoria_acesso_local`; é desabilitada por padrão e não possui endpoint HTTP. Reinicie o backend e entre novamente. MFA continua obrigatório, e sua segunda conta não satisfaz revisão independente.
 
 Use a conta real já confirmada, se ela ainda existir no banco local. Se o volume tiver sido descartado, só é aceitável cadastrar novamente o endereço real já autorizado pela allowlist. Não use outro destinatário, não invente CPF, nascimento, documento, saldo, programa, pedido ou posição.
 
@@ -26,22 +34,19 @@ Use a conta real já confirmada, se ela ainda existir no banco local. Se o volum
 
 | Área | Onde existe | URL ou destino | Requisito para visualizar | Requisito para operar | Bloqueio atual relevante |
 |---|---|---|---|---|---|
-| Conta e paciente | Web V1 | <http://127.0.0.1:5173/> | Página pública; login para perfil, privacidade e perfil de paciente | Conta confirmada e sessão web; dados próprios reais para qualquer envio | Criar perfil exige CPF e nascimento reais. Não preencher apenas para demonstração. Entrega, rota e pagamento permanecem indisponíveis. |
-| Familiar autorizado | Web V1 | <http://127.0.0.1:5173/> → **Autorizações sob controle** | Sessão web | Duas contas reais distintas; convite ao e-mail autorizado; aceite do destinatário; confirmação do paciente com escopos e prazo | A configuração existente só autoriza seus destinatários atuais. Sem uma segunda pessoa/endereço expressamente autorizado, apenas inspecione a tela; não crie outra conta nem amplie a allowlist. Representação legal e menores estão fora do fluxo. |
-| Entregador — cadastro e veículo | Web de desenvolvimento e app mobile | Web: <http://127.0.0.1:5173/> → **Cadastro e comprovações**. Mobile: development build | Web com flag local e sessão; mobile instalado e sessão `MOBILE` | Dados e documentos reais do próprio entregador; armazenamento privado; revisão posterior | Upload não aprova nada. Critérios profissionais, responsável real, antimalware abrangente e política de aprovação estão pendentes. A decisão do backend permanece `422 POLICY_UNDEFINED`. |
-| Entregador — ofertas, tarefa, custódia e GPS | Somente app mobile | Aplicativo Expo; API local em `http://10.0.2.2:8080/api/v1` no emulador ou `http://IP_LAN:8080/api/v1` no aparelho | Development build instalado, sessão móvel e acesso ao backend | Entregador e veículo aprovados, oferta elegível, cobertura confirmada, protocolo/capacidade habilitados e designação ativa; localização exige permissão do sistema | Aprovação profissional, protocolo/cobertura, políticas operacionais, pagamento/rota e retenção de GPS não estão habilitados. `EXAME_PERTO_TRACKING_ENABLED` permanece falso. Não há oferta, entrega ou posição simulada. |
-| Revisão operacional de veículo | Web de desenvolvimento | <http://127.0.0.1:5173/> → **Revisão operacional** | O painel é montado com o flag local; sem papel a própria tela informa indisponibilidade | Papel nominal `ANALISTA_OPERACIONAL`, revisão atribuída, MFA vigente, conta diferente da analisada e evidências estruturais completas | Não existe provisionamento automático de papel. Critérios/responsável de aprovação estão pendentes; a decisão final retorna `422 POLICY_UNDEFINED`. A fila de revisão do cadastro do entregador existe apenas na API, sem tela web própria. |
-| Benefício do paciente/familiar | Web de desenvolvimento | <http://127.0.0.1:5173/> → **Abrir benefícios** | Flag local e sessão | Paciente titular ou familiar com escopo `BENEFICIOS`; política institucional vigente para criar solicitação | Não há política, critérios, documentos aceitos ou responsáveis reais habilitados. A interface de análise por `ANALISTA_BENEFICIO` existe apenas na API; não há painel web de revisão. |
-| Pedido e acompanhamento do paciente/familiar | Web de desenvolvimento | <http://127.0.0.1:5173/> → **Abrir pedidos** | Flag local e sessão | Paciente ou familiar com `PEDIDOS`; destinatário autorizado; unidade/protocolo, evidência, tarifa e rota válidos. GPS requer participação vigente | Unidade/protocolo, provedor de rota, tarifa comercial, cobertura e políticas de custódia ainda faltam. Sem posição real a tela mostra indisponibilidade e não exibe marcador. |
-| Financeiro — aportes | Web de desenvolvimento | <http://127.0.0.1:5173/> → **Abrir aportes** | Flag local e sessão; o painel pode ser visto sem conceder capacidade | Papel global e vínculo institucional `GESTOR_FINANCEIRO`, MFA, programa real e evidência privada; outro GF é obrigatório para revisão | Bootstrap/recuperação privilegiados e responsáveis reais estão pendentes. Não existe programa/saldo predefinido, e a mesma pessoa não pode confirmar o próprio aporte. |
-| Financeiro — repasse e conciliação | Web de desenvolvimento | <http://127.0.0.1:5173/> → **Abrir repasses** | Flag local e sessão | GF nominal da instituição com MFA; entregador só consulta a própria parcela pela API | O provedor de repasse padrão retorna `503 INTEGRATION_UNAVAILABLE`. Não solicitar, confirmar ou conciliar dinheiro para fins de navegação. |
-| Privacidade operacional, administração e análise de benefício/cadastro | Somente API | Rotas `/api/v1/privacy-requests/**`, `/api/v1/analyst/**` e contratos em `contracts/openapi.yaml` | Não há interface gráfica existente | Papéis nominais, MFA, atribuição por registro, política válida e segregação aplicável | Provisionamento privilegiado, responsáveis e políticas continuam pendentes. O expurgo está desabilitado por padrão. Não conceder papéis diretamente no banco. |
+| Conta e paciente | `#inicio`, `#perfil`, `#familia`, `#privacidade` | Conta confirmada | CPF/nascimento próprios para criar paciente; outra pessoa real/allowlisted para convite | Identidade continua pendente; encerramento depende de política e obrigações. |
+| Familiar | `#familia`, `#beneficios`, `#pedidos` | Concessão vigente por escopo | O formulário identifica o paciente em nome de quem age; backend revalida em cada chamada | Convite exige outro destinatário permitido; não ampliar allowlist. |
+| Entregador | `#entregador`, `#entregas` | Cadastro próprio; aprovação/veículo para ofertas | Cadastro, documentos, veículo, ofertas, endereços atribuídos, custódia, entrega e ocorrência têm interface web | GPS contínuo permanece mobile; política profissional e parceiros reais não são inventados. |
+| Operação | `#operacao` | AO nominal + MFA | Filas de entregador e veículo, atribuição, inspeção e decisão | Autoanálise e política ausente bloqueiam. |
+| Benefícios | `#beneficios`, `#analise-beneficios` | P/F BENEFICIOS; AB institucional + MFA para análise | Solicitação, evidências, listagem, decisão e recurso | Recurso exige outro analista; instituição/política devem existir. |
+| Financeiro | `#financeiro` | GF global + institucional + MFA | Aportes, evidência, revisão, saldo, obrigações e conciliação | Programa real e outro GF são necessários; provedor padrão retorna indisponível, sem dinheiro fictício. |
+| Privacidade operacional | `#operacao-privacidade` | OP nominal + MFA | Fila, resposta, autorização, execução e verificação separadas | Expurgo desligado por padrão; política, backups e obrigações continuam guardas. |
 
 ## Ordem recomendada de inspeção
 
 1. Abra a web e percorra os modos públicos de cadastro, confirmação, login e recuperação sem enviar novos formulários. Entre apenas com a conta real já confirmada.
 2. Após o login, inspecione **Seu perfil**, **Solicitações e encerramento** e **Autorizações sob controle**. Não crie perfil de paciente nem convite sem dados e participantes reais autorizados.
-3. Com o flag local ativo, percorra **Cadastro e comprovações**, **Revisão operacional**, os botões de benefício, aportes, pedidos e repasses. Respostas `403`, `422 POLICY_UNDEFINED` e `503 INTEGRATION_UNAVAILABLE` são bloqueios esperados, não etapas a contornar.
+3. Percorra o menu lateral. Áreas sem papel não aparecem; use o provisionamento local somente para sua conta e reinicie a sessão. Respostas `403`, `422 POLICY_UNDEFINED` e `503 INTEGRATION_UNAVAILABLE` são bloqueios esperados, não etapas a contornar.
 4. Para o mobile, confirme primeiro `adb devices`. Em `mobile/`, use um development build apontado ao backend local:
 
    ```sh
@@ -61,4 +66,4 @@ Use a conta real já confirmada, se ela ainda existir no banco local. Se o volum
 
 Ao terminar, encerre Vite e backend. A remoção do banco/volume deve ser uma decisão explícita porque pode apagar a conta real local; este roteiro não autoriza essa remoção.
 
-Use `./scripts/verify-local-environment.sh` para conferir Vite → backend → PostgreSQL, V17, gate de restauração e estrutura da configuração sem exibir valores privados. Encerre Vite e backend com `Ctrl+C`; para preservar o volume, pare somente o container com `docker compose --env-file .env.smtp.local -f infra/compose.yaml stop postgres`.
+Use `./scripts/verify-local-environment.sh` para conferir Vite → backend → PostgreSQL, V18, gate de restauração e estrutura da configuração sem exibir valores privados. Encerre Vite e backend com `Ctrl+C` e execute `./scripts/stop-local.sh`; ele apenas para o PostgreSQL e preserva o volume.

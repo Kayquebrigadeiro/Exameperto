@@ -4,7 +4,7 @@ Nome de trabalho de uma plataforma de retirada autorizada e entrega de resultado
 
 ## Estado do projeto
 
-**Planejamento técnico com fatias independentes implementadas e verificadas localmente até V17/ticket 15.** O estado detalhado, o recorte de portfólio e os bloqueios de cada ticket estão em [STATUS](docs/STATUS.md); o projeto não está pronto para produção ou deploy. Não há contas predefinidas, dados de demonstração ou integrações simuladas no produto previsto; cadastro e operações externas permanecem indisponíveis sem as configurações e homologações reais correspondentes.
+**SaaS de portfólio local integrado até V18, sem prontidão produtiva ou deploy.** O estado detalhado e os bloqueios estão em [STATUS](docs/STATUS.md). Não há contas predefinidas, dados de demonstração ou integrações simuladas; operações externas permanecem indisponíveis sem configuração, política e responsáveis reais.
 
 O caso que motivou o projeto é o deslocamento de uma familiar entre Santana de Parnaíba e Barueri para realizar exames e, depois, buscar resultados. O primeiro escopo cobre a entrega de resultados/documentos em envelope fechado, não coleta de amostras ou transporte de pacientes.
 
@@ -49,7 +49,7 @@ docker compose -f infra/compose.yaml up -d
 export DATABASE_PASSWORD="$EXAME_PERTO_POSTGRES_PASSWORD"
 ```
 
-O backend inicia com `./scripts/start-local-email-homologation.sh`; em outro terminal, a web inicia com `./scripts/start-local-web.sh`. Acesse somente <http://127.0.0.1:5173/> e confira a cadeia com `./scripts/verify-local-environment.sh`. Para o portfólio, cadastro e confirmação só podem ser habilitados após configurar e homologar o SMTP com endereço controlado pelo autor e validar a política de privacidade. Não há conta de demonstração nem entrega simulada. O recorte executável e seus limites estão em [PORTFOLIO-V1](docs/PORTFOLIO-V1.md) e a [revisão integrada local](docs/REVISAO-INTEGRADA-LOCAL.md) classifica os fluxos existentes.
+O backend inicia com `./scripts/start-local-email-homologation.sh`; em outro terminal, a web inicia com `./scripts/start-local-web.sh`. Acesse somente <http://127.0.0.1:5173/> e confira a cadeia com `./scripts/verify-local-environment.sh`. Crie a conta pelo fluxo normal; papéis locais nominais são concedidos/revogados por `./scripts/provision-local-access.sh`, sem endpoint ou senha padrão. `./scripts/stop-local.sh` para o banco preservando o volume. Não há conta de demonstração nem entrega simulada. O roteiro e os limites estão em [ROTEIRO-INTERFACES-LOCAL](docs/ROTEIRO-INTERFACES-LOCAL.md).
 
 Configuração completa, comandos de teste e homologação pendente: [conta e e-mail](docs/CONTA-EMAIL.md). Confirmação, sessão e recuperação estão implementadas; entrega real de e-mail ainda não foi homologada.
 

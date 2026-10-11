@@ -35,6 +35,23 @@ flowchart TB
 
 Nenhum cliente acessa o banco diretamente. O backend autoriza cada consulta, envio de posição e assinatura ao vivo. Fotos operacionais são entregues somente a participantes autorizados da tarefa; documentos de análise não são publicados.
 
+### Navegação e provisionamento local (V18)
+
+```mermaid
+flowchart LR
+  C[Conta normal confirmada] --> P[Ferramenta local desabilitada por padrão]
+  P -->|papel global nominal| A[(papel_global)]
+  P -->|instituição já existente| I[(membro_instituicao)]
+  P --> U[(auditoria_acesso_local)]
+  A --> M[/me/capabilities]
+  I --> M
+  M --> W[Shell web por áreas]
+  W --> E[Endpoint revalida papel, vínculo, MFA e registro]
+  E -->|sem política/provedor/outra pessoa| B[Bloqueio explícito]
+```
+
+A projeção só orienta a navegação. O script não cria instituição, política, saldo, identidade ou aprovação e não está disponível por HTTP; revisão independente continua exigindo outra pessoa real.
+
 ### Titular, retenção e expurgo (V15)
 
 ```mermaid

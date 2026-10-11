@@ -36,7 +36,7 @@ O corpo original do 503 não foi conservado pelo navegador e os logs antigos nã
 
 ## Navegação e comportamento
 
-A URL web canônica é <http://127.0.0.1:5173/>. A tela pública abre em **Entrar**; cadastro, confirmação, reenvio e recuperação são escolhas explícitas. Durante sessão ativa, o formulário de autenticação é ocultado e a navegação aponta para perfil, privacidade e família. Painéis operacionais só aparecem no servidor de desenvolvimento com `VITE_ENABLE_OPERATIONAL_TEST_PANELS=true`; isso não muda nenhuma autorização da API.
+A URL web canônica é <http://127.0.0.1:5173/>. A tela pública abre em **Entrar**; cadastro, confirmação, reenvio e recuperação são escolhas explícitas. Durante sessão ativa, o formulário de autenticação é substituído por um shell navegável com conta, paciente/família, benefícios, pedidos, privacidade e entregador. Áreas privilegiadas derivam de capacidades efetivas e cada endpoint revalida papel, instituição, MFA e registro.
 
 Erros `401`, `403`, `404`, `409`, `422` e `503` continuam sendo apresentados como falha/bloqueio, sem mensagem de sucesso. O recarregamento tenta renovar a sessão pelo cookie; falha silenciosa de cookie ausente mantém a página pública. A origem permanece exata e não há CORS wildcard.
 
@@ -60,7 +60,7 @@ Verificação segura, sem imprimir configuração privada:
 ./scripts/verify-local-environment.sh
 ```
 
-Acesse <http://127.0.0.1:5173/>. Para inspecionar painéis condicionais, inicie o segundo terminal com `VITE_ENABLE_OPERATIONAL_TEST_PANELS=true ./scripts/start-local-web.sh`. Os scripts recusam processos duplicados nas portas 8080 e 5173.
+Acesse <http://127.0.0.1:5173/>. Não há flag visual de desenvolvimento. Para avaliar áreas privilegiadas com sua conta, use `./scripts/provision-local-access.sh` e reinicie a sessão; os scripts recusam processos duplicados nas portas 8080 e 5173.
 
 Para parar, use `Ctrl+C` nos dois terminais e preserve o PostgreSQL com:
 
