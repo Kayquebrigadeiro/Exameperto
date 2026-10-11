@@ -984,7 +984,7 @@ function AccountPage() {
           </p>
         </section>
         <section className="card" aria-label="Acesso à conta">
-          <nav aria-label="Opções de acesso">
+          {!session && <nav aria-label="Opções de acesso">
             {(Object.keys(labels) as Mode[]).map((key) => (
               <button
                 type="button"
@@ -1000,16 +1000,16 @@ function AccountPage() {
                 {labels[key]}
               </button>
             ))}
-          </nav>
+          </nav>}
           <div className="card-header">
             <span className="step">SUA CONTA</span>
-            <h2>{labels[mode]}</h2>
+            <h2>{session ? "Conta conectada" : labels[mode]}</h2>
             <p>
               Conta básica, sem concessão automática de identidade ou
               privilégios.
             </p>
           </div>
-          {!session && <form key={mode} onSubmit={submit}>
+          {!session && !restoring && <form key={mode} onSubmit={submit}>
             {mode === "register" && (
               <>
                 <label htmlFor="name">Nome completo</label>
@@ -1085,7 +1085,7 @@ function AccountPage() {
                   : "Sessão ativa neste navegador."
                 : "Sem sessão ativa em memória."}
             </p>
-            <button disabled={busy} onClick={() => sessionAction("refresh")}>
+            <button disabled={busy || restoring} onClick={() => sessionAction("refresh")}>
               Renovar sessão
             </button>
             {session && (
