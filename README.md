@@ -49,7 +49,7 @@ docker compose -f infra/compose.yaml up -d
 export DATABASE_PASSWORD="$EXAME_PERTO_POSTGRES_PASSWORD"
 ```
 
-O backend inicia com `mvn -f backend/pom.xml spring-boot:run`; a web prepara dependências com `npm ci --prefix web` e inicia com `npm run dev --prefix web`. Para o portfólio, cadastro e confirmação só podem ser habilitados após configurar e homologar o SMTP com endereço controlado pelo autor e validar a política de privacidade; no estado atual permanecem bloqueados. Não há conta de demonstração nem entrega simulada. O recorte executável e seus limites estão em [PORTFOLIO-V1](docs/PORTFOLIO-V1.md).
+O backend inicia com `./scripts/start-local-email-homologation.sh`; em outro terminal, a web inicia com `./scripts/start-local-web.sh`. Acesse somente <http://127.0.0.1:5173/> e confira a cadeia com `./scripts/verify-local-environment.sh`. Para o portfólio, cadastro e confirmação só podem ser habilitados após configurar e homologar o SMTP com endereço controlado pelo autor e validar a política de privacidade. Não há conta de demonstração nem entrega simulada. O recorte executável e seus limites estão em [PORTFOLIO-V1](docs/PORTFOLIO-V1.md) e a [revisão integrada local](docs/REVISAO-INTEGRADA-LOCAL.md) classifica os fluxos existentes.
 
 Configuração completa, comandos de teste e homologação pendente: [conta e e-mail](docs/CONTA-EMAIL.md). Confirmação, sessão e recuperação estão implementadas; entrega real de e-mail ainda não foi homologada.
 

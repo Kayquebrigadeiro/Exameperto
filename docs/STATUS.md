@@ -1,4 +1,12 @@
-# Status — atualizado em 10/10/2026
+# Status — atualizado em 11/10/2026
+
+## Revisão integrada local e correção de acesso — 11/10/2026
+
+A cadeia ativa foi inspecionada sem expor segredos: Vite `127.0.0.1:5173` encaminha à API `127.0.0.1:8080`, PostgreSQL está no Compose em loopback, Flyway V1–V17 está aplicado e o gate de restauração está `NORMAL`. O processo Java reiniciado carrega a configuração privada correta; SMTP Gmail/587, autenticação, STARTTLS obrigatório, verificação de hostname, remetente e allowlist única estão estruturalmente válidos, e uma autenticação SMTP sem envio foi aceita. Nenhuma mensagem real foi enviada nesta revisão e o banco local continua sem contas.
+
+O acesso observado em `/auth/register` não era uma troca interna de login: a página abria em cadastro. Ela agora abre em login, só cadastra após escolha explícita, oculta formulários públicos durante sessão ativa, restaura refresh HttpOnly/CSRF após reload e oferece navegação entre perfil, privacidade e família. A origem canônica passou a ser `http://127.0.0.1:5173` em backend, scripts, configuração privada e documentação; `localhost` recebe 403, sem ampliar CORS. O cadastro ganhou logs sanitizados correlacionáveis para distinguir configuração ausente de rejeição do transporte sem registrar endereço, senha, token ou mensagem.
+
+A [revisão integrada local](REVISAO-INTEGRADA-LOCAL.md) classifica os fluxos por perfil e registra superfícies somente mobile/API e dependências externas. Scripts novos iniciam a web sem duplicar porta e verificam Vite → backend → PostgreSQL, migrações, gate e estrutura da configuração. A regressão UI passou 3/3; `AuthFlowTest` passou 11/11; `BrowserFlowTest -DbrowserTest=true` passou após incluir reload de sessão e logout antes de novo cadastro. Build web e validação do ambiente real passaram. Próxima ação: o autor usar <http://127.0.0.1:5173/>, cadastrar somente a própria conta allowlisted, confirmar o código privado e percorrer login, perfil, recuperação, troca e logout; recebimento de e-mail continua dependendo dessa ação privada. Papéis privilegiados, segunda conta familiar, aparelho Android, políticas operacionais e provedores de rota/pagamento/repasse permanecem bloqueios reais.
 
 ## Roteiro local de interfaces — 10/10/2026
 
