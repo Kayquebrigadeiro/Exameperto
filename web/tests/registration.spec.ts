@@ -9,12 +9,27 @@ test('mostra indisponibilidade da API sem declarar cadastro ou envio concluído'
     }),
   }));
   await page.goto('/');
+  await page.getByRole('button', { name: 'Solicitar cadastro', exact: true }).first().click();
   await page.getByLabel('Nome completo').fill('Pessoa de Teste');
   await page.getByLabel('E-mail').fill('formulario@example.test');
   await page.getByLabel('Senha').fill('Somente-teste-123');
   await page.locator('button[type=submit]').click();
   await expect(page.getByRole('alert')).toContainText('e-mail');
   await expect(page.getByRole('alert')).toContainText('Não foi possível concluir');
+});
+
+test('acesso à conta começa em login e cadastro exige escolha explícita', async ({ page }) => {
+  const requests: string[] = [];
+  await page.route('**/api/v1/auth/*', async route => {
+    requests.push(new URL(route.request().url()).pathname);
+    await route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ message: 'Credenciais inválidas ou expiradas.' }) });
+  });
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Entrar', exact: true })).toBeVisible();
+  await page.getByLabel('E-mail').fill('conta@example.test');
+  await page.getByLabel('Senha').fill('senha-incorreta');
+  await page.locator('button[type=submit]').click();
+  await expect.poll(() => requests.filter(path => path.endsWith('/login'))).toEqual(['/api/v1/auth/login']);
 });
 
 test('formulário não apresenta violações básicas de acessibilidade', async ({ page }) => {

@@ -22,7 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/v1")
 class BenefitController {
     private final BenefitService service; private final String origin;
-    BenefitController(BenefitService service,@Value("${registration.allowed-origin:http://localhost:5173}") String origin){this.service=service;this.origin=origin;}
+    BenefitController(BenefitService service,@Value("${registration.allowed-origin:http://127.0.0.1:5173}") String origin){this.service=service;this.origin=origin;}
     @PostMapping("/benefit-requests") ResponseEntity<BenefitRequestView> create(Authentication a,HttpServletRequest r,@Valid @RequestBody BenefitRequestInput input){mutation(a,r);return ResponseEntity.status(HttpStatus.CREATED).body(service.create(user(a),input));}
     @GetMapping("/benefit-requests") List<BenefitRequestView> list(Authentication a){return service.list(user(a));}
     @GetMapping("/benefit-requests/{id}") BenefitRequestView get(Authentication a,@PathVariable UUID id){return service.get(user(a),id);}

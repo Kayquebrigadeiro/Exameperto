@@ -6,6 +6,7 @@ import { join } from 'node:path';
 test.skip(!process.env.TEST_MAILBOX, 'Run through BrowserFlowTest with disposable PostgreSQL and test email boundary.');
 
 test('navegador → backend → PostgreSQL: confirmação, sessão, recuperação e indisponibilidade', async ({ page, context }) => {
+  test.setTimeout(45_000);
   const mailbox = process.env.TEST_MAILBOX!;
   const choose = async (name: string) => page.getByRole('button', { name, exact: true }).first().click();
   const submit = async () => page.locator('button[type=submit]').click();
@@ -35,6 +36,9 @@ test('navegador → backend → PostgreSQL: confirmação, sessão, recuperaçã
   await page.getByLabel('Senha', { exact: true }).fill('Senha-sintetica-123');
   await submit(); await expect(page.getByRole('alert')).toContainText('Sessão iniciada');
   await expect(page.getByRole('heading', { name: 'Seu perfil' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Seu perfil' })).toBeVisible();
+  await expect(page.getByText('Sessão ativa neste navegador.', { exact: true })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Autorizações sob controle' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Cadastro de entregador' })).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Pedidos e orçamentos' })).toHaveCount(0);
@@ -80,6 +84,8 @@ test('navegador → backend → PostgreSQL: confirmação, sessão, recuperaçã
   await page.getByLabel('Senha', { exact: true }).fill('Nova-senha-sintetica-123');
   await submit(); await expect(page.getByRole('alert')).toContainText('Sessão iniciada');
   await writeFile(join(mailbox, 'unavailable'), 'test-only');
+  await page.getByRole('button', { name: 'Sair', exact: true }).click();
+  await expect(page.getByText('Sessão encerrada no servidor.', { exact: true })).toBeVisible();
   await choose('Solicitar cadastro');
   await page.getByLabel('Nome completo').fill('Outro Cadastro Sintético');
   await page.getByLabel('E-mail', { exact: true }).fill('blocked-browser@example.test');

@@ -27,7 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/v1")
 class DelivererController {
     private final DelivererService service; private final String origin;
-    DelivererController(DelivererService service,@Value("${registration.allowed-origin:http://localhost:5173}") String origin){this.service=service;this.origin=origin;}
+    DelivererController(DelivererService service,@Value("${registration.allowed-origin:http://127.0.0.1:5173}") String origin){this.service=service;this.origin=origin;}
     @PostMapping("/me/deliverer") ResponseEntity<DelivererView> create(Authentication a,HttpServletRequest r,@Valid @RequestBody DelivererInput input){mutation(a,r);return ResponseEntity.status(HttpStatus.CREATED).header(HttpHeaders.CACHE_CONTROL,"no-store").body(service.createOrUpdate(user(a),input,null));}
     @PutMapping("/me/deliverer") ResponseEntity<DelivererView> update(Authentication a,HttpServletRequest r,@RequestParam("version") long version,@Valid @RequestBody DelivererInput input){mutation(a,r);return ResponseEntity.ok().header(HttpHeaders.CACHE_CONTROL,"no-store").body(service.createOrUpdate(user(a),input,version));}
     @GetMapping("/me/deliverer") DelivererView own(Authentication a){return service.own(user(a));}

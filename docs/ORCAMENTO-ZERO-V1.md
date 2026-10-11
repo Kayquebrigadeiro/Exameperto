@@ -18,7 +18,7 @@ Usar somente recursos já pertencentes ao autor:
 - raiz privada POSIX fora do repositório em `EXAME_PERTO_PRIVATE_ROOT`, com permissão mínima;
 - cópia cifrada em um segundo destino local controlado pelo autor, seguida de restore isolado pelos scripts existentes; não confundir o volume principal com backup;
 - três chaves independentes geradas localmente e guardadas fora de Git/logs: `EXAME_PERTO_DATA_KEY`, `EXAME_PERTO_SEARCH_KEY` e `EXAME_PERTO_SIGNING_KEY`;
-- origem `http://localhost:5173`, já exercitada no Chromium como contexto seguro de loopback, sem expor portas à internet;
+- origem canônica `http://127.0.0.1:5173`, já exercitada no Chromium como contexto seguro de loopback, sem expor portas à internet;
 - caixa/remetente SMTP já existente, com TLS e credencial específica quando o provedor oferecer. As variáveis exatas permanecem na checklist de [PORTFOLIO-V1](PORTFOLIO-V1.md).
 
 Uma conta Gmail pessoal existente pode servir apenas para poucos envios de homologação se o autor a escolher: o Google limita contas pessoais a 500 mensagens ou destinatários por dia e pode bloquear novos envios por 1 a 24 horas; senha de aplicativo requer verificação em duas etapas e é revogada quando a senha da conta muda. Isso não transforma Gmail pessoal em canal transacional aprovado, não fornece SLA nem resolve bounce/observabilidade. Fontes: [limites de envio do Gmail](https://support.google.com/mail/answer/22839), [senhas de app](https://support.google.com/mail/answer/185833).

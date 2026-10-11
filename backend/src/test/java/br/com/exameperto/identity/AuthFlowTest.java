@@ -145,21 +145,21 @@ class AuthFlowTest {
         String address=active(); Map<String,Object> request=Map.of("email",address,"password",PASSWORD,"client","WEB");
         assertThat(post("login",request).statusCode()).isEqualTo(403);
         assertThat(post("login",request,"Origin","https://evil.example").statusCode()).isEqualTo(403);
-        var logged=post("login",request,"Origin","http://localhost:5173"); assertThat(logged.statusCode()).isEqualTo(200);
+        var logged=post("login",request,"Origin","http://127.0.0.1:5173"); assertThat(logged.statusCode()).isEqualTo(200);
         assertThat(body(logged)).doesNotContainKey("refreshToken");
         String setCookie=logged.headers().firstValue("Set-Cookie").orElseThrow();
         assertThat(setCookie).contains("Secure","HttpOnly","SameSite=Lax","Path=/api/v1/auth"); String cookie=setCookie.split(";")[0];
-        assertThat(post("refresh",Map.of(),"Cookie",cookie,"Origin","http://localhost:5173","X-CSRF-Token","invented").statusCode()).isEqualTo(403);
+        assertThat(post("refresh",Map.of(),"Cookie",cookie,"Origin","http://127.0.0.1:5173","X-CSRF-Token","invented").statusCode()).isEqualTo(403);
         assertThat(post("refresh",Map.of("refreshToken",cookie.substring(8))).statusCode()).isEqualTo(401);
-        var csrf=body(post("csrf",Map.of(),"Cookie",cookie,"Origin","http://localhost:5173")).get("token").toString();
-        var rotated=post("refresh",Map.of(),"Cookie",cookie,"Origin","http://localhost:5173","X-CSRF-Token",csrf);
+        var csrf=body(post("csrf",Map.of(),"Cookie",cookie,"Origin","http://127.0.0.1:5173")).get("token").toString();
+        var rotated=post("refresh",Map.of(),"Cookie",cookie,"Origin","http://127.0.0.1:5173","X-CSRF-Token",csrf);
         assertThat(rotated.statusCode()).isEqualTo(200);
         String nextCookie=rotated.headers().firstValue("Set-Cookie").orElseThrow().split(";")[0];
         String access=body(rotated).get("accessToken").toString();
         assertThat(post("logout",Map.of(),"Authorization","Bearer "+access).statusCode()).isEqualTo(403);
-        String nextCsrf=body(post("csrf",Map.of(),"Cookie",nextCookie,"Origin","http://localhost:5173")).get("token").toString();
-        assertThat(post("logout",Map.of(),"Authorization","Bearer "+access,"Cookie",nextCookie,"Origin","http://localhost:5173","X-CSRF-Token",nextCsrf).statusCode()).isEqualTo(204);
-        assertThat(post("refresh",Map.of(),"Cookie",nextCookie,"Origin","http://localhost:5173","X-CSRF-Token",nextCsrf).statusCode()).isEqualTo(401);
+        String nextCsrf=body(post("csrf",Map.of(),"Cookie",nextCookie,"Origin","http://127.0.0.1:5173")).get("token").toString();
+        assertThat(post("logout",Map.of(),"Authorization","Bearer "+access,"Cookie",nextCookie,"Origin","http://127.0.0.1:5173","X-CSRF-Token",nextCsrf).statusCode()).isEqualTo(204);
+        assertThat(post("refresh",Map.of(),"Cookie",nextCookie,"Origin","http://127.0.0.1:5173","X-CSRF-Token",nextCsrf).statusCode()).isEqualTo(401);
     }
     @Test void repeatedLoginAttemptsAreLimitedForUnknownAccountsToo() throws Exception {
         String address=UUID.randomUUID()+"@example.test";

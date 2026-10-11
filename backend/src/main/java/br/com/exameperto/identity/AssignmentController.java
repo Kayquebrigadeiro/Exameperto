@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1")
 class AssignmentController {
     private final AssignmentService service;private final String origin;
-    AssignmentController(AssignmentService service,@Value("${registration.allowed-origin:http://localhost:5173}")String origin){this.service=service;this.origin=origin;}
+    AssignmentController(AssignmentService service,@Value("${registration.allowed-origin:http://127.0.0.1:5173}")String origin){this.service=service;this.origin=origin;}
     @GetMapping("/offers") OfferPageView offers(Authentication a){return new OfferPageView(service.offers(user(a)),null);}
     @PostMapping("/orders/{id}/assignment") ResponseEntity<AssignmentView> accept(Authentication a,HttpServletRequest r,@PathVariable UUID id,@RequestHeader("If-Match")String etag,@RequestHeader("Idempotency-Key")String key,@Valid @RequestBody AcceptTaskInput input){mutation(a,r);return ResponseEntity.status(HttpStatus.CREATED).body(service.accept(user(a),id,version(etag),key,input));}
     @GetMapping("/orders/{id}/assignment") AssignmentView assignment(Authentication a,@PathVariable UUID id){return service.get(user(a),id);}

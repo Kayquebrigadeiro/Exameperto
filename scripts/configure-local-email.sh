@@ -46,7 +46,7 @@ fi
   printf '%s\n' "EXAME_PERTO_SEARCH_KEY=$search_key"
   printf '%s\n' "EXAME_PERTO_SIGNING_KEY=$signing_key"
   printf '%s\n' "REGISTRATION_PRIVACY_APPROVED=false"
-  printf '%s\n' "REGISTRATION_ALLOWED_ORIGIN=http://localhost:5173"
+  printf '%s\n' "REGISTRATION_ALLOWED_ORIGIN=http://127.0.0.1:5173"
 } > "$ENV_FILE"
 
 chmod 600 "$ENV_FILE"

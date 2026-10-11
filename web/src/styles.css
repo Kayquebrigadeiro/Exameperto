@@ -36,6 +36,8 @@ button.danger { grid-column: 1 / -1; justify-self: start; margin: .3rem 0 0; pad
 .inline-fields label { display: grid; gap: .55rem; }
 .vehicle-registers { grid-template-columns: repeat(auto-fit,minmax(17rem,1fr)); }
 .vehicle-registers article > button, .vehicle-registers p > button { grid-column: 1 / -1; justify-self: start; margin: .2rem 0; padding: .55rem .7rem; font-size: .7rem; }
+.account-navigation { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: .65rem; margin: 0 auto 1.2rem; padding: .8rem 1.3rem; max-width: 74rem; background: rgba(233,239,233,.96); border-bottom: 1px solid #bac9c3; }
+.account-navigation a { color: #17352d; font: 600 .72rem DM Mono,monospace; text-underline-offset: .2rem; }
 .review-panel { background: #d9e3da; }
 .review-decision { margin: 1rem 0 0; background: #8f493c; }
 @media (max-width: 760px) { .inline-fields { grid-template-columns: 1fr; } }

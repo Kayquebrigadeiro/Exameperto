@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 class PrivacyController {
     private final PrivacyService service;
     private final String origin;
-    PrivacyController(PrivacyService service,@Value("${registration.allowed-origin:http://localhost:5173}") String origin) { this.service=service; this.origin=origin; }
+    PrivacyController(PrivacyService service,@Value("${registration.allowed-origin:http://127.0.0.1:5173}") String origin) { this.service=service; this.origin=origin; }
 
     @PostMapping("/me/privacy-requests")
     ResponseEntity<PrivacyRequestView> create(Authentication auth,HttpServletRequest request,@Valid @RequestBody PrivacyRequestInput input,@RequestHeader(value="Idempotency-Key",required=false) String key) {

@@ -26,7 +26,7 @@ class RepresentationController {
     private final RepresentationService service;
     private final String origin;
     RepresentationController(RepresentationService service,
-        @Value("${registration.allowed-origin:http://localhost:5173}") String origin) {
+        @Value("${registration.allowed-origin:http://127.0.0.1:5173}") String origin) {
         this.service=service; this.origin=origin;
     }
 

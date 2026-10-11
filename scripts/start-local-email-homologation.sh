@@ -13,6 +13,12 @@ if [[ "$(stat -c '%a' "$ENV_FILE")" != "600" ]]; then
   exit 1
 fi
 
+if (exec 3<>/dev/tcp/127.0.0.1/8080) 2>/dev/null; then
+  exec 3>&-
+  echo "A porta 8080 já está em uso; encerre o backend existente antes de iniciar outro." >&2
+  exit 1
+fi
+
 set -a
 # shellcheck disable=SC1090
 . "$ENV_FILE"

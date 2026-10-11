@@ -15,7 +15,7 @@ import org.springframework.web.socket.config.annotation.*;
 @EnableWebSocketMessageBroker
 class TrackingWebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final AuthService auth; private final TrackingAccessService access; private final org.springframework.beans.factory.ObjectProvider<TrackingLiveRegistry> live; private final String origin;
-    TrackingWebSocketConfig(AuthService auth,TrackingAccessService access,org.springframework.beans.factory.ObjectProvider<TrackingLiveRegistry> live,@Value("${registration.allowed-origin:http://localhost:5173}")String origin){this.auth=auth;this.access=access;this.live=live;this.origin=origin;}
+    TrackingWebSocketConfig(AuthService auth,TrackingAccessService access,org.springframework.beans.factory.ObjectProvider<TrackingLiveRegistry> live,@Value("${registration.allowed-origin:http://127.0.0.1:5173}")String origin){this.auth=auth;this.access=access;this.live=live;this.origin=origin;}
     @Override public void registerStompEndpoints(StompEndpointRegistry registry){registry.addEndpoint("/ws").setAllowedOrigins(origin);}
     @Override public void configureMessageBroker(MessageBrokerRegistry registry){registry.enableSimpleBroker("/queue");registry.setUserDestinationPrefix("/user");}
     @Override public void configureClientInboundChannel(ChannelRegistration registration){registration.interceptors(new ChannelInterceptor(){@Override public Message<?> preSend(Message<?> message,MessageChannel channel){StompHeaderAccessor h=MessageHeaderAccessor.getAccessor(message,StompHeaderAccessor.class);if(h==null||h.getCommand()==null)return message;switch(h.getCommand()){

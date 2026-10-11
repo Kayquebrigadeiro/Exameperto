@@ -27,7 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/v1")
 class VehicleController {
     private final VehicleService service; private final DelivererService evidence; private final String origin;
-    VehicleController(VehicleService service,DelivererService evidence,@Value("${registration.allowed-origin:http://localhost:5173}") String origin){this.service=service;this.evidence=evidence;this.origin=origin;}
+    VehicleController(VehicleService service,DelivererService evidence,@Value("${registration.allowed-origin:http://127.0.0.1:5173}") String origin){this.service=service;this.evidence=evidence;this.origin=origin;}
 
     @PostMapping("/me/vehicle-links") ResponseEntity<VehicleLinkView> create(Authentication a,HttpServletRequest r,@Valid @RequestBody VehicleInput input){mutation(a,r);return ResponseEntity.status(HttpStatus.CREATED).header(HttpHeaders.CACHE_CONTROL,"no-store").body(service.create(user(a),input));}
     @GetMapping("/me/vehicle-links") List<VehicleLinkView> list(Authentication a){return service.own(user(a));}

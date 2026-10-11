@@ -40,7 +40,7 @@ spring:
       max-request-size: 11MB
 registration:
   privacy-approved: false
-  allowed-origin: http://localhost:5173
+  allowed-origin: http://127.0.0.1:5173
   attempts-per-minute: 5
   global-attempts-per-minute: 100
   email-token-ttl: PT30M

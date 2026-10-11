@@ -810,7 +810,9 @@ function OrderPanel({ session }: { session: Tokens }) {
 }
 
 function AccountPage() {
-  const [mode, setMode] = useState<Mode>("register");
+  // Account access is the safe default. Registration is an explicit choice so
+  // an ordinary sign-in attempt cannot create a pending account or send mail.
+  const [mode, setMode] = useState<Mode>("login");
   const [busy, setBusy] = useState(false);
   const [session, setSession] = useState<Tokens | null>(null);
   const [feedback, setFeedback] = useState<Notice | null>(null);
@@ -819,6 +821,22 @@ function AccountPage() {
   const [showOrders, setShowOrders] = useState(false);
   const [showPayouts, setShowPayouts] = useState(false);
   const [expired, setExpired] = useState(false);
+  const [restoring, setRestoring] = useState(true);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const csrf = await call("csrf", {});
+        const renewed = await call("refresh", {}, { "X-CSRF-Token": csrf.token as string });
+        if (active) setSession(renewed as Tokens);
+      } catch {
+        // No usable refresh cookie is the normal public-page state.
+      } finally {
+        if (active) setRestoring(false);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
   useEffect(() => {
     if (!session) return;
     setExpired(false);
@@ -991,7 +1009,7 @@ function AccountPage() {
               privilégios.
             </p>
           </div>
-          <form key={mode} onSubmit={submit}>
+          {!session && <form key={mode} onSubmit={submit}>
             {mode === "register" && (
               <>
                 <label htmlFor="name">Nome completo</label>
@@ -1056,10 +1074,12 @@ function AccountPage() {
               {busy ? "Aguarde…" : labels[mode]}{" "}
               <span aria-hidden="true">→</span>
             </button>
-          </form>
+          </form>}
           <section className="session" aria-label="Sessão">
             <p>
-              {session
+              {restoring
+                ? "Verificando uma sessão anterior neste navegador."
+                : session
                 ? expired
                   ? "Acesso expirado. Renove para continuar."
                   : "Sessão ativa neste navegador."
@@ -1087,11 +1107,17 @@ function AccountPage() {
       </main>
       {session && !expired && (
         <>
-          <ProfilePanel session={session} />
-          <PrivacyPanel session={session} />
-          <FamilyPanel session={session} />
+          <nav className="account-navigation" aria-label="Áreas da conta">
+            <a href="#profile">Perfil</a>
+            <a href="#privacy">Privacidade</a>
+            <a href="#family">Família</a>
+            {operationalPanelsInPortfolioV1 && <a href="#operational">Áreas condicionais</a>}
+          </nav>
+          <div id="profile"><ProfilePanel session={session} /></div>
+          <div id="privacy"><PrivacyPanel session={session} /></div>
+          <div id="family"><FamilyPanel session={session} /></div>
           {operationalPanelsInPortfolioV1 && <>
-            <DelivererPanel session={session} />
+            <div id="operational"><DelivererPanel session={session} /></div>
             <VehicleReviewPanel session={session} />
             <section className="family" aria-label="Benefícios"><button type="button" onClick={() => setShowBenefits(value => !value)}>{showBenefits ? "Ocultar benefícios" : "Abrir benefícios"}</button></section>
             {showBenefits && <BenefitPanel session={session} />}

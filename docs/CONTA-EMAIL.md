@@ -18,7 +18,7 @@ Configure no ambiente do processo, gerenciador de segredos ou arquivo privado fo
 | `EXAME_PERTO_SEARCH_KEY` | Outros 32 bytes aleatórios, Base64; HMAC de busca e CSRF |
 | `EXAME_PERTO_SIGNING_KEY` | Outros 32 bytes aleatórios, Base64; assinatura HS256 dos access tokens |
 | `REGISTRATION_PRIVACY_APPROVED` | `true` apenas com responsáveis/retenção pertinentes validados para dados reais |
-| `REGISTRATION_ALLOWED_ORIGIN` | Origem exata da web; padrão `http://localhost:5173` |
+| `REGISTRATION_ALLOWED_ORIGIN` | Origem exata da web; padrão local canônico `http://127.0.0.1:5173` |
 
 As três chaves devem ser independentes, estáveis entre reinícios e guardadas com backup restrito. Não trocar a chave de cifra/busca sem migração: os dados existentes ficariam ilegíveis/inacessíveis. O envelope da cifra identifica a versão `1`; rotação operacional de chaves ainda depende de procedimento de migração. Não há chaves padrão na aplicação.
 
@@ -32,7 +32,7 @@ Execute `./scripts/configure-local-email.sh` em um terminal local. O script soli
 
 O script mantém `REGISTRATION_PRIVACY_APPROVED=false`. A decisão concreta ainda necessária é aprovar uma política mínima de privacidade para esta homologação local, especificando finalidade, dados mínimos, acesso, retenção/descarte do cadastro de teste e responsável. Somente depois dessa decisão a variável pode ser alterada para `true` durante o ensaio. Isso não aprova política de produção nem habilita outras operações.
 
-Depois da decisão e da alteração local, `./scripts/start-local-email-homologation.sh` inicia apenas PostgreSQL em loopback e o backend em `127.0.0.1`. O roteiro usa um único cadastro real e o menor número de mensagens: confirmação inicial e recuperação. Reenvio, convite e mensagens adicionais de outbox não devem ser provocados.
+Depois da decisão e da alteração local, `./scripts/start-local-email-homologation.sh` inicia apenas PostgreSQL em loopback e o backend em `127.0.0.1`. A web, os links locais, a origem autorizada e o proxy usam canonicamente `http://127.0.0.1:5173`; `localhost` não deve ser misturado na mesma sessão. O roteiro usa um único cadastro real e o menor número de mensagens: confirmação inicial e recuperação. Reenvio, convite e mensagens adicionais de outbox não devem ser provocados.
 
 Cookie web: HttpOnly, Secure, SameSite=Lax, Path `/api/v1/auth`. Desenvolvimento usa localhost/loopback (exceção de contexto seguro do Chromium, verificada no ensaio); uso fora do loopback exige HTTPS e origem autorizada. O proxy Vite mantém a origem da web. A aplicação ignora `X-Forwarded-For`; implantação atrás de proxy exige desenho posterior de confiança/rate limit.
 

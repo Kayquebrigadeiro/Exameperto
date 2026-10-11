@@ -16,7 +16,7 @@ class ProfileController {
     private final ProfileService service;
     private final String origin;
 
-    ProfileController(ProfileService service, @Value("${registration.allowed-origin:http://localhost:5173}") String origin) {
+    ProfileController(ProfileService service, @Value("${registration.allowed-origin:http://127.0.0.1:5173}") String origin) {
         this.service = service;
         this.origin = origin;
     }

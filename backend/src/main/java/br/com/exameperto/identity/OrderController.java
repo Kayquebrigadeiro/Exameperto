@@ -24,7 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/v1")
 class OrderController {
     private final OrderService service; private final CustodyService custody; private final String origin;
-    OrderController(OrderService service,CustodyService custody,@Value("${registration.allowed-origin:http://localhost:5173}") String origin){this.service=service;this.custody=custody;this.origin=origin;}
+    OrderController(OrderService service,CustodyService custody,@Value("${registration.allowed-origin:http://127.0.0.1:5173}") String origin){this.service=service;this.custody=custody;this.origin=origin;}
     @PostMapping("/orders") ResponseEntity<OrderView> create(Authentication a,HttpServletRequest r,@RequestHeader(value="Idempotency-Key",required=false) String key,@Valid @RequestBody OrderInput input){mutation(a,r);return ResponseEntity.status(HttpStatus.CREATED).body(service.create(user(a),input,key));}
     @GetMapping("/orders") List<OrderView> list(Authentication a){return service.list(user(a));}
     @PostMapping(value="/order-documents/pickup-authorization",consumes=MediaType.MULTIPART_FORM_DATA_VALUE) ResponseEntity<DocumentView> uploadAuthorization(Authentication a,HttpServletRequest r,@RequestParam MultipartFile file){mutation(a,r);return ResponseEntity.status(HttpStatus.CREATED).body(service.uploadAuthorizationDocument(user(a),file));}

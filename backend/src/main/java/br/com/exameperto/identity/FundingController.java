@@ -23,7 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/v1")
 class FundingController {
     private final FundingService service; private final String origin;
-    FundingController(FundingService service,@Value("${registration.allowed-origin:http://localhost:5173}") String origin){this.service=service;this.origin=origin;}
+    FundingController(FundingService service,@Value("${registration.allowed-origin:http://127.0.0.1:5173}") String origin){this.service=service;this.origin=origin;}
     @PostMapping(value="/me/financial-documents",consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
     ResponseEntity<DocumentView> uploadEvidence(Authentication a,HttpServletRequest r,@RequestParam MultipartFile file){mutation(a,r);return ResponseEntity.status(HttpStatus.CREATED).body(service.uploadEvidence(user(a),file));}
     @GetMapping("/programs/{programId}/balance") BalanceView balance(Authentication a,@PathVariable UUID programId){return service.balance(principal(a),programId);}
