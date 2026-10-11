@@ -92,7 +92,7 @@ class MfaService {
     }
     private void elevate(UUID session) { jdbc.update("UPDATE sessao SET mfa_verificada_ate=?,updated_at=clock_timestamp() WHERE id=? AND revogada_em IS NULL",Timestamp.from(Instant.now().plus(elevationTtl)),session); }
     private void requirePrivileged(UUID user) {
-        if (jdbc.queryForObject("SELECT count(*) FROM papel_global WHERE usuario_id=? AND revogado_em IS NULL",Long.class,user)==0)
+        if (jdbc.queryForObject("SELECT (SELECT count(*) FROM papel_global WHERE usuario_id=? AND revogado_em IS NULL)+(SELECT count(*) FROM membro_instituicao WHERE usuario_id=? AND revogado_em IS NULL)",Long.class,user,user)==0)
             throw DelivererService.error(HttpStatus.FORBIDDEN,"FORBIDDEN","Conta sem capacidade privilegiada nominal.");
     }
     private boolean constantTime(String a,String b) { return java.security.MessageDigest.isEqual(a.getBytes(StandardCharsets.US_ASCII),b.getBytes(StandardCharsets.US_ASCII)); }

@@ -61,6 +61,12 @@ class PrivacyService {
             .stream().map(id -> viewAny(id)).toList();
     }
 
+    List<PrivacyRequestView> queue(UUID actor) {
+        operator(actor);
+        return jdbc.queryForList("SELECT id FROM solicitacao_privacidade WHERE estado IN ('PENDENTE','EM_ANALISE','RESPONDIDA','EXPURGO_SOLICITADO','EXPURGADA') ORDER BY created_at,id",UUID.class)
+            .stream().map(this::viewAny).toList();
+    }
+
     @Transactional
     PrivacyRequestView respond(AuthService.SessionPrincipal principal, UUID id, PrivacyResponseInput input) {
         privileged(principal);
@@ -237,7 +243,7 @@ class PrivacyService {
 
     private void privileged(AuthService.SessionPrincipal principal) { mfa.requireVerified(principal); operator(principal.userId()); }
     private void operator(UUID user) {
-        if (jdbc.queryForObject("SELECT count(*) FROM papel_global WHERE usuario_id=? AND papel='ANALISTA_OPERACIONAL' AND revogado_em IS NULL",Long.class,user)!=1)
+        if (jdbc.queryForObject("SELECT count(*) FROM papel_global WHERE usuario_id=? AND papel='OPERADOR_PRIVACIDADE' AND revogado_em IS NULL",Long.class,user)!=1)
             throw error(HttpStatus.FORBIDDEN,"FORBIDDEN","Operador de privacidade não encontrado.");
     }
     private void requirePurgeEnabled() {

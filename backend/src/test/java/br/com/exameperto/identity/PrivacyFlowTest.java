@@ -68,6 +68,8 @@ class PrivacyFlowTest {
         Account operator=account("operador-resposta");
         grantOperator(operator);
         mfa(operator);
+        assertThat(request(operator,"GET","/privacy-requests",null,null).statusCode()).isEqualTo(200);
+        assertThat(request(unrelated,"GET","/privacy-requests",null,null).statusCode()).isEqualTo(403);
 
         JsonNode access=create(owner,"ACESSO","Quero acessar meus dados.","access-1");
         JsonNode correction=create(owner,"CORRECAO","Quero corrigir meu contato.","correction-1");
@@ -260,7 +262,7 @@ class PrivacyFlowTest {
         jdbc.update("INSERT INTO financeiro_outbox(id,operacao_id,pedido_id,tipo,chave,payload_saneado,estado) VALUES (?,?,?,'CRIAR_COBRANCA',?,jsonb_build_object('operationId',?::text),'PENDENTE')",UUID.randomUUID(),operation,order,"charge:"+order,operation);
         return new FinancialFixture(position,operation,order);
     }
-    private void grantOperator(Account account) { jdbc.update("INSERT INTO papel_global(usuario_id,papel) VALUES (?,'ANALISTA_OPERACIONAL')",account.id); }
+    private void grantOperator(Account account) { jdbc.update("INSERT INTO papel_global(usuario_id,papel) VALUES (?,'OPERADOR_PRIVACIDADE')",account.id); }
     private void linkFamilyWithoutPrivacyScope(Account owner,Account family) {
         UUID patient=UUID.randomUUID();
         String cpf=String.format("%011d",Integer.toUnsignedLong(patient.hashCode()));

@@ -592,6 +592,16 @@ paths:
           $ref: '#/components/responses/Error401'
         '404':
           $ref: '#/components/responses/Error404'
+  /me/capabilities:
+    get:
+      operationId: getOwnCapabilities
+      summary: Consultar áreas e vínculos efetivos da sessão
+      tags: [me]
+      description: Projeção para navegação. Não concede papel nem substitui a autorização de cada operação.
+      x-permission: Conta autenticada; somente os próprios papéis e vínculos ativos
+      responses:
+        '200': {description: Capacidades efetivas, content: {application/json: {schema: {$ref: '#/components/schemas/Capabilities'}}}}
+        '401': {$ref: '#/components/responses/Error401'}
   /me/privacy-requests:
     get:
       operationId: listOwnPrivacyRequests
@@ -693,12 +703,22 @@ paths:
           content: {application/json: {schema: {$ref: '#/components/schemas/PrivacyRequest'}}}
         '401': {$ref: '#/components/responses/Error401'}
         '404': {$ref: '#/components/responses/Error404'}
+  /privacy-requests:
+    get:
+      operationId: listPrivacyQueue
+      summary: Listar a fila operacional de privacidade
+      tags: [privacy]
+      x-permission: Operador de privacidade nominal; conteúdo mínimo da fila
+      responses:
+        '200': {description: Solicitações em tratamento, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/PrivacyRequest'}}}}}
+        '401': {$ref: '#/components/responses/Error401'}
+        '403': {$ref: '#/components/responses/Error403'}
   /privacy-requests/{id}/response:
     post:
       operationId: respondPrivacyRequest
       summary: Responder solicitação sem afirmar que eventual exclusão foi executada
       tags: [privacy]
-      x-permission: Analista operacional nominal com MFA; autorização revalidada na chamada
+      x-permission: Operador de privacidade nominal com MFA; autorização revalidada na chamada
       parameters:
       - name: id
         in: path
@@ -719,7 +739,7 @@ paths:
       operationId: authorizePrivacyPurge
       summary: Autorizar expurgo com política validada e inventário de recursos
       tags: [privacy]
-      x-permission: Analista operacional nominal com MFA; configuração explícita de expurgo
+      x-permission: Operador de privacidade nominal com MFA; configuração explícita de expurgo
       parameters:
       - name: id
         in: path
@@ -738,7 +758,7 @@ paths:
       operationId: executePrivacyPurge
       summary: Executar ou retomar expurgo idempotente dos recursos controlados
       tags: [privacy]
-      x-permission: Analista operacional nominal com MFA; papel e sessão revalidados
+      x-permission: Operador de privacidade nominal com MFA; papel e sessão revalidados
       parameters:
       - name: id
         in: path
@@ -756,7 +776,7 @@ paths:
       summary: Verificar ausência nos recursos efetivamente controlados
       tags: [privacy]
       description: VERIFICADA limita-se aos recursos locais controlados. Dispositivos, fornecedores e backups continuam como procedimento pendente e não recebem comprovação fictícia.
-      x-permission: Analista operacional nominal com MFA; papel e sessão revalidados
+      x-permission: Operador de privacidade nominal com MFA; papel e sessão revalidados
       parameters:
       - name: id
         in: path
@@ -6132,6 +6152,32 @@ components:
         name: {type: string, minLength: 1, maxLength: 160}
         phone: {type: string, maxLength: 40, nullable: true}
       required: [name]
+    InstitutionCapability:
+      type: object
+      additionalProperties: false
+      properties:
+        institutionId: {type: string, format: uuid}
+        institutionName: {type: string}
+        institutionStatus: {type: string}
+        role: {type: string, enum: [ANALISTA_BENEFICIO, GESTOR_FINANCEIRO]}
+      required: [institutionId, institutionName, institutionStatus, role]
+    Capabilities:
+      type: object
+      additionalProperties: false
+      properties:
+        globalRoles:
+          type: array
+          items: {type: string, enum: [ANALISTA_OPERACIONAL, GESTOR_FINANCEIRO, OPERADOR_PRIVACIDADE]}
+        institutions:
+          type: array
+          items: {$ref: '#/components/schemas/InstitutionCapability'}
+        areas:
+          type: array
+          items: {type: string}
+        patientProfile: {type: boolean}
+        delivererProfile: {type: boolean}
+        activeFamilyAuthorization: {type: boolean}
+      required: [globalRoles, institutions, areas, patientProfile, delivererProfile, activeFamilyAuthorization]
     Profile:
       type: object
       additionalProperties: false

@@ -59,7 +59,7 @@ class BackupRestoreFlowTest {
         UUID session=UUID.randomUUID();
         jdbc.update("INSERT INTO sessao(id,usuario_id,familia_id,refresh_hash,expira_em,cliente,mfa_verificada_ate) VALUES (?,?,?,?,clock_timestamp()+interval '1 hour','WEB',clock_timestamp()+interval '10 minutes')",
             session,operator,UUID.randomUUID(),bytes("refresh"));
-        jdbc.update("INSERT INTO papel_global(usuario_id,papel) VALUES (?,'ANALISTA_OPERACIONAL')",operator);
+        jdbc.update("INSERT INTO papel_global(usuario_id,papel) VALUES (?,'OPERADOR_PRIVACIDADE')",operator);
         UUID ordinary=document(owner,"IDENTIDADE","ordinary.bin");
         UUID financialDocument=document(owner,"FINANCIAMENTO","financial.bin");
         Fixture fixture=financialFixture(owner,driverUser);
