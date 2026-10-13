@@ -18,7 +18,7 @@ Em outro terminal, inicie a web:
 ./scripts/start-local-web.sh
 ```
 
-Acesse somente a origem local canônica <http://127.0.0.1:5173/>. Não alterne para `localhost`: login, CSRF, cookie, links locais, origem autorizada e WebSocket conservam a origem exata. Após o login, o shell usa rotas por hash (`#inicio`, `#perfil`, `#familia`, `#beneficios`, `#pedidos`, `#privacidade`, `#entregador` e `#entregas`). Áreas privilegiadas aparecem somente conforme `/api/v1/me/capabilities`, mas cada operação continua sendo autorizada novamente pelo backend.
+Acesse somente a origem local canônica <http://127.0.0.1:5173/>. Não alterne para `localhost`: login, CSRF, cookie, links locais, origem autorizada e WebSocket conservam a origem exata. Após o login, o shell usa URLs diretas (`/app`, `/app/perfil`, `/app/familia`, `/app/beneficios`, `/app/pedidos`, `/app/privacidade`, `/app/entregador` e `/app/entregas`). Áreas privilegiadas aparecem somente conforme `/api/v1/me/capabilities`, mas cada operação continua sendo autorizada novamente pelo backend.
 
 Para conceder um papel à sua própria conta local já cadastrada e confirmada, encerre preferencialmente o backend e execute:
 
@@ -34,12 +34,12 @@ Use a conta real já confirmada, se ela ainda existir no banco local. Se o volum
 
 | Área | Onde existe | URL ou destino | Requisito para visualizar | Requisito para operar | Bloqueio atual relevante |
 |---|---|---|---|---|---|
-| Conta e paciente | `#inicio`, `#perfil`, `#familia`, `#privacidade` | Conta confirmada | CPF/nascimento próprios para criar paciente; outra pessoa real/allowlisted para convite | Identidade continua pendente; encerramento depende de política e obrigações. |
-| Familiar | `#familia`, `#beneficios`, `#pedidos` | Concessão vigente por escopo | O formulário identifica o paciente em nome de quem age; backend revalida em cada chamada | Convite exige outro destinatário permitido; não ampliar allowlist. |
-| Entregador | `#entregador`, `#entregas` | Cadastro próprio; aprovação/veículo para ofertas | Cadastro, documentos, veículo, ofertas, endereços atribuídos, custódia, entrega e ocorrência têm interface web | GPS contínuo permanece mobile; política profissional e parceiros reais não são inventados. |
-| Operação | `#operacao` | AO nominal + MFA | Filas de entregador e veículo, atribuição, inspeção e decisão | Autoanálise e política ausente bloqueiam. |
-| Benefícios | `#beneficios`, `#analise-beneficios` | P/F BENEFICIOS; AB institucional + MFA para análise | Solicitação, evidências, listagem, decisão e recurso | Recurso exige outro analista; instituição/política devem existir. |
-| Financeiro | `#financeiro` | GF global + institucional + MFA | Aportes, evidência, revisão, saldo, obrigações e conciliação | Programa real e outro GF são necessários; provedor padrão retorna indisponível, sem dinheiro fictício. |
+| Conta e paciente | `/app`, `/app/perfil`, `/app/familia`, `/app/privacidade` | Conta confirmada | CPF/nascimento próprios para criar paciente; outra pessoa real/allowlisted para convite | Identidade continua pendente; encerramento depende de política e obrigações. |
+| Familiar | `/app/familia`, `/app/beneficios`, `/app/pedidos` | Concessão vigente por escopo | O formulário identifica o paciente em nome de quem age; backend revalida em cada chamada | Convite exige outro destinatário permitido; não ampliar allowlist. |
+| Entregador | `/app/entregador`, `/app/entregas` | Cadastro próprio; aprovação/veículo para ofertas | Cadastro, documentos, veículo, ofertas, endereços atribuídos, custódia, entrega e ocorrência têm interface web | GPS contínuo permanece mobile; política profissional e parceiros reais não são inventados. |
+| Operação | `/app/operacao` | AO nominal + MFA | Filas de entregador e veículo, atribuição, inspeção e decisão | Autoanálise e política ausente bloqueiam. |
+| Benefícios | `/app/beneficios`, `/app/analise-beneficios` | P/F BENEFICIOS; AB institucional + MFA para análise | Solicitação, evidências, listagem, decisão e recurso | Recurso exige outro analista; instituição/política devem existir. |
+| Financeiro | `/app/financeiro` | GF global + institucional + MFA | Aportes, evidência, revisão, saldo, obrigações e conciliação | Programa real e outro GF são necessários; provedor padrão retorna indisponível, sem dinheiro fictício. |
 | Privacidade operacional | `#operacao-privacidade` | OP nominal + MFA | Fila, resposta, autorização, execução e verificação separadas | Expurgo desligado por padrão; política, backups e obrigações continuam guardas. |
 
 ## Ordem recomendada de inspeção
