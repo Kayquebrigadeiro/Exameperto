@@ -12,4 +12,5 @@ mobile/node_modules/
 mobile/dist/
 .expo/
 *.log
+.local-run/
 .DS_Store

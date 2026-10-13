@@ -49,8 +49,8 @@ test('navegador → API real → PostgreSQL ensaia custódia e segredo do destin
   await page.getByLabel('E-mail', { exact: true }).fill(process.env.CUSTODY_RECIPIENT_EMAIL!);
   await page.getByLabel('Senha', { exact: true }).fill('Senha-sintetica-123');
   await page.locator('button[type=submit]').click();
-  await expect(page.getByRole('alert').filter({ hasText: 'Sessão iniciada' })).toContainText('Sessão iniciada');
-  await page.getByRole('button', { name: 'Abrir pedidos', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Sessão iniciada' })).toContainText('Sessão iniciada');
+  await page.getByRole('navigation', { name: 'Áreas do produto' }).getByRole('link', { name: 'Pedidos', exact: true }).click();
   const panel = page.getByRole('region', { name: 'Pedidos e orçamentos' });
   const deliveryCard = panel.locator('article', { hasText: delivered });
   const incidentCard = panel.locator('article', { hasText: incident });

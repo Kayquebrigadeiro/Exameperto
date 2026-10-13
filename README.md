@@ -49,7 +49,7 @@ docker compose -f infra/compose.yaml up -d
 export DATABASE_PASSWORD="$EXAME_PERTO_POSTGRES_PASSWORD"
 ```
 
-O backend inicia com `./scripts/start-local-email-homologation.sh`; em outro terminal, a web inicia com `./scripts/start-local-web.sh`. Acesse somente <http://127.0.0.1:5173/> e confira a cadeia com `./scripts/verify-local-environment.sh`. Crie a conta pelo fluxo normal; papéis locais nominais são concedidos/revogados por `./scripts/provision-local-access.sh`, sem endpoint ou senha padrão. `./scripts/stop-local.sh` para o banco preservando o volume. Não há conta de demonstração nem entrega simulada. O roteiro e os limites estão em [ROTEIRO-INTERFACES-LOCAL](docs/ROTEIRO-INTERFACES-LOCAL.md).
+O ambiente completo inicia com `./scripts/start-local.sh`: ele verifica dependências, impede processos duplicados, sobe PostgreSQL/backend/web e só anuncia prontidão depois da verificação integrada. Acesse somente <http://127.0.0.1:5173/>. Para depuração em terminais separados, continuam disponíveis `start-local-email-homologation.sh`, `start-local-web.sh` e `verify-local-environment.sh`. Crie a conta pelo fluxo normal; papéis locais nominais são concedidos/revogados por `./scripts/provision-local-access.sh`, sem endpoint ou senha padrão. `./scripts/stop-local.sh` encerra processos gerenciados e o banco preservando o volume. Não há conta de demonstração nem entrega simulada. O roteiro e os limites estão em [ROTEIRO-INTERFACES-LOCAL](docs/ROTEIRO-INTERFACES-LOCAL.md).
 
 Configuração completa, comandos de teste e homologação pendente: [conta e e-mail](docs/CONTA-EMAIL.md). Confirmação, sessão e recuperação estão implementadas; entrega real de e-mail ainda não foi homologada.
 

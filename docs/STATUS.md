@@ -1,4 +1,12 @@
-# Status — atualizado em 11/10/2026
+# Status — atualizado em 13/10/2026
+
+## Prompts 1–9: produto navegável e ambiente integrado — 13/10/2026
+
+Executada a sequência em `sprints/`; os prompts 5–9 eram cópias idênticas e foram tratados como uma entrega única. A web ganhou rotas públicas e autenticadas com histórico/reload, 404, seletor de área por capacidades, apresentação pública do serviço, contexto explícito de representação, seleção de paciente/destinatário e formulários de benefício/pedido por etapas. Uploads de entregador e veículo exibem progresso; cadastro, documentos, veículos, ofertas, tarefas e histórico continuam usando os serviços existentes, sem conceder aprovação.
+
+`scripts/start-local.sh` verifica ferramentas/configuração, evita duplicação, inicia PostgreSQL/backend/web e chama a verificação integrada antes de anunciar prontidão. `stop-local.sh` encerra somente grupos registrados e preserva o volume. Diagnóstico real: CSRF sem cookie de renovação permaneceu `403` por segurança; cadastro deliberadamente fora da allowlist retornou `503` antes do transporte e sem conta; favicon agora responde `200`. Detalhes: [EXECUCAO-SPRINTS-1-9](EXECUCAO-SPRINTS-1-9.md).
+
+Validação: build web e Playwright público passaram (4/4, incluindo URLs diretas, voltar e 404). `BrowserFlowTest`, `FamilyBrowserFlowTest` e `OrderBrowserFlowTest` com `-DbrowserTest=true` passaram, exercitando Chromium → Vite → API → PostgreSQL 17.6 descartável, reload, 390×844/1280×900 e Axe nos fluxos aplicáveis. A regressão corrigiu a corrida de preparação do mock de e-mail e expectativas antigas de navegação/semântica. `bash -n`, links Markdown e `git diff --check` passaram. Bloqueios reais: catálogos autorizados de política/unidade, participantes e responsáveis reais, rota/pagamento/repasse/antimalware e aparelho Android; backlog em [.scratch/sprints-1-9](../.scratch/sprints-1-9/README.md). Próxima ação: o autor iniciar com `scripts/start-local.sh`, usar somente sua conta allowlisted e revisar os catálogos antes de homologar benefício/pedido.
 
 ## SaaS local navegável e capacidades nominais — 11/10/2026
 

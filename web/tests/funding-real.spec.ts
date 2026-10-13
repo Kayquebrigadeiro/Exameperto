@@ -15,7 +15,7 @@ function totp(secret: string) {
 async function login(page: import('@playwright/test').Page, email: string, password: string) {
   await page.getByRole('button', { name: 'Entrar', exact: true }).first().click();
   await page.getByLabel('E-mail', { exact: true }).fill(email); await page.getByLabel('Senha', { exact: true }).fill(password);
-  await page.locator('button[type=submit]').click(); await expect(page.getByRole('alert').filter({ hasText: 'Sessão iniciada' })).toContainText('Sessão iniciada');
+  await page.locator('button[type=submit]').click(); await expect(page.getByRole('status').filter({ hasText: 'Sessão iniciada' })).toContainText('Sessão iniciada');
   const fundingPanel = page.getByRole('region', { name: 'Aportes institucionais' });
   if (await fundingPanel.count() === 0) {
     await page.getByRole('button', { name: /(?:Abrir|Ocultar) aportes/ }).click();

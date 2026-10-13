@@ -34,11 +34,13 @@ class BrowserFlowTest {
     @Test void browserThroughBackendAndPostgresWithoutApiInterception() throws Exception {
         Path mailbox=Files.createTempDirectory("exame-browser-mail-");
         try {
-            when(email.configured()).thenAnswer(i->!Files.exists(mailbox.resolve("unavailable")));
             doAnswer(i->{
                 String text=i.getArgument(2); String name=i.getArgument(1).toString().contains("Confirme")?"confirmation":"recovery";
                 Files.writeString(mailbox.resolve(name),text.substring(text.lastIndexOf(':')+2).trim()); return null;
             }).when(email).send(anyString(),anyString(),anyString());
+            // The mail worker polls in the background. Stub send before enabling
+            // configured() so it cannot observe a half-configured Mockito mock.
+            when(email.configured()).thenAnswer(i->!Files.exists(mailbox.resolve("unavailable")));
             var builder=new ProcessBuilder("npm","run","test","--","tests/account-real.spec.ts");
             builder.directory(Path.of("..","web").toFile()); builder.redirectErrorStream(true); builder.redirectOutput(Path.of("target","browser-playwright.log").toFile());
             builder.environment().put("API_TARGET","http://127.0.0.1:"+port);

@@ -27,7 +27,8 @@ test('navegador → backend → PostgreSQL: perfil, convite, aceite, confirmaç�
   };
   const login = async (email: string) => {
     await choose('Entrar'); await accountForm().getByLabel('E-mail', { exact: true }).fill(email); await accountForm().getByLabel('Senha', { exact: true }).fill(password);
-    await accountForm().getByRole('button', { name: /Entrar/ }).click(); await expect(page.getByRole('alert')).toContainText('Sessão iniciada');
+    await accountForm().getByRole('button', { name: /Entrar/ }).click(); await expect(page.getByRole('status').filter({ hasText: 'Sessão iniciada' })).toContainText('Sessão iniciada');
+    await page.getByRole('navigation', { name: 'Áreas do produto' }).getByRole('link', { name: 'Família', exact: true }).click();
   };
   const logout = async () => { await page.getByRole('button',{name:'Sair',exact:true}).click(); await expect(page.getByRole('alert')).toContainText('Sessão encerrada'); };
 

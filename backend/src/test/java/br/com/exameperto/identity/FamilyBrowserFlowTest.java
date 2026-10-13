@@ -38,13 +38,13 @@ class FamilyBrowserFlowTest {
     @Test void browserThroughBackendAndPostgresForTemporaryFamilyGrant() throws Exception {
         Path mailbox=Files.createTempDirectory("exame-family-browser-mail-");
         try {
-            when(email.configured()).thenReturn(true);
             doAnswer(i->{
                 String subject=i.getArgument(1),text=i.getArgument(2);
                 if(subject.contains("Confirme")) Files.writeString(mailbox.resolve("confirmation"),text.substring(text.lastIndexOf(':')+2).trim());
                 else if(subject.contains("Convite")) Files.writeString(mailbox.resolve("invitation"),text);
                 return null;
             }).when(email).send(anyString(),anyString(),anyString());
+            when(email.configured()).thenReturn(true);
             var builder=new ProcessBuilder("npm","run","test","--","tests/family-real.spec.ts");
             builder.directory(Path.of("..","web").toFile()); builder.redirectErrorStream(true); builder.redirectOutput(Path.of("target","family-browser-playwright.log").toFile());
             builder.environment().put("API_TARGET","http://127.0.0.1:"+port); builder.environment().put("TEST_FAMILY_MAILBOX",mailbox.toString());

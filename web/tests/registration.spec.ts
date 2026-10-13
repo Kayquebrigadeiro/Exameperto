@@ -37,3 +37,16 @@ test('formulário não apresenta violações básicas de acessibilidade', async 
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
 });
+
+test('rotas públicas suportam endereço direto, histórico e página não encontrada', async ({ page }) => {
+  await page.goto('/acesso');
+  await expect(page.getByRole('heading', { name: 'Entrar', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Solicitar cadastro', exact: true }).first().click();
+  await expect(page).toHaveURL(/\/cadastro$/);
+  await page.goBack();
+  await expect(page.getByRole('heading', { name: 'Entrar', exact: true })).toBeVisible();
+  await page.goto('/endereco-inexistente');
+  await expect(page.getByRole('heading', { name: 'Página não encontrada.' })).toBeVisible();
+  const favicon = await page.request.get('/favicon.ico');
+  expect(favicon.status()).toBe(200);
+});
