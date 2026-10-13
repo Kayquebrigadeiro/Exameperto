@@ -39,3 +39,10 @@ Este documento registra o erro do fechamento anterior; a evidência final e as l
 | 9 | Rotas públicas `/`, `/acesso`, `/cadastro`, `/confirmacao`, `/confirmacao/reenviar`, `/recuperacao`, `/recuperacao/nova-senha`; rotas `/app/*` conforme capacidades. | `AcceptanceBrowserFlowTest` cobre somente aceite de orçamento e permanência de pagamento pendente. Não houve aceite integrado de todas as áreas e papéis. | Falta matriz de aceitação multi-papel, regressão entre jornadas, isolamento institucional e critérios de saída; não declarar o produto inteiro aceito. | Todas as dependências de 5–8, participantes independentes, SMTP real, rota/pagamento/repasse, políticas, unidade e Android. | **Não concluída.** |
 
 As telas permanecem navegáveis quando a capacidade existe, mas ausência, `MFA_REQUIRED`, `POLICY_UNDEFINED` e `INTEGRATION_UNAVAILABLE` são estados de bloqueio válidos. Nenhum fixture cria conta, saldo, instituição ou aprovação no ambiente local do usuário.
+
+## Execuções registradas
+
+- `mvn -DbrowserTest=true -Dtest=DelivererBrowserFlowTest test`: **1/1 passou**; entrega `d48c177`.
+- `mvn -DbrowserTest=true -Dtest=PayoutFlowTest#browserRendersAndActsOnRealFinancialPanel test`: **1/1 passou**; entrega `bdb48ce`.
+- `mvn -DbrowserTest=true -Dtest=AssignmentBrowserFlowTest,CustodyBrowserFlowTest,AcceptanceBrowserFlowTest test`: Assignment passou; Custody falhou no fechamento com `401` depois de preparar a custódia por `fetch`; Acceptance permanece recorte de aceite de orçamento. Isso não é aceite das sprints 7 ou 9.
+- `npm run build` em `web/`: passou após a correção do fluxo de confirmação inicial do TOTP.
