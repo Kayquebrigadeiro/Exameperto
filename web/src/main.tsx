@@ -1999,38 +1999,43 @@ function DelivererPanel({ session }: { session: Tokens }) {
               ? "Alterar veículo selecionado"
               : "Cadastrar veículo"}
           </h3>
-          <label>Placa</label>
+          <label htmlFor="vehiclePlate">Placa</label>
           <input
+            id="vehiclePlate"
             name="plate"
             defaultValue={selectedVehicle?.plate}
             pattern="[A-Za-z0-9 -]{7,10}"
             required
           />
-          <label>Marca</label>
+          <label htmlFor="vehicleMake">Marca</label>
           <input
+            id="vehicleMake"
             name="make"
             defaultValue={selectedVehicle?.make}
             maxLength={80}
             required
           />
-          <label>Modelo</label>
+          <label htmlFor="vehicleModel">Modelo</label>
           <input
+            id="vehicleModel"
             name="model"
             defaultValue={selectedVehicle?.model}
             maxLength={80}
             required
           />
-          <label>Cor</label>
+          <label htmlFor="vehicleColor">Cor</label>
           <input
+            id="vehicleColor"
             name="color"
             defaultValue={selectedVehicle?.color}
             maxLength={40}
             required
           />
           <div className="inline-fields">
-            <label>
+            <label htmlFor="vehicleManufacturingYear">
               Ano de fabricação
               <input
+                id="vehicleManufacturingYear"
                 name="manufacturingYear"
                 type="number"
                 min="1886"
@@ -2038,9 +2043,10 @@ function DelivererPanel({ session }: { session: Tokens }) {
                 required
               />
             </label>
-            <label>
+            <label htmlFor="vehicleModelYear">
               Ano do modelo
               <input
+                id="vehicleModelYear"
                 name="modelYear"
                 type="number"
                 min="1886"
@@ -2049,8 +2055,9 @@ function DelivererPanel({ session }: { session: Tokens }) {
               />
             </label>
           </div>
-          <label>Vínculo</label>
+          <label htmlFor="vehicleLinkType">Vínculo</label>
           <select
+            id="vehicleLinkType"
             name="linkType"
             defaultValue={selectedVehicle?.linkType ?? "PROPRIEDADE"}
           >
@@ -2058,8 +2065,9 @@ function DelivererPanel({ session }: { session: Tokens }) {
             <option value="LOCACAO">Alugado</option>
             <option value="AUTORIZACAO">Uso autorizado</option>
           </select>
-          <label>Validade, quando aplicável</label>
+          <label htmlFor="vehicleValidUntil">Validade, quando aplicável</label>
           <input
+            id="vehicleValidUntil"
             name="validUntil"
             type="date"
             defaultValue={selectedVehicle?.validUntil ?? ""}
@@ -2076,8 +2084,9 @@ function DelivererPanel({ session }: { session: Tokens }) {
             Selecione um vínculo abaixo. Cada substituição preserva o histórico
             e invalida a revisão anterior.
           </p>
-          <label>Finalidade</label>
+          <label htmlFor="vehicleEvidencePurpose">Finalidade</label>
           <select
+            id="vehicleEvidencePurpose"
             value={vehiclePurpose}
             onChange={(e) => setVehiclePurpose(e.target.value)}
           >
@@ -2089,8 +2098,9 @@ function DelivererPanel({ session }: { session: Tokens }) {
               </option>
             )}
           </select>
-          <label>PDF, JPEG ou PNG (até 10 MiB)</label>
+          <label htmlFor="vehicleEvidenceFile">PDF, JPEG ou PNG (até 10 MiB)</label>
           <input
+            id="vehicleEvidenceFile"
             name="vehicleFile"
             type="file"
             accept="application/pdf,image/jpeg,image/png"
