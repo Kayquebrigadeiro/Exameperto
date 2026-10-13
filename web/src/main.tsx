@@ -680,6 +680,9 @@ function PayoutPanel({ session }: { session: Tokens }) {
           A entrega registra o valor devido. Transferência é um evento separado:
           referências incertas são consultadas antes de qualquer nova tentativa.
         </p>
+        <button type="button" onClick={() => void reload()} disabled={busy !== null}>
+          Atualizar livro
+        </button>
       </div>
       {notice && (
         <p className={`feedback ${notice.tone}`} role="alert">
@@ -3123,7 +3126,7 @@ function MfaAccess({ session }: { session: Tokens }) {
             : "Configure o fator com sua senha atual. Não há código padrão nem bypass local."}
         </p>
       </div>
-      {!status?.enrolled ? (
+      {!status?.enrolled && !secret ? (
         <form onSubmit={(e) => void act(e, "enroll")}>
           <label>
             Senha atual
@@ -3139,7 +3142,7 @@ function MfaAccess({ session }: { session: Tokens }) {
       ) : (
         <form
           onSubmit={(e) =>
-            void act(e, status.verifiedForSession ? "verify" : "confirm")
+            void act(e, status?.verifiedForSession ? "verify" : "confirm")
           }
         >
           <label>

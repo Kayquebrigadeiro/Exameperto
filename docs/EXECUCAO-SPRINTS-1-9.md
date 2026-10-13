@@ -1,6 +1,6 @@
 # Execução dos prompts 1–9 — 13/10/2026
 
-Os prompts 5, 6, 7, 8 e 9 presentes em `sprints/` são idênticos. Foram executados como uma única entrega coerente da área do entregador; repetição textual não foi convertida em funcionalidades inventadas.
+Os arquivos locais `sprints/6.md` a `sprints/9.md` estão sobrescritos com uma cópia da sprint 5 e não são evidência dos prompts originais. Os prompts originais têm escopos distintos: 5 entregador/veículos, 6 operação/análises/privacidade, 7 entrega/custódia/acompanhamento, 8 financeiro/isolamento institucional e 9 aceitação integrada. O fechamento anterior que os tratou como uma única entrega foi corrigido; ver [REVISAO-SPRINTS-5-9](REVISAO-SPRINTS-5-9.md).
 
 ## Diagnóstico do ambiente normal
 
