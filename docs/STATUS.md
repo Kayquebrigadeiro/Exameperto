@@ -1,5 +1,15 @@
 # Status — atualizado em 14/10/2026
 
+## Falha real de cadastro no ambiente local — 14/10/2026
+
+O `correlationId=bdacd841-7e69-4d91-905c-8b2658ec02e5` chegou como `EMAIL_TRANSPORT_REJECTED`, mas a versão anterior descartava a exceção original; os logs disponíveis não permitem atribuir esse caso histórico especificamente a autenticação, STARTTLS, conexão ou destinatário. A investigação atual confirmou, sem imprimir valores privados, que o backend carregou host/porta/usuário/senha SMTP, remetente, allowlist, habilitação e origem exatamente da configuração local; remetente e usuário coincidem, o remetente está na allowlist e `controle_restauracao` está `NORMAL`. Uma verificação SMTP controlada confirmou conexão, STARTTLS e autenticação sem envio.
+
+O `MailEmailGateway` agora registra somente o resumo estrutural da configuração (sem endereço, senha, token ou mensagem) e classifica futuras falhas como `SMTP_AUTHENTICATION`, `SMTP_CONNECTION`, `SMTP_SEND`, `SMTP_TRANSPORT`, `EMAIL_CONFIGURATION_MISSING`, `EMAIL_RECIPIENT_NOT_ALLOWED` ou `EXTERNAL_EFFECTS_BLOCKED`. A resposta pública continua genérica. Uma tentativa real controlada para a única caixa autorizada retornou HTTP 202; o ambiente aceitou o envio. Ela deixou uma conta local pendente de confirmação, preservada no banco para não apagar dados.
+
+`start-local.sh` agora aguarda prontidão HTTP real: backend precisa responder `403` ao endpoint CSRF sem cookie e Vite precisa responder `200`; em timeout, exibe diagnóstico do log sanitizado. Backend e frontend ficaram iniciados em `127.0.0.1:8080` e `127.0.0.1:5173`, PostgreSQL permanece em `127.0.0.1:5433` e o volume foi preservado.
+
+Testes pertinentes: `MailEmailGatewayTest` 3/3, `AuthFlowTest` 11/11, `RegistrationTest` 2/2, build Maven, `bash -n` dos scripts e cadastro real controlado HTTP 202. `mail.debug` permaneceu `false`.
+
 ## Rodada técnica das sprints 6–9 — 14/10/2026
 
 O 401 da entrega foi reproduzido e corrigido sem ampliar permissões. A causa combinava três defeitos de preparação/contrato: cookie de refresh `Secure` em origem HTTP do fixture, `If-Match` usando a versão da custódia em vez da versão do pedido e consulta de participação referenciando `autorizacao_escopo.id`, coluna inexistente. A aplicação mantém `security.cookie-secure=true` por padrão; somente o fixture descartável de navegador usa `false`. A interface do entregador agora conserva a custódia retornada após cada ação, para reload e próximo comando usarem a versão correta, e os tipos de ocorrência exibidos coincidem com o contrato do backend.

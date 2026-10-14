@@ -45,6 +45,8 @@ public class RegistrationService {
         jdbc.update("INSERT INTO usuario(id,email_cifrado,email_busca,senha_hash,nome_cifrado,estado) VALUES (?,?,?,?,?,?)", userId, protector.encrypt(email), lookup, Passwords.hash(request.password()), protector.encrypt(request.name().trim()), "PENDENTE_EMAIL");
         jdbc.update("INSERT INTO desafio_conta(id,usuario_id,tipo,token_hash,expira_em) VALUES (?,?,?,?,?)", UUID.randomUUID(), userId, "EMAIL", protector.tokenHash(token), java.sql.Timestamp.from(Instant.now().plus(emailTokenTtl)));
         try { emailGateway.send(email, "Confirme seu e-mail", "Use este código de confirmação no aplicativo: " + token); }
+        catch (MailEmailGateway.EmailDeliveryFailure ex) { throw unavailable(ex.category()); }
+        catch (IllegalArgumentException ex) { throw unavailable("EMAIL_RECIPIENT_NOT_ALLOWED"); }
         catch (RuntimeException ex) { throw unavailable("EMAIL_TRANSPORT_REJECTED"); }
     }
     private RegistrationException unavailable(String reason) {
