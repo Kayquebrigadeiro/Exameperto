@@ -31,6 +31,24 @@ wait_for_http() {
   done
   echo "OK: $name respondeu HTTP $expected em $url"
 }
+wait_for_csrf_contract() {
+  local url='http://127.0.0.1:8080/api/v1/auth/csrf' http_status authorized_status body_file headers_file
+  body_file="$RUN_DIR/backend-csrf-readiness.json"
+  headers_file="$RUN_DIR/backend-csrf-readiness.headers"
+  http_status="$(curl -sS -D "$headers_file" -o "$body_file" -w '%{http_code}' --max-time 3 "$url" 2>/dev/null || true)"
+  [[ "$http_status" == "403" ]] && grep -q '"code":"FORBIDDEN"' "$body_file" || {
+    echo "FALHA: CSRF sem Origin não retornou 403/FORBIDDEN (HTTP ${http_status:-sem-resposta})." >&2
+    return 1
+  }
+  authorized_status="$(curl -sS -D "$headers_file" -o "$body_file" -w '%{http_code}' --max-time 3 \
+    -H 'Origin: http://127.0.0.1:5173' "$url" 2>/dev/null || true)"
+  if [[ "$authorized_status" != "403" ]] || ! grep -q '"code":"FORBIDDEN"' "$body_file" ||
+     ! grep -qi '^vary: origin' "$headers_file"; then
+    echo "FALHA: CSRF com Origin autorizado não validou 403/FORBIDDEN (HTTP ${authorized_status:-sem-resposta})." >&2
+    return 1
+  fi
+  echo "OK: backend validou Origin autorizado e CSRF (403/FORBIDDEN com e sem Origin)"
+}
 
 for command in docker java mvn node npm curl; do
   command -v "$command" >/dev/null || fail "dependência ausente: $command"
@@ -56,7 +74,8 @@ if port_open 8080; then
 else
   (cd "$ROOT_DIR" && nohup setsid bash -c 'pgid="$(ps -o pgid= -p $$ | tr -d " ")"; printf "%s\n" "$pgid" > "$1"; shift; exec "$@"' bash "$RUN_DIR/backend.pid" mvn -q -f backend/pom.xml -Dmaven.repo.local=/tmp/exame-m2 spring-boot:run >"$RUN_DIR/backend.log" 2>&1 &)
 fi
-wait_for_http backend 'http://127.0.0.1:8080/api/v1/auth/csrf' 403
+wait_for_http backend 'http://127.0.0.1:8080/api/v1/me' 401
+wait_for_csrf_contract
 
 if port_open 5173; then
   [[ -f "$RUN_DIR/web.pid" ]] || fail "porta 5173 ocupada por processo não iniciado por este script"

@@ -6,9 +6,13 @@ O `correlationId=bdacd841-7e69-4d91-905c-8b2658ec02e5` chegou como `EMAIL_TRANSP
 
 O `MailEmailGateway` agora registra somente o resumo estrutural da configuração (sem endereço, senha, token ou mensagem) e classifica futuras falhas como `SMTP_AUTHENTICATION`, `SMTP_CONNECTION`, `SMTP_SEND`, `SMTP_TRANSPORT`, `EMAIL_CONFIGURATION_MISSING`, `EMAIL_RECIPIENT_NOT_ALLOWED` ou `EXTERNAL_EFFECTS_BLOCKED`. A resposta pública continua genérica. Uma tentativa real controlada para a única caixa autorizada retornou HTTP 202; o ambiente aceitou o envio. Ela deixou uma conta local pendente de confirmação, preservada no banco para não apagar dados.
 
-`start-local.sh` agora aguarda prontidão HTTP real: backend precisa responder `403` ao endpoint CSRF sem cookie e Vite precisa responder `200`; em timeout, exibe diagnóstico do log sanitizado. Backend e frontend ficaram iniciados em `127.0.0.1:8080` e `127.0.0.1:5173`, PostgreSQL permanece em `127.0.0.1:5433` e o volume foi preservado.
+`start-local.sh` agora aguarda prontidão HTTP real em critérios independentes: backend responde `401` em `/api/v1/me` sem sessão, o endpoint CSRF responde `403/FORBIDDEN` sem cookie tanto sem `Origin` quanto com `Origin: http://127.0.0.1:5173`, e Vite responde `200`. O CSRF não é consultado em polling para não acionar o rate limit; em timeout, exibe diagnóstico sanitizado. Backend e frontend ficaram iniciados em `127.0.0.1:8080` e `127.0.0.1:5173`, PostgreSQL permanece em `127.0.0.1:5433` e o volume foi preservado.
 
-Testes pertinentes: `MailEmailGatewayTest` 3/3, `AuthFlowTest` 11/11, `RegistrationTest` 2/2, build Maven, `bash -n` dos scripts e cadastro real controlado HTTP 202. `mail.debug` permaneceu `false`.
+Evidências do cadastro controlado, separadas: (1) cadastro aceito pela aplicação: HTTP 202; (2) aceitação do transporte SMTP: `JavaMailSender.send` concluiu sem exceção, após autenticação/STARTTLS controlados, portanto o servidor SMTP aceitou a transação; (3) recebimento: ainda não confirmado pelo autor; (4) login: ainda não concluído. `mail.debug` permaneceu `false`.
+
+A conta pendente preservada corresponde à entrada autorizada após comparação interna do `email_busca`, sem imprimir o endereço; há um desafio `EMAIL` não consumido e dentro do prazo. Para concluir sem criar conta, remover dados ou redefinir senha, o autor deve abrir a caixa autorizada, usar o código/link recebido na tela `/confirmacao` e depois entrar em `/acesso` com a senha original do cadastro. Se o desafio tiver expirado, usar apenas `/confirmacao/reenviar` para a mesma conta autorizada e então repetir a confirmação; não usar recuperação de senha.
+
+Testes pertinentes: `MailEmailGatewayTest` 3/3, `AuthFlowTest` 11/11, `RegistrationTest` 2/2, build Maven, `bash -n` dos scripts, cadastro real controlado HTTP 202 e prontidão integrada (`/me` 401, CSRF 403/FORBIDDEN sem/com Origin autorizado, Vite 200). `mail.debug` permaneceu `false`.
 
 ## Rodada técnica das sprints 6–9 — 14/10/2026
 
