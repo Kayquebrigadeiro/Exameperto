@@ -1,5 +1,38 @@
 # Status — atualizado em 14/10/2026
 
+## Reconstrução da experiência de produto — 14/10/2026
+
+Implementação iniciada conforme autorização explícita do autor, sem declarar
+aceitação do produto inteiro. A web agora possui home pública em `/`, com
+explicação honesta do serviço, etapas de solicitação/retirada/recebimento,
+ações de criar conta/entrar/entregador e aviso de disponibilidade ainda
+dependente de unidades, políticas e integrações reais. O acesso continua em
+URLs separadas: `/acesso`, `/cadastro`, `/confirmacao`,
+`/confirmacao/reenviar`, `/recuperacao` e `/recuperacao/nova-senha`.
+
+Após cadastro, o e-mail usado fica apenas em `sessionStorage` para contexto da
+jornada e a interface encaminha para confirmação; recuperação encaminha para a
+escolha de senha. Páginas públicas não consultam CSRF sem cookie de refresh;
+restauração só é tentada ao abrir diretamente uma rota protegida `/app`. O
+backend, worker SMTP, banco, migrações e dados existentes não foram alterados.
+
+O `/app` passou a iniciar em painel de paciente: consulta perfil, capacidades e
+pedidos reais, mostra confirmação de e-mail, ação principal de solicitar
+entrega, pedidos recentes e estados vazios, além de acessos a benefícios,
+familiares e configurações. Áreas operacionais existentes continuam acessíveis
+conforme capacidades do backend.
+
+Evidências desta rodada: `npm run build` passou; testes públicos Playwright
+atualizados passaram 4/4, incluindo axe sem violações na home, falha de
+cadastro com resposta genérica, histórico de rotas e 404; `git diff --check`
+passou; prontidão integrada já registrada pelo `scripts/start-local.sh`.
+Capturas sem dados pessoais: `web/artifacts/screenshots/home-public-desktop.png`
+e `web/artifacts/screenshots/access-mobile.png` (viewport Chromium Pixel 5).
+Envio, recebimento e validação pessoal da conta autorizada continuam não
+confirmados. Próxima ação: conferência manual do autor em ambiente local,
+incluindo caixa autorizada, confirmação, recuperação, login, refresh, reload e
+logout.
+
 ## Falha real de cadastro no ambiente local — 14/10/2026
 
 O `correlationId=bdacd841-7e69-4d91-905c-8b2658ec02e5` chegou como `EMAIL_TRANSPORT_REJECTED`, mas a versão anterior descartava a exceção original; os logs disponíveis não permitem atribuir esse caso histórico especificamente a autenticação, STARTTLS, conexão ou destinatário. A investigação atual confirmou, sem imprimir valores privados, que o backend carregou host/porta/usuário/senha SMTP, remetente, allowlist, habilitação e origem exatamente da configuração local; remetente e usuário coincidem, o remetente está na allowlist e `controle_restauracao` está `NORMAL`. Uma verificação SMTP controlada confirmou conexão, STARTTLS e autenticação sem envio.

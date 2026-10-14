@@ -284,6 +284,53 @@ const labels: Record<Mode, string> = {
   "recovery/complete": "Trocar senha",
 };
 
+function PublicHome() {
+  return (
+    <main className="public-home">
+      <header className="public-nav">
+        <a className="public-brand" href="/" onClick={(event) => { event.preventDefault(); navigate("/"); }}>
+          <span className="brand-mark">EP</span>
+          <span>exameperto</span>
+        </a>
+        <nav aria-label="Acesso público">
+          <a href="/acesso">Entrar</a>
+          <a className="nav-quiet" href="/cadastro">Sou entregador</a>
+          <a className="nav-cta" href="/cadastro">Criar conta</a>
+        </nav>
+      </header>
+      <section className="public-hero" aria-labelledby="public-title">
+        <div className="hero-copy">
+          <p className="eyebrow public-eyebrow">RETIRADA AUTORIZADA · ENTREGA CUIDADOSA</p>
+          <h1 id="public-title">Resultados de exames, <em>perto de você.</em></h1>
+          <p className="hero-lede">O Exameperto ajuda você a solicitar a retirada autorizada e receber seus resultados em envelope fechado, com acompanhamento em cada etapa.</p>
+          <div className="hero-actions">
+            <a className="button-link primary" href="/cadastro">Criar minha conta <span aria-hidden="true">↗</span></a>
+            <a className="button-link secondary" href="/acesso">Já tenho acesso</a>
+          </div>
+          <p className="project-note"><span className="note-dot" aria-hidden="true" /> Projeto em construção: a disponibilidade depende de unidades, políticas e integrações confirmadas.</p>
+        </div>
+        <div className="hero-visual" aria-label="Resumo das etapas do serviço">
+          <div className="visual-orbit orbit-one" />
+          <div className="visual-orbit orbit-two" />
+          <div className="route-card route-card-top"><span>01</span><strong>Pedido criado</strong><small>Você acompanha o próximo passo</small></div>
+          <div className="route-card route-card-main"><span className="route-icon">✦</span><strong>Envelope fechado</strong><small>Privacidade desde a retirada até o recebimento</small><div className="route-line"><i /><i /><i /></div></div>
+          <div className="route-card route-card-bottom"><span>03</span><strong>Recebimento confirmado</strong><small>Sem expor o conteúdo do exame</small></div>
+        </div>
+      </section>
+      <section className="how-it-works" aria-labelledby="how-title">
+        <div className="section-intro"><p className="eyebrow dark">COMO FUNCIONA</p><h2 id="how-title">Uma jornada clara, do pedido à porta.</h2></div>
+        <ol className="how-grid">
+          <li><span>01</span><h3>Solicite</h3><p>Informe a unidade de origem, o destinatário autorizado e o endereço de recebimento.</p></li>
+          <li><span>02</span><h3>Retirada autorizada</h3><p>A operação só avança quando as autorizações e condições necessárias forem verificadas.</p></li>
+          <li><span>03</span><h3>Receba</h3><p>Acompanhe o pedido e confirme a entrega do envelope no destino indicado.</p></li>
+        </ol>
+      </section>
+      <section className="public-footer-cta"><div><p className="eyebrow dark">PARA QUEM ENTREGA</p><h2>Quer fazer parte da operação?</h2><p>O cadastro de entregador é separado e passa por análise de documentos, veículo e regras aplicáveis.</p></div><a className="button-link dark-button" href="/cadastro">Conhecer o cadastro <span aria-hidden="true">↗</span></a></section>
+      <footer className="public-footer"><span>exameperto</span><span>Resultados com cuidado, acesso com clareza.</span></footer>
+    </main>
+  );
+}
+
 function ScopeFields() {
   return (
     <fieldset>
@@ -3902,6 +3949,47 @@ function PrivacyOperationsPanel({ session }: { session: Tokens }) {
   );
 }
 
+function PatientDashboard({ session, capabilities, go }: { session: Tokens; capabilities: Capabilities; go: (route: AppRoute) => void }) {
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/v1/me/profile", { headers: { Authorization: `Bearer ${session.accessToken}` } }).then(parse),
+      fetch("/api/v1/orders", { headers: { Authorization: `Bearer ${session.accessToken}` } }).then(parse),
+    ]).then(([profileResult, ordersResult]) => {
+      setProfile(profileResult.result as Profile);
+      setOrders((ordersResult.result as Order[]) ?? []);
+    }).catch((cause) => setError(cause instanceof Error ? cause.message : "Não foi possível carregar sua conta."))
+      .finally(() => setLoading(false));
+  }, [session.accessToken]);
+  const firstName = profile?.name?.split(" ")[0] ?? "seja bem-vindo";
+  const statusLabel = profile?.emailVerifiedAt ? "E-mail confirmado" : "Confirme seu e-mail";
+  return (
+    <section className="patient-dashboard" aria-labelledby="dashboard-title">
+      <div className="dashboard-welcome">
+        <div><p className="eyebrow dark">VISÃO GERAL</p><h2 id="dashboard-title">Olá, {firstName}.</h2><p>Este é o ponto de partida para cuidar dos seus pedidos e recebimentos.</p></div>
+        <span className={`profile-chip ${profile?.emailVerifiedAt ? "is-ok" : "is-pending"}`}><i />{statusLabel}</span>
+      </div>
+      {error && <p className="feedback error" role="alert">{error}</p>}
+      <div className="dashboard-primary">
+        <div><span className="card-kicker">PRÓXIMO PASSO</span><h3>Precisa buscar um resultado?</h3><p>Crie um pedido de entrega com as informações da unidade e de quem vai receber.</p><button onClick={() => go("pedidos")}>Solicitar entrega <span aria-hidden="true">→</span></button></div>
+        <div className="primary-mark" aria-hidden="true"><span>✦</span><i /><i /><i /></div>
+      </div>
+      <div className="dashboard-columns">
+        <article className="dashboard-card recent-card"><div className="card-heading"><div><span className="card-kicker">ATIVIDADE</span><h3>Pedidos recentes</h3></div><button className="text-button" onClick={() => go("pedidos")}>Ver pedidos <span aria-hidden="true">↗</span></button></div>
+          {loading ? <p className="empty-state">Carregando seus pedidos…</p> : orders.length ? <div className="real-list">{orders.slice(0, 3).map((order) => <button className="real-row" key={order.id} onClick={() => go("pedidos")}><span className="row-icon">↗</span><span><strong>Pedido de retirada</strong><small>{new Date(order.createdAt).toLocaleDateString("pt-BR")} · {order.status.replaceAll("_", " ")}</small></span><span aria-hidden="true">→</span></button>)}</div> : <div className="empty-state"><span className="empty-icon" aria-hidden="true">○</span><strong>Você ainda não tem pedidos.</strong><p>Quando precisar receber um resultado, comece por aqui.</p><button className="text-button" onClick={() => go("pedidos")}>Fazer primeiro pedido →</button></div>}
+        </article>
+        <div className="dashboard-side">
+          <article className="dashboard-card mini-card"><span className="card-kicker">SEU PERFIL</span><h3>{capabilities.patientProfile ? "Perfil de paciente ativo" : "Complete seu perfil"}</h3><p>{capabilities.patientProfile ? "Suas informações estão prontas para uma nova solicitação." : "Adicione seu perfil para solicitar uma entrega."}</p><button className="text-button" onClick={() => go(capabilities.patientProfile ? "perfil" : "familia")}>{capabilities.patientProfile ? "Revisar perfil" : "Começar agora"} →</button></article>
+          <article className="dashboard-card link-card"><button onClick={() => go("beneficios")}><span className="link-symbol">+</span><span><strong>Benefícios</strong><small>Confira apoios disponíveis para seu pedido</small></span><span>→</span></button><button onClick={() => go("familia")}><span className="link-symbol">⌁</span><span><strong>Família autorizada</strong><small>Gerencie quem pode ajudar</small></span><span>→</span></button><button onClick={() => go("perfil")}><span className="link-symbol">◌</span><span><strong>Configurações</strong><small>Dados e segurança da conta</small></span><span>→</span></button></article>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function PortfolioApp({
   session,
   onSessionAction,
@@ -4034,85 +4122,7 @@ function PortfolioApp({
           </>
         );
       default:
-        return (
-          <section className="portfolio-home" aria-labelledby="portfolio-title">
-            <span className="eyebrow dark">CENTRAL DE OPERAÇÕES CLÍNICAS</span>
-            <h1 id="portfolio-title">Olá. O que precisa avançar hoje?</h1>
-            <p>
-              Escolha uma área. Cada módulo mostra somente ações reais da sua
-              conta e explica quando política, outra pessoa ou integração ainda
-              são necessárias.
-            </p>
-            <div className="overview-grid">
-              <article>
-                <strong>
-                  {capabilities?.patientProfile
-                    ? "Perfil criado"
-                    : "Próximo passo"}
-                </strong>
-                <h2>Paciente</h2>
-                <p>
-                  {capabilities?.patientProfile
-                    ? "Acompanhe benefícios, pedidos e autorizações."
-                    : "Crie seu perfil de paciente antes de solicitar benefícios ou retiradas."}
-                </p>
-                <a
-                  href={appPath("familia")}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    go("familia");
-                  }}
-                >
-                  Abrir perfil e família
-                </a>
-              </article>
-              <article>
-                <strong>
-                  {capabilities?.delivererProfile
-                    ? "Cadastro iniciado"
-                    : "Opcional"}
-                </strong>
-                <h2>Entregador</h2>
-                <p>
-                  Documentos e veículo permanecem pendentes até análise humana e
-                  política aplicável.
-                </p>
-                <a
-                  href={appPath("entregador")}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    go("entregador");
-                  }}
-                >
-                  Abrir cadastro
-                </a>
-              </article>
-              <article>
-                <strong>
-                  {capabilities?.globalRoles.length ||
-                  capabilities?.institutions.length
-                    ? "Acesso nominal"
-                    : "Sem papel privilegiado"}
-                </strong>
-                <h2>Áreas de trabalho</h2>
-                <p>
-                  {capabilities?.globalRoles.length ||
-                  capabilities?.institutions.length
-                    ? "Use o seletor lateral; o backend revalida papel, instituição e MFA."
-                    : "Papéis locais são concedidos apenas pela ferramenta de terminal auditada."}
-                </p>
-              </article>
-              <article className="external-block">
-                <strong>Dependências reais</strong>
-                <h2>Sem sucesso artificial</h2>
-                <p>
-                  Rotas, pagamentos, repasses, políticas e instituições ausentes
-                  continuam bloqueados com uma explicação específica.
-                </p>
-              </article>
-            </div>
-          </section>
-        );
+        return <PatientDashboard session={session} capabilities={capabilities!} go={go} />;
     }
   }
   return (
@@ -4245,6 +4255,7 @@ function AccountPage() {
   const [busy, setBusy] = useState(false);
   const [session, setSession] = useState<Tokens | null>(null);
   const [feedback, setFeedback] = useState<Notice | null>(null);
+  const [emailHint, setEmailHint] = useState(() => window.sessionStorage.getItem("exameperto-email") ?? "");
   const [expired, setExpired] = useState(false);
   const [restoring, setRestoring] = useState(true);
   useEffect(() => {
@@ -4253,6 +4264,12 @@ function AccountPage() {
     return () => removeEventListener("popstate", change);
   }, []);
   useEffect(() => {
+    // Public pages must not probe CSRF with a missing refresh cookie. Session
+    // restoration is only needed when a protected app URL is opened directly.
+    if (!window.location.pathname.startsWith("/app")) {
+      setRestoring(false);
+      return;
+    }
     let active = true;
     (async () => {
       try {
@@ -4331,11 +4348,24 @@ function AccountPage() {
           tone: "info",
           text: "Senha alterada. Todas as sessões foram revogadas. Entre novamente.",
         });
-      } else
+      } else if (mode === "register") {
+        const email = String(fields.email ?? "");
+        setEmailHint(email);
+        window.sessionStorage.setItem("exameperto-email", email);
+        setMode("verification");
+        navigate("/confirmacao");
+        setFeedback({ tone: "info", text: "Cadastro recebido. Enviamos uma confirmação para o e-mail informado. Abra a mensagem para concluir o acesso." });
+      } else if (mode === "recovery") {
+        const email = String(fields.email ?? "");
+        setEmailHint(email);
+        window.sessionStorage.setItem("exameperto-email", email);
+        setMode("recovery/complete");
+        navigate("/recuperacao/nova-senha");
         setFeedback({
           tone: "info",
           text: "Solicitação recebida. Se a conta atender às condições, confira seu e-mail. Esta resposta não confirma envio ou entrega.",
         });
+      }
       form.reset();
     } catch (error) {
       setFeedback({
@@ -4415,6 +4445,7 @@ function AccountPage() {
         feedback={feedback}
       />
     );
+  if (window.location.pathname === "/") return <PublicHome />;
   return (
     <>
       <main className="shell">
@@ -4473,8 +4504,12 @@ function AccountPage() {
             <span className="step">SUA CONTA</span>
             <h2>{session ? "Conta conectada" : labels[mode]}</h2>
             <p>
-              Conta básica, sem concessão automática de identidade ou
-              privilégios.
+              {mode === "register" && "Crie seu acesso para acompanhar pedidos e recebimentos."}
+              {mode === "login" && "Entre para continuar sua jornada."}
+              {mode === "verification" && `Confirme o endereço ${emailHint || "informado no cadastro"} para liberar o acesso.`}
+              {mode === "verification/resend" && "Peça uma nova mensagem caso a confirmação tenha expirado."}
+              {mode === "recovery" && "Enviaremos instruções para recuperar o acesso, sem revelar se a conta existe."}
+              {mode === "recovery/complete" && `Defina uma nova senha usando o código recebido${emailHint ? ` em ${emailHint}` : ""}.`}
             </p>
           </div>
           {!session && !restoring && (
@@ -4501,6 +4536,7 @@ function AccountPage() {
                     autoComplete="email"
                     required
                     maxLength={254}
+                    defaultValue={emailHint}
                   />
                 </>
               )}
@@ -4540,7 +4576,7 @@ function AccountPage() {
                 </>
               )}
               <button type="submit" disabled={busy}>
-                {busy ? "Aguarde…" : labels[mode]}{" "}
+                {busy ? "Aguarde…" : mode === "register" ? "Criar conta" : labels[mode]}{" "}
                 <span aria-hidden="true">→</span>
               </button>
             </form>

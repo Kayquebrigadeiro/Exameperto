@@ -9,7 +9,7 @@ test('mostra indisponibilidade da API sem declarar cadastro ou envio concluído'
     }),
   }));
   await page.goto('/');
-  await page.getByRole('button', { name: 'Solicitar cadastro', exact: true }).first().click();
+  await page.getByRole('link', { name: 'Criar conta', exact: true }).first().click();
   await page.getByLabel('Nome completo').fill('Pessoa de Teste');
   await page.getByLabel('E-mail').fill('formulario@example.test');
   await page.getByLabel('Senha').fill('Somente-teste-123');
@@ -24,7 +24,7 @@ test('acesso à conta começa em login e cadastro exige escolha explícita', asy
     requests.push(new URL(route.request().url()).pathname);
     await route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ message: 'Credenciais inválidas ou expiradas.' }) });
   });
-  await page.goto('/');
+  await page.goto('/acesso');
   await expect(page.getByRole('heading', { name: 'Entrar', exact: true })).toBeVisible();
   await page.getByLabel('E-mail').fill('conta@example.test');
   await page.getByLabel('Senha').fill('senha-incorreta');
@@ -34,6 +34,7 @@ test('acesso à conta começa em login e cadastro exige escolha explícita', asy
 
 test('formulário não apresenta violações básicas de acessibilidade', async ({ page }) => {
   await page.goto('/');
+  await expect(page.getByRole('heading', { name: /Resultados de exames/ })).toBeVisible();
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
 });
@@ -41,7 +42,7 @@ test('formulário não apresenta violações básicas de acessibilidade', async 
 test('rotas públicas suportam endereço direto, histórico e página não encontrada', async ({ page }) => {
   await page.goto('/acesso');
   await expect(page.getByRole('heading', { name: 'Entrar', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Solicitar cadastro', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Solicitar cadastro', exact: true }).click();
   await expect(page).toHaveURL(/\/cadastro$/);
   await page.goBack();
   await expect(page.getByRole('heading', { name: 'Entrar', exact: true })).toBeVisible();
