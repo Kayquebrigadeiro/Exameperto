@@ -3115,11 +3115,11 @@ function MfaAccess({ session }: { session: Tokens }) {
     >
       <div>
         <span className="eyebrow dark">MFA</span>
-        <h3>
+        <h2>
           {status?.verifiedForSession
             ? "Sessão elevada"
             : "Elevação necessária"}
-        </h3>
+        </h2>
         <p>
           {status?.enrolled
             ? "O fator está configurado; valide um código antes de decisões privilegiadas."

@@ -977,7 +977,7 @@ textarea:focus-visible {
   border-left: 0.35rem solid #ad683c;
   color: #20322e;
 }
-.mfa-strip h3 {
+.mfa-strip h2 {
   margin: 0.45rem 0;
 }
 .mfa-strip p {
