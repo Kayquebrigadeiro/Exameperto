@@ -1,5 +1,38 @@
 # Status — atualizado em 14/10/2026
 
+## Reenvio/cadastro duplicado no ambiente normal — 14/10/2026
+
+A conta local cadastrada para login é `gregoriokayque352@gmail.com`; a senha
+não foi lida, gerada, alterada ou registrada. O banco continua com uma única
+conta `ATIVO`, confirmada, sem desafio de confirmação ativo e sem outbox
+pendente.
+
+A investigação separou as causas. As tentativas recentes com endereços fora
+da allowlist falharam por `EMAIL_RECIPIENT_NOT_ALLOWED`; a reprodução normal
+mais recente retornou HTTP 503, `correlationId=76da1b6b-3f1f-44f5-9abd-02c28d42e035`
+e a exceção sanitizada no log foi a mesma categoria. O processo atual carrega
+os valores do `.env.smtp.local` sem divergência: SMTP Gmail/587, gateway
+habilitado, remetente presente e allowlist de uma entrada com remetente
+permitido. A outbox está vazia de pendências e o transporte anterior foi
+aceito; não há evidência de falha de autenticação ou conexão SMTP nesta
+tentativa. A allowlist não foi ampliada.
+
+Com o endereço autorizado já existente, a reprodução pela interface retornou
+HTTP 202 como previsto para proteção contra enumeração, mas a UI antiga dizia
+que uma confirmação havia sido enviada e levava a uma confirmação impossível.
+Foi corrigida somente essa orientação: o 202 agora permanece no cadastro com
+mensagem neutra e links explícitos para confirmação, login e recuperação; uma
+falha de integração também orienta login/recuperação sem revelar existência
+de conta. A resposta pública continua genérica.
+
+Reprodução pós-correção no ambiente normal: HTTP 202, `/cadastro`, links de
+Entrar/Recuperar visíveis e invariantes do banco inalterados (`1|ATIVO:1|1|0|0`).
+Testes Chromium de regressão passaram 6/6 selecionados; build web passou;
+`RegistrationTest` 2/2, `MailEmailGatewayTest` 3/3 e `AuthFlowTest` 11/11
+passaram com PostgreSQL descartável. Próxima ação do titular: entrar com o
+endereço acima ou usar recuperação; não usar outro endereço, pois o ambiente
+normal só autoriza a caixa configurada.
+
 ## Reconstrução da experiência de acesso — 14/10/2026
 
 `/acesso` foi separado do mural antigo: a rota agora monta uma moldura

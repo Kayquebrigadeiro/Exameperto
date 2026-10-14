@@ -4354,9 +4354,7 @@ function AccountPage() {
         const email = String(fields.email ?? "");
         setEmailHint(email);
         window.sessionStorage.setItem("exameperto-email", email);
-        setMode("verification");
-        navigate("/confirmacao");
-        setFeedback({ tone: "info", text: "Cadastro recebido. Enviamos uma confirmação para o e-mail informado. Abra a mensagem para concluir o acesso." });
+        setFeedback({ tone: "info", text: "Solicitação recebida. Se o endereço puder iniciar um cadastro, enviaremos as instruções. Se você já possui uma conta, entre ou recupere o acesso." });
       } else if (mode === "recovery") {
         const email = String(fields.email ?? "");
         setEmailHint(email);
@@ -4370,13 +4368,16 @@ function AccountPage() {
       }
       form.reset();
     } catch (error) {
+      const registrationGuidance = mode === "register" && error instanceof Error && error.message.includes("integração necessária")
+        ? " O cadastro não foi concluído. Se você já possui uma conta, entre ou recupere o acesso."
+        : "";
       setFeedback({
         tone: "error",
         text:
           error instanceof TypeError
             ? "A conexão falhou. O resultado não pôde ser confirmado."
             : error instanceof Error
-              ? error.message
+              ? `${error.message}${registrationGuidance}`
               : "Não foi possível concluir a solicitação.",
       });
     } finally {
@@ -4513,6 +4514,7 @@ function AccountPage() {
             </form>
           )}
           {mode === "login" && <p className="auth-support">Ainda não tem acesso? <a href={authPath("register")} onClick={(event) => { event.preventDefault(); changeMode("register"); }}>Crie sua conta</a></p>}
+          {mode === "register" && <p className="auth-support"><a href={authPath("verification")} onClick={(event) => { event.preventDefault(); changeMode("verification"); }}>Continuar para confirmação</a> · <a href={authPath("login")} onClick={(event) => { event.preventDefault(); changeMode("login"); }}>Entrar</a> · <a href={authPath("recovery")} onClick={(event) => { event.preventDefault(); changeMode("recovery"); }}>Recuperar acesso</a></p>}
           {(mode === "verification" || mode === "verification/resend") && <p className="auth-support"><a href={authPath("verification/resend")} onClick={(event) => { event.preventDefault(); changeMode("verification/resend"); }}>Reenviar confirmação</a> · <a href={authPath("login")} onClick={(event) => { event.preventDefault(); changeMode("login"); }}>Voltar para entrar</a></p>}
           {mode === "recovery/complete" && <p className="auth-support"><a href={authPath("recovery")} onClick={(event) => { event.preventDefault(); changeMode("recovery"); }}>Solicitar outro código</a> · <a href={authPath("login")} onClick={(event) => { event.preventDefault(); changeMode("login"); }}>Voltar para entrar</a></p>}
           {mode === "recovery" && <p className="auth-support"><a href={authPath("login")} onClick={(event) => { event.preventDefault(); changeMode("login"); }}>Voltar para entrar</a></p>}

@@ -16,6 +16,22 @@ test('mostra indisponibilidade da API sem declarar cadastro ou envio concluído'
   await page.locator('button[type=submit]').click();
   await expect(page.getByRole('alert')).toContainText('e-mail');
   await expect(page.getByRole('alert')).toContainText('Não foi possível concluir');
+  await expect(page.getByRole('alert')).toContainText('recupere o acesso');
+});
+
+test('cadastro repetido mantém resposta neutra e oferece login ou recuperação', async ({ page }) => {
+  await page.route('**/api/v1/auth/register', route => route.fulfill({
+    status: 202, contentType: 'application/json', body: JSON.stringify({ id: 'accepted', status: 'PENDENTE' }),
+  }));
+  await page.goto('/cadastro');
+  await page.getByLabel('Nome completo').fill('Conta já existente');
+  await page.getByLabel('E-mail').fill('conta@example.test');
+  await page.getByLabel('Senha').fill('Senha-sintetica-123');
+  await page.getByRole('button', { name: /Criar conta/ }).click();
+  await expect(page.getByRole('alert')).toContainText('Se você já possui uma conta');
+  await expect(page.getByRole('link', { name: 'Entrar', exact: true }).last()).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Recuperar acesso', exact: true }).last()).toBeVisible();
+  await expect(page).toHaveURL(/\/cadastro$/);
 });
 
 test('acesso à conta começa em login e cadastro exige escolha explícita', async ({ page }) => {

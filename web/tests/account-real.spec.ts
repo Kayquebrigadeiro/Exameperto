@@ -27,7 +27,7 @@ test('navegador → backend → PostgreSQL: confirmação, sessão, recuperaçã
   await page.getByLabel('E-mail', { exact: true }).fill('browser@example.test');
   await page.getByLabel('Senha', { exact: true }).fill('Senha-sintetica-123');
   await submit();
-  await expect(page.getByRole('alert')).toContainText('Cadastro recebido');
+  await expect(page.getByRole('alert')).toContainText('Solicitação recebida');
   await page.goto('/confirmacao');
   await page.getByLabel('Código recebido por e-mail').fill(await message('confirmation'));
   await submit(); await expect(page.getByRole('alert')).toContainText('E-mail confirmado');
