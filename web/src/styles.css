@@ -281,6 +281,52 @@ button:disabled {
 .public-footer { max-width: 1180px; margin: auto; padding: 1.5rem 5vw 2.5rem; display: flex; justify-content: space-between; color: #82978e; font-size: .7rem; }
 .public-footer span:first-child { color: #193b36; font-weight: 800; }
 
+/* Dedicated account access: intentionally separate from the authenticated shell. */
+.auth-page { min-height: 100vh; background: #f7f4ec; color: #193b36; }
+.auth-header { max-width: 1180px; margin: auto; padding: 1.4rem 5vw; display: flex; align-items: center; justify-content: space-between; }
+.auth-header-note { color: #789088; font: .68rem 'DM Mono', monospace; letter-spacing: .08em; text-transform: uppercase; }
+.auth-layout { max-width: 1050px; min-height: calc(100vh - 5rem); margin: auto; padding: 4rem 5vw 6rem; display: grid; grid-template-columns: minmax(0, .9fr) minmax(340px, .72fr); gap: clamp(3rem, 9vw, 8rem); align-items: center; }
+.auth-intro { position: relative; padding-bottom: 3rem; }
+.auth-intro h1 { max-width: 8ch; margin: 1.3rem 0 1.4rem; color: #193b36; font-size: clamp(3.5rem, 7vw, 6.7rem); line-height: .91; letter-spacing: -.09em; }
+.auth-intro h1 em { color: #6c9f87; font-family: Georgia, serif; font-weight: 400; letter-spacing: -.08em; }
+.auth-intro > p { max-width: 25rem; margin: 0; color: #607a72; font-size: 1rem; line-height: 1.7; }
+.auth-signal { display: flex; gap: .55rem; align-items: end; margin-top: 4rem; }
+.auth-signal span { display: block; width: .5rem; border-radius: 1rem; background: #d9f16b; }
+.auth-signal span:nth-child(1) { height: 1.1rem; }.auth-signal span:nth-child(2) { height: 2rem; background: #a9caa9; }.auth-signal span:nth-child(3) { height: 3rem; background: #193b36; }
+.auth-card { width: 100%; padding: clamp(1.5rem, 4vw, 2.5rem); border: 1px solid #d7e0d5; border-radius: .85rem; background: #fffef8; box-shadow: 1rem 1rem 0 rgba(25, 59, 54, .09); }
+.auth-links { display: flex; flex-wrap: wrap; gap: 1rem; margin: 0 0 2.6rem; padding-bottom: .9rem; border-bottom: 1px solid #e0e7dc; }
+.auth-links a, .auth-support a { color: #527b69; text-decoration: none; }
+.auth-links a { position: relative; color: #789088; font-size: .72rem; font-weight: 800; }
+.auth-links a:hover, .auth-support a:hover { color: #193b36; }
+.auth-links a.is-current { color: #193b36; }
+.auth-links a.is-current::after { content: ''; position: absolute; left: 0; right: 0; bottom: -.95rem; height: 2px; background: #d09a5d; }
+.auth-card-heading { margin-bottom: 1.7rem; }
+.auth-card-heading h2 { margin: .75rem 0 .45rem; color: #193b36; font-size: 2rem; letter-spacing: -.06em; }
+.auth-card-heading p { margin: 0; color: #71857d; font-size: .82rem; line-height: 1.6; }
+.auth-form { gap: .55rem; }
+.auth-form label { color: #345a4e; }
+.auth-form input { border-color: #ccd9cc; background: #fbfcf6; }
+.auth-form input:focus-visible { border-color: #527b69; outline-color: #d09a5d; }
+.password-control { position: relative; display: flex; align-items: center; }
+.password-control input { padding-right: 5.5rem; }
+.password-toggle { position: absolute; right: .55rem; margin: 0; padding: .45rem .55rem; border-radius: .3rem; background: transparent; color: #527b69; font-size: .68rem; }
+.password-toggle:hover:not(:disabled) { background: #edf2e8; color: #193b36; transform: none; }
+.auth-submit { margin-top: 1.2rem; background: #193b36; }
+.auth-submit:hover:not(:disabled) { background: #2b5b51; }
+.auth-support { margin: 1.4rem 0 0; color: #71857d; font-size: .72rem; line-height: 1.6; }
+.auth-support a { font-weight: 800; }
+.auth-card .feedback { margin-top: 1rem; }
+.auth-card .loading-state { color: #71857d; font-size: .8rem; }
+@media (max-width: 760px) {
+  .auth-header { padding: 1rem 1.2rem; }
+  .auth-header-note { font-size: .6rem; }
+  .auth-layout { min-height: auto; padding: 3.3rem 1.2rem 4rem; grid-template-columns: 1fr; gap: 2.2rem; align-items: start; }
+  .auth-intro { padding-bottom: 0; }
+  .auth-intro h1 { max-width: 9ch; margin-top: 1rem; font-size: 3.8rem; }
+  .auth-signal { margin-top: 1.8rem; }
+  .auth-card { box-shadow: .55rem .55rem 0 rgba(25, 59, 54, .09); }
+}
+
 /* Patient home */
 .portfolio-shell { background: #f6f5ee; }
 .portfolio-sidebar { background: #193b36; border-right: 0; }

@@ -42,7 +42,7 @@ test('formulário não apresenta violações básicas de acessibilidade', async 
 test('rotas públicas suportam endereço direto, histórico e página não encontrada', async ({ page }) => {
   await page.goto('/acesso');
   await expect(page.getByRole('heading', { name: 'Entrar', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Solicitar cadastro', exact: true }).click();
+  await page.getByRole('link', { name: 'Criar conta', exact: true }).click();
   await expect(page).toHaveURL(/\/cadastro$/);
   await page.goBack();
   await expect(page.getByRole('heading', { name: 'Entrar', exact: true })).toBeVisible();
@@ -50,4 +50,35 @@ test('rotas públicas suportam endereço direto, histórico e página não encon
   await expect(page.getByRole('heading', { name: 'Página não encontrada.' })).toBeVisible();
   const favicon = await page.request.get('/favicon.ico');
   expect(favicon.status()).toBe(200);
+});
+
+test('separa acesso público do dashboard e encerra a sessão na página de acesso', async ({ page }) => {
+  await page.route('**/api/v1/auth/login', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ accessToken: 'prepared-access', expiresIn: 900 }) }));
+  await page.route('**/api/v1/auth/csrf', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ token: 'prepared-csrf' }) }));
+  await page.route('**/api/v1/auth/logout', route => route.fulfill({ status: 204 }));
+  await page.route('**/api/v1/me/capabilities', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ globalRoles: [], institutions: [], areas: [], patientProfile: false, delivererProfile: false, activeFamilyAuthorization: false }) }));
+  await page.route('**/api/v1/me/profile', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'prepared', email: 'prepared@example.test', name: 'Conta preparada', phone: null, status: 'ATIVO', emailVerifiedAt: '2026-01-01T00:00:00Z', version: 1 }) }));
+  await page.route('**/api/v1/orders', route => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Entrar', exact: true }).first().click();
+  await expect(page).toHaveURL(/\/acesso$/);
+  await expect(page.getByRole('navigation', { name: 'Áreas do produto' })).toHaveCount(0);
+  await expect(page.getByText('Como funciona', { exact: true })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Criar conta', exact: true }).first().click();
+  await expect(page).toHaveURL(/\/cadastro$/);
+  await page.getByRole('link', { name: 'Recuperar acesso', exact: true }).first().click();
+  await expect(page).toHaveURL(/\/recuperacao$/);
+  await page.getByRole('link', { name: 'Voltar para entrar', exact: true }).click();
+  await page.getByLabel('E-mail').fill('prepared@example.test');
+  await page.getByLabel('Senha').fill('Senha-sintetica-123');
+  await page.getByRole('button', { name: /Entrar/ }).click();
+  await expect(page).toHaveURL(/\/app$/);
+  await expect(page.getByRole('heading', { name: /Olá,/ })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Áreas do produto' })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.getByRole('button', { name: 'Sair', exact: true }).click();
+  await expect(page).toHaveURL(/\/acesso$/);
+  await expect(page.getByRole('heading', { name: 'Entrar', exact: true })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Áreas do produto' })).toHaveCount(0);
 });

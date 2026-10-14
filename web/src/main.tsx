@@ -4256,6 +4256,7 @@ function AccountPage() {
   const [session, setSession] = useState<Tokens | null>(null);
   const [feedback, setFeedback] = useState<Notice | null>(null);
   const [emailHint, setEmailHint] = useState(() => window.sessionStorage.getItem("exameperto-email") ?? "");
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [expired, setExpired] = useState(false);
   const [restoring, setRestoring] = useState(true);
   useEffect(() => {
@@ -4263,6 +4264,7 @@ function AccountPage() {
     addEventListener("popstate", change);
     return () => removeEventListener("popstate", change);
   }, []);
+  useEffect(() => setPasswordVisible(false), [mode]);
   useEffect(() => {
     // Public pages must not probe CSRF with a missing refresh cookie. Session
     // restoration is only needed when a protected app URL is opened directly.
@@ -4435,6 +4437,11 @@ function AccountPage() {
     "login",
     "recovery",
   ].includes(mode);
+  const changeMode = (next: Mode) => {
+    setMode(next);
+    navigate(authPath(next));
+    setFeedback(null);
+  };
   if (!isKnownPublicPath() && !appRouteFromPath()) return <NotFound />;
   if (session && !expired)
     return (
@@ -4447,174 +4454,71 @@ function AccountPage() {
     );
   if (window.location.pathname === "/") return <PublicHome />;
   return (
-    <>
-      <main className="shell">
-        <section className="intro" aria-labelledby="page-title">
-          <span className="eyebrow">EXAME PERTO · ACESSO</span>
-          <h1 id="page-title">
-            Seu cuidado,
-            <br />
-            <em>sob seu controle.</em>
-          </h1>
-          <p className="lede">
-            Retirada autorizada e entrega de resultados em envelope fechado, com
-            custódia rastreável e acesso sob seu controle.
-          </p>
-          <ol className="service-steps" aria-label="Como o serviço funciona">
-            <li>
-              <strong>Solicite</strong>
-              <span>Escolha paciente, unidade e destinatário autorizado.</span>
-            </li>
-            <li>
-              <strong>Acompanhe</strong>
-              <span>Veja orçamento, custódia e próximos passos reais.</span>
-            </li>
-            <li>
-              <strong>Receba</strong>
-              <span>Confirme a entrega sem expor o conteúdo clínico.</span>
-            </li>
-          </ol>
-          <p className="quiet">
-            <span className="dot" aria-hidden="true" /> E-mail confirmado não
-            comprova identidade, elegibilidade ou aprovação profissional.
-          </p>
+    <main className="auth-page">
+      <header className="auth-header">
+        <a className="public-brand" href="/" onClick={(event) => { event.preventDefault(); navigate("/"); }}>
+          <span className="brand-mark">EP</span>
+          <span>exameperto</span>
+        </a>
+        <span className="auth-header-note">Acesso pessoal</span>
+      </header>
+      <div className="auth-layout">
+        <section className="auth-intro" aria-labelledby="page-title">
+          <span className="eyebrow public-eyebrow">EXAMEPERTO · CONTA</span>
+          <h1 id="page-title">Tudo perto, <em>com clareza.</em></h1>
+          <p>Entre para acompanhar seus pedidos, recebimentos e dados da conta em um só lugar.</p>
+          <div className="auth-signal" aria-hidden="true"><span /><span /><span /></div>
         </section>
-        <section className="card" aria-label="Acesso à conta">
-          {!session && (
-            <nav aria-label="Opções de acesso">
-              {(Object.keys(labels) as Mode[]).map((key) => (
-                <button
-                  type="button"
-                  className="tab"
-                  aria-pressed={mode === key}
-                  disabled={busy}
-                  key={key}
-                  onClick={() => {
-                    setMode(key);
-                    navigate(authPath(key));
-                    setFeedback(null);
-                  }}
-                >
-                  {labels[key]}
-                </button>
-              ))}
-            </nav>
-          )}
-          <div className="card-header">
+        <section className="auth-card" aria-label="Acesso à conta">
+          <nav className="auth-links" aria-label="Navegação de acesso">
+            <a className={mode === "login" ? "is-current" : ""} href={authPath("login")} onClick={(event) => { event.preventDefault(); changeMode("login"); }}>Entrar</a>
+            <a className={mode === "register" ? "is-current" : ""} href={authPath("register")} onClick={(event) => { event.preventDefault(); changeMode("register"); }}>Criar conta</a>
+            <a className={mode === "recovery" || mode === "recovery/complete" ? "is-current" : ""} href={authPath("recovery")} onClick={(event) => { event.preventDefault(); changeMode("recovery"); }}>Recuperar acesso</a>
+          </nav>
+          <div className="auth-card-heading">
             <span className="step">SUA CONTA</span>
-            <h2>{session ? "Conta conectada" : labels[mode]}</h2>
+            <h2>{labels[mode]}</h2>
             <p>
-              {mode === "register" && "Crie seu acesso para acompanhar pedidos e recebimentos."}
-              {mode === "login" && "Entre para continuar sua jornada."}
-              {mode === "verification" && `Confirme o endereço ${emailHint || "informado no cadastro"} para liberar o acesso.`}
-              {mode === "verification/resend" && "Peça uma nova mensagem caso a confirmação tenha expirado."}
-              {mode === "recovery" && "Enviaremos instruções para recuperar o acesso, sem revelar se a conta existe."}
-              {mode === "recovery/complete" && `Defina uma nova senha usando o código recebido${emailHint ? ` em ${emailHint}` : ""}.`}
+              {mode === "register" && "Crie seu acesso para acompanhar sua jornada."}
+              {mode === "login" && "Use seu e-mail e senha para continuar."}
+              {mode === "verification" && `Confirme o endereço ${emailHint || "informado no cadastro"}.`}
+              {mode === "verification/resend" && "Peça uma nova mensagem de confirmação."}
+              {mode === "recovery" && "Enviaremos instruções para recuperar o acesso."}
+              {mode === "recovery/complete" && "Defina uma nova senha com o código recebido."}
             </p>
           </div>
-          {!session && !restoring && (
-            <form key={mode} onSubmit={submit}>
-              {mode === "register" && (
-                <>
-                  <label htmlFor="name">Nome completo</label>
-                  <input
-                    id="name"
-                    name="name"
-                    autoComplete="name"
-                    required
-                    maxLength={160}
-                  />
-                </>
-              )}
-              {hasEmail && (
-                <>
-                  <label htmlFor="email">E-mail</label>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    maxLength={254}
-                    defaultValue={emailHint}
-                  />
-                </>
-              )}
-              {(mode === "verification" || mode === "recovery/complete") && (
-                <>
-                  <label htmlFor="token">Código recebido por e-mail</label>
-                  <input
-                    id="token"
-                    name="token"
-                    autoComplete="off"
-                    required
-                    minLength={16}
-                    maxLength={512}
-                  />
-                </>
-              )}
-              {(mode === "register" ||
-                mode === "login" ||
-                mode === "recovery/complete") && (
-                <>
-                  <label htmlFor="password">
-                    {mode === "recovery/complete" ? "Nova senha" : "Senha"}
-                  </label>
-                  <input
-                    id="password"
-                    name={
-                      mode === "recovery/complete" ? "newPassword" : "password"
-                    }
-                    type="password"
-                    autoComplete={
-                      mode === "login" ? "current-password" : "new-password"
-                    }
-                    required
-                    minLength={mode === "login" ? 1 : 12}
-                    maxLength={128}
-                  />
-                </>
-              )}
-              <button type="submit" disabled={busy}>
-                {busy ? "Aguarde…" : mode === "register" ? "Criar conta" : labels[mode]}{" "}
-                <span aria-hidden="true">→</span>
-              </button>
+          {restoring ? <p className="loading-state" role="status">Verificando seu acesso…</p> : (
+            <form key={mode} className="auth-form" onSubmit={submit}>
+              {mode === "register" && <>
+                <label htmlFor="name">Nome completo</label>
+                <input id="name" name="name" autoComplete="name" required maxLength={160} />
+              </>}
+              {hasEmail && <>
+                <label htmlFor="email">E-mail</label>
+                <input id="email" name="email" type="email" autoComplete="email" required maxLength={254} defaultValue={emailHint} />
+              </>}
+              {(mode === "verification" || mode === "recovery/complete") && <>
+                <label htmlFor="token">Código recebido por e-mail</label>
+                <input id="token" name="token" autoComplete="one-time-code" required minLength={16} maxLength={512} />
+              </>}
+              {(mode === "register" || mode === "login" || mode === "recovery/complete") && <>
+                <label htmlFor="password">{mode === "recovery/complete" ? "Nova senha" : "Senha"}</label>
+                <div className="password-control">
+                  <input id="password" name={mode === "recovery/complete" ? "newPassword" : "password"} type={passwordVisible ? "text" : "password"} autoComplete={mode === "login" ? "current-password" : "new-password"} required minLength={mode === "login" ? 1 : 12} maxLength={128} />
+                  <button type="button" className="password-toggle" aria-pressed={passwordVisible} onClick={() => setPasswordVisible((visible) => !visible)}>{passwordVisible ? "Ocultar" : "Mostrar"}</button>
+                </div>
+              </>}
+              <button className="auth-submit" type="submit" disabled={busy}>{busy ? "Entrando…" : mode === "register" ? "Criar conta" : labels[mode]} <span aria-hidden="true">→</span></button>
+              {feedback && <p className={`feedback ${feedback.tone}`} role="alert">{feedback.text}</p>}
             </form>
           )}
-          <section className="session" aria-label="Sessão">
-            <p>
-              {restoring
-                ? "Verificando uma sessão anterior neste navegador."
-                : session
-                  ? expired
-                    ? "Acesso expirado. Renove para continuar."
-                    : "Sessão ativa neste navegador."
-                  : "Sem sessão ativa em memória."}
-            </p>
-            <button
-              disabled={busy || restoring}
-              onClick={() => sessionAction("refresh")}
-            >
-              Renovar sessão
-            </button>
-            {session && (
-              <button disabled={busy} onClick={() => sessionAction("logout")}>
-                Sair
-              </button>
-            )}
-          </section>
-          {feedback && (
-            <p className={`feedback ${feedback.tone}`} role="alert">
-              {feedback.text}
-            </p>
-          )}
-          <p className="legal">
-            Representação legal e menores permanecem fora deste fluxo. Convites
-            dependem de canal privado habilitado.
-          </p>
+          {mode === "login" && <p className="auth-support">Ainda não tem acesso? <a href={authPath("register")} onClick={(event) => { event.preventDefault(); changeMode("register"); }}>Crie sua conta</a></p>}
+          {(mode === "verification" || mode === "verification/resend") && <p className="auth-support"><a href={authPath("verification/resend")} onClick={(event) => { event.preventDefault(); changeMode("verification/resend"); }}>Reenviar confirmação</a> · <a href={authPath("login")} onClick={(event) => { event.preventDefault(); changeMode("login"); }}>Voltar para entrar</a></p>}
+          {mode === "recovery/complete" && <p className="auth-support"><a href={authPath("recovery")} onClick={(event) => { event.preventDefault(); changeMode("recovery"); }}>Solicitar outro código</a> · <a href={authPath("login")} onClick={(event) => { event.preventDefault(); changeMode("login"); }}>Voltar para entrar</a></p>}
+          {mode === "recovery" && <p className="auth-support"><a href={authPath("login")} onClick={(event) => { event.preventDefault(); changeMode("login"); }}>Voltar para entrar</a></p>}
         </section>
-      </main>
-    </>
+      </div>
+    </main>
   );
 }
 createRoot(document.getElementById("root")!).render(<AccountPage />);

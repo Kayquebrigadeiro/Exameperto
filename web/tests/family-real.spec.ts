@@ -10,16 +10,16 @@ test('navegador → backend → PostgreSQL: perfil, convite, aceite, confirmaç�
   const password = 'Senha-sintetica-123';
   const owner = 'patient-browser@example.test';
   const family = 'family-browser@example.test';
-  const choose = async (name: string) => page.getByRole('button', { name, exact: true }).first().click();
-  const accountForm = () => page.locator('.card form');
+  const choose = async (name: string) => page.getByRole('link', { name, exact: true }).first().click();
+  const accountForm = () => page.locator('.auth-card form');
   const register = async (email: string) => {
-    await choose('Solicitar cadastro');
+    await choose('Criar conta');
     await accountForm().getByLabel('Nome completo').fill('Conta Sintética Navegador');
     await accountForm().getByLabel('E-mail', { exact: true }).fill(email);
     await accountForm().getByLabel('Senha', { exact: true }).fill(password);
-    await accountForm().getByRole('button', { name: /Solicitar cadastro/ }).click();
+    await accountForm().getByRole('button', { name: /Criar conta/ }).click();
     await expect(page.getByRole('alert')).toContainText('Solicitação recebida');
-    await choose('Confirmar e-mail');
+    await page.goto('/confirmacao');
     let token=''; await expect.poll(async()=>{token=await readFile(join(mailbox,'confirmation'),'utf8').catch(()=> '');return token.length;}).toBe(43);
     await accountForm().getByLabel('Código recebido por e-mail').fill(token);
     await accountForm().getByRole('button', { name: /Confirmar e-mail/ }).click();

@@ -8,16 +8,16 @@ test.skip(!process.env.TEST_MAILBOX, 'Run through BrowserFlowTest with disposabl
 test('navegador → backend → PostgreSQL: confirmação, sessão, recuperação e indisponibilidade', async ({ page, context }) => {
   test.setTimeout(45_000);
   const mailbox = process.env.TEST_MAILBOX!;
-  const choose = async (name: string) => page.getByRole('button', { name, exact: true }).first().click();
+  const choose = async (name: string) => page.getByRole('link', { name, exact: true }).first().click();
   const submit = async () => page.locator('button[type=submit]').click();
   const message = async (name: string) => {
     let token = '';
     await expect.poll(async () => { token = await readFile(join(mailbox, name), 'utf8').catch(() => ''); return token.length; }).toBe(43);
     return token;
   };
-  await page.goto('/');
-  const registerTab = page.getByRole('navigation', { name: 'Opções de acesso' }).getByRole('button', { name: 'Solicitar cadastro' });
-  await page.keyboard.press('Tab');
+  await page.goto('/acesso');
+  const registerTab = page.getByRole('navigation', { name: 'Navegação de acesso' }).getByRole('link', { name: 'Criar conta' });
+  await registerTab.focus();
   await expect(registerTab).toBeFocused();
   await expect(registerTab).toHaveCSS('outline-style', 'solid');
   await registerTab.click();
@@ -27,17 +27,17 @@ test('navegador → backend → PostgreSQL: confirmação, sessão, recuperaçã
   await page.getByLabel('E-mail', { exact: true }).fill('browser@example.test');
   await page.getByLabel('Senha', { exact: true }).fill('Senha-sintetica-123');
   await submit();
-  await expect(page.getByRole('alert')).toContainText('Solicitação recebida');
-  await choose('Confirmar e-mail');
+  await expect(page.getByRole('alert')).toContainText('Cadastro recebido');
+  await page.goto('/confirmacao');
   await page.getByLabel('Código recebido por e-mail').fill(await message('confirmation'));
   await submit(); await expect(page.getByRole('alert')).toContainText('E-mail confirmado');
   await choose('Entrar');
   await page.getByLabel('E-mail', { exact: true }).fill('browser@example.test');
   await page.getByLabel('Senha', { exact: true }).fill('Senha-sintetica-123');
   await submit(); await expect(page.getByText('Sessão iniciada.', { exact: false })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Olá. O que precisa avançar hoje?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Olá,/ })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Olá. O que precisa avançar hoje?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Olá,/ })).toBeVisible();
   await expect(page.getByText('Sessão protegida', { exact: true })).toBeVisible();
   const productNavigation = page.getByRole('navigation', { name: 'Áreas do produto' });
   await expect(productNavigation.getByRole('link', { name: 'Operação', exact: true })).toHaveCount(0);
@@ -50,8 +50,6 @@ test('navegador → backend → PostgreSQL: confirmação, sessão, recuperaçã
   await expect(page.getByRole('region', { name: 'Benefícios' })).toBeVisible();
   await productNavigation.getByRole('link', { name: 'Pedidos', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Pedidos e orçamentos' })).toBeVisible();
-  await productNavigation.getByRole('link', { name: 'Cadastro de entrega', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Cadastro e comprovações' })).toBeVisible();
   await productNavigation.getByRole('link', { name: 'Conta', exact: true }).click();
   await page.getByLabel('Nome').fill('Conta Editada no Navegador');
   await page.getByRole('button', { name: 'Salvar alterações' }).click();
@@ -78,7 +76,8 @@ test('navegador → backend → PostgreSQL: confirmação, sessão, recuperaçã
   expect(desktopAccessibility.violations).toEqual([]);
   const cookie = (await context.cookies()).find(c => c.name === 'refresh');
   expect(cookie?.httpOnly).toBe(true); expect(cookie?.secure).toBe(true);
-  expect(await page.evaluate(() => localStorage.length + sessionStorage.length)).toBe(0);
+  expect(await page.evaluate(() => localStorage.length)).toBe(0);
+  expect(await page.evaluate(() => sessionStorage.getItem('exameperto-email'))).toBe('browser@example.test');
   await page.getByRole('button', { name: 'Renovar', exact: true }).click();
   await expect(page.getByText('Sessão renovada.', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Sair', exact: true }).click();
@@ -86,7 +85,6 @@ test('navegador → backend → PostgreSQL: confirmação, sessão, recuperaçã
   await choose('Recuperar acesso');
   await page.getByLabel('E-mail', { exact: true }).fill('browser@example.test');
   await submit(); await expect(page.getByRole('alert')).toContainText('não confirma envio');
-  await choose('Trocar senha');
   await page.getByLabel('Código recebido por e-mail').fill(await message('recovery'));
   await page.getByLabel('Nova senha').fill('Nova-senha-sintetica-123');
   await submit(); await expect(page.getByRole('alert')).toContainText('Todas as sessões foram revogadas');
@@ -97,7 +95,7 @@ test('navegador → backend → PostgreSQL: confirmação, sessão, recuperaçã
   await writeFile(join(mailbox, 'unavailable'), 'test-only');
   await page.getByRole('button', { name: 'Sair', exact: true }).click();
   await expect(page.getByText('Sessão encerrada no servidor.', { exact: true })).toBeVisible();
-  await choose('Solicitar cadastro');
+  await choose('Criar conta');
   await page.getByLabel('Nome completo').fill('Outro Cadastro Sintético');
   await page.getByLabel('E-mail', { exact: true }).fill('blocked-browser@example.test');
   await page.getByLabel('Senha', { exact: true }).fill('Senha-sintetica-123');

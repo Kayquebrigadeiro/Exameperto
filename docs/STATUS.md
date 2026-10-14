@@ -1,5 +1,59 @@
 # Status — atualizado em 14/10/2026
 
+## Reconstrução da experiência de acesso — 14/10/2026
+
+`/acesso` foi separado do mural antigo: a rota agora monta uma moldura
+dedicada de autenticação alinhada à identidade da home, com e-mail, senha,
+mostrar/ocultar senha, estado de carregamento, erro junto ao formulário e
+links para entrar, cadastro, recuperação e confirmação. Cadastro, confirmação
+e recuperação usam a mesma camada pública; `/app` continua sendo a camada
+autenticada e só monta navegação/áreas depois da sessão.
+
+A lógica existente de autenticação não foi substituída: chamadas de login,
+CSRF, refresh, logout, cookies, sessão e capacidades permanecem as mesmas.
+O dashboard pós-login continua em `/app`; logout retorna a `/acesso` sem
+conteúdo autenticado. A home pública não foi alterada.
+
+Evidências: o processo local em `127.0.0.1:5173` serviu a versão nova e os
+testes Chromium públicos passaram 5/5; build web passou; `AuthFlowTest` passou
+com PostgreSQL 17.6 descartável. O teste de navegação login → dashboard →
+logout usa sessão preparada e endpoints mockados, portanto não é login real.
+As capturas `web/artifacts/screenshots/access-dedicated-desktop.png`,
+`access-dedicated-mobile.png`, `app-prepared-session-desktop.png` e
+`app-prepared-session-mobile.png` não contêm dados pessoais; as capturas do
+dashboard são explicitamente de sessão preparada.
+
+Arquivos pessoais e dados locais foram preservados; não houve deploy. Próxima
+ação: revisão visual do autor e, se aprovado, homologação do login real com a
+conta autorizada já existente.
+
+## Investigação do reenvio e autenticação na conta existente — 14/10/2026
+
+Foi retomada a pendência de homologação usando a conta já existente no
+PostgreSQL local, sem criar outra conta, remover dados ou alterar a senha. A
+cadeia real estava disponível em `127.0.0.1:5173` → API `127.0.0.1:8080` →
+PostgreSQL 17.6 em `127.0.0.1:5433`; Flyway V18 estava aplicado e o gate de
+restauração permaneceu `NORMAL`.
+
+Evidências sanitizadas: o banco continua com uma única conta, em estado
+`ATIVO`, com `email_verificado_em` preenchido; portanto a confirmação de
+e-mail está registrada no backend/PostgreSQL. O reenvio público de confirmação
+respondeu HTTP 202, sem criar novo desafio porque a conta já está confirmada.
+O pedido real de recuperação respondeu HTTP 202, criou/atualizou a outbox e o
+worker terminou em `ENVIADO`, com desafio de recuperação ativo. Isso confirma a
+execução da cadeia API → transação PostgreSQL → worker → gateway SMTP; o
+recebimento na caixa ainda depende do titular.
+
+O login foi exercitado contra o endpoint real com origem correta e senha
+deliberadamente inválida, retornando HTTP 401/`UNAUTHENTICATED`; a proteção de
+origem sem o cabeçalho correto também retornou HTTP 403. A sessão existente
+permaneceu preservada e o banco terminou sem sessões abertas. Login autenticado
+e conclusão da recuperação ainda não podem ser declarados:
+exigem que o titular leia o código da mensagem enviada, escolha a própria
+senha e entre em `/acesso`. Próxima ação: titular usar o código em
+`/recuperacao/nova-senha`, definir a senha, fazer login, recarregar, renovar e
+sair; depois registrar a evidência observada sem expor o código ou a senha.
+
 ## Reconstrução da experiência de produto — 14/10/2026
 
 Implementação iniciada conforme autorização explícita do autor, sem declarar

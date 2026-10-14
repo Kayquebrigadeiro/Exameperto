@@ -9,15 +9,15 @@ test('navegação integrada pública e autenticada por perfil e área', async ({
   const password = 'Senha-sintetica-123';
 
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Seu cuidado, sob seu controle.', exact: false })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Resultados de exames/ })).toBeVisible();
   await page.goto('/acesso');
   await expect(page.getByRole('heading', { name: 'Entrar', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Solicitar cadastro', exact: true }).first().click();
+  await page.getByRole('link', { name: 'Criar conta', exact: true }).first().click();
   await expect(page).toHaveURL(/\/cadastro$/);
   await page.goBack();
   await expect(page.getByRole('heading', { name: 'Entrar', exact: true })).toBeVisible();
   await page.goForward();
-  await expect(page.getByRole('heading', { name: 'Solicitar cadastro', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Criar conta', exact: true })).toBeVisible();
   await page.goto('/endereco-inexistente');
   await expect(page.getByRole('heading', { name: 'Página não encontrada.' })).toBeVisible();
   await page.getByRole('button', { name: 'Voltar ao início' }).click();
@@ -27,7 +27,7 @@ test('navegação integrada pública e autenticada por perfil e área', async ({
   await page.getByLabel('E-mail', { exact: true }).fill(email);
   await page.getByLabel('Senha', { exact: true }).fill(password);
   await page.locator('button[type=submit]').click();
-  await expect(page.getByRole('heading', { name: 'Olá. O que precisa avançar hoje?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Olá,/ })).toBeVisible();
   await expect(page.getByText('Sessão protegida', { exact: true })).toBeVisible();
 
   const nav = page.getByRole('navigation', { name: 'Áreas do produto' });
