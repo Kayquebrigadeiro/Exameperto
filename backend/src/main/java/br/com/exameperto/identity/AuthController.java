@@ -22,9 +22,11 @@ class AuthController {
     private final AccountMailService mail;
     private final DataProtector protector;
     private final String origin;
+    private final boolean secureCookies;
     AuthController(AuthService auth, AccountMailService mail, DataProtector protector,
-                   @Value("${registration.allowed-origin}") String origin) {
-        this.auth=auth; this.mail=mail; this.protector=protector; this.origin=origin;
+                   @Value("${registration.allowed-origin}") String origin,
+                   @Value("${security.cookie-secure:true}") boolean secureCookies) {
+        this.auth=auth; this.mail=mail; this.protector=protector; this.origin=origin; this.secureCookies=secureCookies;
     }
     @PostMapping("/verification") AcceptedResponse verify(@Valid @RequestBody TokenInput input) {
         auth.verify(input.token()); return accepted("CONCLUIDA");
@@ -71,7 +73,7 @@ class AuthController {
         return out;
     }
     private ResponseCookie.ResponseCookieBuilder refreshCookie(String token) {
-        return ResponseCookie.from("refresh",token).httpOnly(true).secure(true).sameSite("Lax").path("/api/v1/auth");
+        return ResponseCookie.from("refresh",token).httpOnly(true).secure(secureCookies).sameSite("Lax").path("/api/v1/auth");
     }
     private String cookie(HttpServletRequest request) {
         if (request.getCookies()!=null) for (Cookie c:request.getCookies()) if ("refresh".equals(c.getName())) return c.getValue();

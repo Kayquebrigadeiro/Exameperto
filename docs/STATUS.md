@@ -1,4 +1,14 @@
-# Status — atualizado em 13/10/2026
+# Status — atualizado em 14/10/2026
+
+## Rodada técnica das sprints 6–9 — 14/10/2026
+
+O 401 da entrega foi reproduzido e corrigido sem ampliar permissões. A causa combinava três defeitos de preparação/contrato: cookie de refresh `Secure` em origem HTTP do fixture, `If-Match` usando a versão da custódia em vez da versão do pedido e consulta de participação referenciando `autorizacao_escopo.id`, coluna inexistente. A aplicação mantém `security.cookie-secure=true` por padrão; somente o fixture descartável de navegador usa `false`. A interface do entregador agora conserva a custódia retornada após cada ação, para reload e próximo comando usarem a versão correta, e os tipos de ocorrência exibidos coincidem com o contrato do backend.
+
+Evidência principal: `CustodyBrowserFlowTest` passou 1/1 com três contas sintéticas e dois pedidos isolados. O entregador fez retirada, início, ocorrência e entrega pela tela; o destinatário em outro contexto emitiu e usou o código; um terceiro tentou comando direto e recebeu 404. PostgreSQL confirmou `ENTREGUE`, `custodia.encerrada_em` preenchida, `OCORRENCIA`, custódia da ocorrência aberta e código usado uma única vez.
+
+Validação da rodada: suíte Maven comum sem falhas/erros nos relatórios; suíte Chromium explícita 16/16 testes em 10 classes; a nova `PrivilegedOperationsBrowserFlowTest` passou 1/1 cobrindo operação, benefícios, privacidade, MFA, autoanálise, ausência de papel, sessão sem MFA e ações pela interface; build web passou; Playwright público 4/4, com 10 skips condicionais. A matriz técnica/operacional e URLs estão em [REVISAO-SPRINTS-5-9](REVISAO-SPRINTS-5-9.md).
+
+Situação honesta: o recorte técnico local da sprint 6 agora está validado no navegador; sprints 7 e 8 também têm recortes locais validados, mas a aceitação integrada e a homologação operacional/financeira externa ainda não estão concluídas. A sprint 9 continua pendente como aceitação do produto inteiro. Não houve deploy, dinheiro real, banco externo, fixtures na aplicação normal, alteração de `.vscode/`, `referencia.md` ou `sprints/`.
 
 ## Revisão do fechamento das sprints 5–9 — 13/10/2026
 

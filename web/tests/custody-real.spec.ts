@@ -1,6 +1,14 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Browser, type Page } from '@playwright/test';
 
 test.skip(!process.env.CUSTODY_RECIPIENT_EMAIL, 'Run through CustodyBrowserFlowTest with disposable PostgreSQL.');
+
+async function loginUi(page: Page, email: string) {
+  await page.goto('/acesso');
+  await page.getByLabel('E-mail', { exact: true }).fill(email);
+  await page.getByLabel('Senha', { exact: true }).fill('Senha-sintetica-123');
+  await page.locator('button[type=submit]').click();
+  await expect(page.getByRole('status').filter({ hasText: 'Sessão iniciada' })).toContainText('Sessão iniciada');
+}
 
 async function loginApi(page: Page, email: string) {
   return page.evaluate(async ({ email }) => {
@@ -15,41 +23,45 @@ async function loginApi(page: Page, email: string) {
 async function command(page: Page, token: string, path: string, version: number, body?: object) {
   return page.evaluate(async ({ token, path, version, body }) => {
     const response = await fetch(`/api/v1${path}`, {
-      method: 'POST',
-      headers: {
+      method: 'POST', headers: {
         Authorization: `Bearer ${token}`, 'Content-Type': 'application/json',
         'If-Match': String(version), 'Idempotency-Key': crypto.randomUUID(),
-      },
-      body: body ? JSON.stringify(body) : undefined,
+      }, body: body ? JSON.stringify(body) : undefined,
     });
     return { status: response.status, body: await response.json().catch(() => ({})) };
   }, { token, path, version, body });
 }
 
-test('navegador → API real → PostgreSQL ensaia custódia e segredo do destinatário', async ({ page, context }) => {
-  const driverPage = await context.newPage();
-  await driverPage.goto('/');
-  const driver = await loginApi(driverPage, process.env.CUSTODY_DRIVER_EMAIL!);
+test('navegador → API real → PostgreSQL ensaia custódia e segredo do destinatário', async ({ page, browser }) => {
+  const driverContext = await browser.newContext();
+  const driverPage = await driverContext.newPage();
   const delivered = process.env.CUSTODY_DELIVERY_ORDER_ID!;
   const incident = process.env.CUSTODY_INCIDENT_ORDER_ID!;
-  const proof = process.env.CUSTODY_EVIDENCE_ID!;
+  await loginUi(driverPage, process.env.CUSTODY_DRIVER_EMAIL!);
+  await driverPage.getByRole('navigation', { name: 'Áreas do produto' }).getByRole('link', { name: 'Minhas entregas', exact: true }).click();
+  const deliveryPanel = driverPage.getByRole('region', { name: 'Ofertas e entregas' });
+  const deliveryTask = deliveryPanel.locator('.task-record').filter({ hasText: delivered });
+  const incidentTask = deliveryPanel.locator('.task-record').filter({ hasText: incident });
+  await deliveryTask.getByRole('button', { name: 'Registrar retirada' }).click();
+  await expect(driverPage.getByRole('alert')).toContainText('Retirada e custódia registradas');
+  await expect(deliveryTask).toContainText('Custódia ATIVA');
+  await deliveryTask.getByRole('button', { name: 'Iniciar entrega' }).click();
+  await expect(driverPage.getByRole('alert')).toContainText('Entrega iniciada');
+  await incidentTask.getByRole('button', { name: 'Registrar retirada' }).click();
+  await expect(driverPage.getByRole('alert')).toContainText('Retirada e custódia registradas');
+  await driverPage.goto('/app/entregas');
+  const refreshedIncidentTask = driverPage.getByRole('region', { name: 'Ofertas e entregas' }).locator('.task-record').filter({ hasText: incident });
+  await refreshedIncidentTask.getByLabel('Descrição').fill('ensaio sintético isolado');
+  await refreshedIncidentTask.getByRole('button', { name: 'Registrar ocorrência' }).click();
+  await expect(driverPage.getByRole('alert')).toContainText('Ocorrência registrada');
 
-  expect((await command(driverPage, driver, `/orders/${delivered}/pickup`, 3, { evidenceDocumentId: proof })).status).toBe(200);
-  expect((await command(driverPage, driver, `/orders/${delivered}/start-delivery`, 4)).status).toBe(200);
-  expect((await command(driverPage, driver, `/orders/${incident}/pickup`, 3, { evidenceDocumentId: proof })).status).toBe(200);
-  expect((await command(driverPage, driver, `/orders/${incident}/incidents`, 4, { type: 'DESTINATARIO_AUSENTE', description: 'ensaio sintético isolado' })).status).toBe(201);
-
-  const outsiderPage = await context.newPage();
+  const outsiderContext = await browser.newContext();
+  const outsiderPage = await outsiderContext.newPage();
   await outsiderPage.goto('/');
   const outsider = await loginApi(outsiderPage, process.env.CUSTODY_OUTSIDER_EMAIL!);
   expect((await command(outsiderPage, outsider, `/orders/${delivered}/receipt-code`, 5)).status).toBe(404);
 
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Entrar', exact: true }).first().click();
-  await page.getByLabel('E-mail', { exact: true }).fill(process.env.CUSTODY_RECIPIENT_EMAIL!);
-  await page.getByLabel('Senha', { exact: true }).fill('Senha-sintetica-123');
-  await page.locator('button[type=submit]').click();
-  await expect(page.getByRole('status').filter({ hasText: 'Sessão iniciada' })).toContainText('Sessão iniciada');
+  await loginUi(page, process.env.CUSTODY_RECIPIENT_EMAIL!);
   await page.getByRole('navigation', { name: 'Áreas do produto' }).getByRole('link', { name: 'Pedidos', exact: true }).click();
   const panel = page.getByRole('region', { name: 'Pedidos e orçamentos' });
   const deliveryCard = panel.locator('article', { hasText: delivered });
@@ -61,5 +73,10 @@ test('navegador → API real → PostgreSQL ensaia custódia e segredo do destin
   const secret = (await secretLine.locator('code').textContent())!;
   expect(secret.length).toBeGreaterThan(20);
 
-  expect((await command(driverPage, driver, `/orders/${delivered}/deliver`, 5, { code: secret })).status).toBe(200);
+  await expect(deliveryTask).toContainText('Custódia ATIVA');
+  await deliveryTask.getByLabel('Código do destinatário').fill(secret);
+  await deliveryTask.getByRole('button', { name: 'Confirmar entrega' }).click();
+  await expect(driverPage.getByRole('alert')).toContainText('Entrega confirmada pelo código do destinatário');
+  await driverContext.close();
+  await outsiderContext.close();
 });

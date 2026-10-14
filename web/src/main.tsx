@@ -3220,11 +3220,12 @@ function DeliveryWorkPanel({ session }: { session: Tokens }) {
           ] as const,
       ),
     );
-    setCustody(
-      Object.fromEntries(
+    setCustody((current) => ({
+      ...current,
+      ...Object.fromEntries(
         states.filter(([, value]) => value).map(([id, value]) => [id, value]),
       ),
-    );
+    }));
     setPayouts(
       Object.fromEntries(
         states
@@ -3303,7 +3304,7 @@ function DeliveryWorkPanel({ session }: { session: Tokens }) {
     const version = custody[task.orderId]?.version ?? task.version;
     await run(
       async () => {
-        await api(`/orders/${task.orderId}/${action}`, {
+        const response = await api(`/orders/${task.orderId}/${action}`, {
           method: "POST",
           headers: {
             "If-Match": String(version),
@@ -3311,6 +3312,9 @@ function DeliveryWorkPanel({ session }: { session: Tokens }) {
           },
           body: body ? JSON.stringify(body) : undefined,
         });
+        if (action !== "incidents" && response.result) {
+          setCustody((current) => ({ ...current, [task.orderId]: response.result as Custody }));
+        }
       },
       action === "pickup"
         ? "Retirada e custódia registradas."
@@ -3438,8 +3442,9 @@ function DeliveryWorkPanel({ session }: { session: Tokens }) {
                       Ocorrência
                       <select name="type">
                         <option>DESTINATARIO_AUSENTE</option>
-                        <option>AVARIA</option>
-                        <option>RECUSA_RECEBIMENTO</option>
+                        <option>UNIDADE_FECHADA</option>
+                        <option>LACRE_COMPROMETIDO</option>
+                        <option>OUTRA</option>
                       </select>
                     </label>
                     <label>
