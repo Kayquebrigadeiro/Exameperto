@@ -1,5 +1,39 @@
 # Status — atualizado em 14/10/2026
 
+## Catálogo administrativo de unidades e protocolos — 14/10/2026
+
+Partindo do commit `219da88`, foi implementado o catálogo operacional em
+`/app/catalogo`, disponível somente para contas com papel global
+`ANALISTA_OPERACIONAL`. A listagem é protegida no backend; mutações exigem
+também MFA verificado na sessão. O fluxo separa cadastro da unidade, aceite
+de parceria com referência de comprovação e habilitação do protocolo. Cada
+transição grava `auditoria_unidade_retirada`; cadastrar uma unidade deixa o
+registro `CADASTRADA` e o protocolo `SUSPENSO`, sem presumir hospital,
+parceiro ou autorização institucional.
+
+A migração V19 criou `unidade_retirada`, `aceite_unidade_retirada` e a
+auditoria, vinculando protocolos ao catálogo sem reescrever pedidos existentes.
+`GET /api/v1/order-options/units` só retorna unidade ATIVA com parceria ACEITA,
+protocolo HABILITADO e cobertura de retorno vigente. A mesma regra é
+revalidada na criação do pedido. O rascunho atual continua no navegador,
+preserva campos quando o catálogo está vazio e não é confundido com pedido
+persistido, orçamento ou aprovação.
+
+Configuração local: com o backend e PostgreSQL ativos, um administrador
+operacional acessa `http://127.0.0.1:5173/app/catalogo`, configura MFA, cadastra
+a unidade com dados institucionais reais, registra a referência da
+comprovação, ativa a unidade, cria o protocolo com regras JSON e marca a
+cobertura de retorno somente quando confirmada. Depois habilita o protocolo;
+somente então ele aparece em `/app/pedidos`. A unidade sintética não foi
+inserida no banco normal.
+
+Evidências: Flyway V19 aplicado no PostgreSQL local; `scripts/verify-local-environment.sh`
+passou após reiniciar os serviços locais; build backend/web passou;
+`OrderBrowserFlowTest` passou com navegador, Spring e PostgreSQL descartável,
+confirmando que catálogo vazio bloqueia apenas a transição operacional e não
+persiste pedido/autorização. O processo servido é o atual em
+`127.0.0.1:5173` → `127.0.0.1:8080` → PostgreSQL `5433`.
+
 ## Painel do paciente e jornada de entrega — 14/10/2026
 
 `/app` mantém o painel autenticado separado da home e de `/acesso`, com

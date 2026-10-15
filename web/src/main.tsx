@@ -128,6 +128,31 @@ type Order = {
   pickupAuthorizationId: string;
   pickupUnitId: string;
 };
+type AvailableUnit = { id: string; label: string };
+type CatalogProtocol = {
+  id: string;
+  number: number;
+  rules: string;
+  returnCoverageConfirmed: boolean;
+  startsAt: string;
+  endsAt: string | null;
+  status: string;
+};
+type CatalogUnit = {
+  id: string;
+  name: string;
+  city: string;
+  state: string;
+  registrationStatus: string;
+  partnership: {
+    status: string;
+    evidenceReference: string;
+    note: string | null;
+    acceptedAt: string | null;
+  } | null;
+  protocols: CatalogProtocol[];
+  version: number;
+};
 type Quote = {
   id: string;
   orderId: string;
@@ -196,7 +221,10 @@ const orderStatusLabels: Record<string, string> = {
 };
 
 function orderStatusLabel(value: string) {
-  return orderStatusLabels[value] ?? value.replaceAll("_", " ").toLocaleLowerCase("pt-BR");
+  return (
+    orderStatusLabels[value] ??
+    value.replaceAll("_", " ").toLocaleLowerCase("pt-BR")
+  );
 }
 
 function formatMoney(value: number) {
@@ -307,45 +335,128 @@ function PublicHome() {
   return (
     <main className="public-home">
       <header className="public-nav">
-        <a className="public-brand" href="/" onClick={(event) => { event.preventDefault(); navigate("/"); }}>
+        <a
+          className="public-brand"
+          href="/"
+          onClick={(event) => {
+            event.preventDefault();
+            navigate("/");
+          }}
+        >
           <span className="brand-mark">EP</span>
           <span>exameperto</span>
         </a>
         <nav aria-label="Acesso público">
           <a href="/acesso">Entrar</a>
-          <a className="nav-quiet" href="/cadastro">Sou entregador</a>
-          <a className="nav-cta" href="/cadastro">Criar conta</a>
+          <a className="nav-quiet" href="/cadastro">
+            Sou entregador
+          </a>
+          <a className="nav-cta" href="/cadastro">
+            Criar conta
+          </a>
         </nav>
       </header>
       <section className="public-hero" aria-labelledby="public-title">
         <div className="hero-copy">
-          <p className="eyebrow public-eyebrow">RETIRADA AUTORIZADA · ENTREGA CUIDADOSA</p>
-          <h1 id="public-title">Resultados de exames, <em>perto de você.</em></h1>
-          <p className="hero-lede">O Exameperto ajuda você a solicitar a retirada autorizada e receber seus resultados em envelope fechado, com acompanhamento em cada etapa.</p>
+          <p className="eyebrow public-eyebrow">
+            RETIRADA AUTORIZADA · ENTREGA CUIDADOSA
+          </p>
+          <h1 id="public-title">
+            Resultados de exames, <em>perto de você.</em>
+          </h1>
+          <p className="hero-lede">
+            O Exameperto ajuda você a solicitar a retirada autorizada e receber
+            seus resultados em envelope fechado, com acompanhamento em cada
+            etapa.
+          </p>
           <div className="hero-actions">
-            <a className="button-link primary" href="/cadastro">Criar minha conta <span aria-hidden="true">↗</span></a>
-            <a className="button-link secondary" href="/acesso">Já tenho acesso</a>
+            <a className="button-link primary" href="/cadastro">
+              Criar minha conta <span aria-hidden="true">↗</span>
+            </a>
+            <a className="button-link secondary" href="/acesso">
+              Já tenho acesso
+            </a>
           </div>
-          <p className="project-note"><span className="note-dot" aria-hidden="true" /> Projeto em construção: a disponibilidade depende de unidades, políticas e integrações confirmadas.</p>
+          <p className="project-note">
+            <span className="note-dot" aria-hidden="true" /> Projeto em
+            construção: a disponibilidade depende de unidades, políticas e
+            integrações confirmadas.
+          </p>
         </div>
         <div className="hero-visual" aria-label="Resumo das etapas do serviço">
           <div className="visual-orbit orbit-one" />
           <div className="visual-orbit orbit-two" />
-          <div className="route-card route-card-top"><span>01</span><strong>Pedido criado</strong><small>Você acompanha o próximo passo</small></div>
-          <div className="route-card route-card-main"><span className="route-icon">✦</span><strong>Envelope fechado</strong><small>Privacidade desde a retirada até o recebimento</small><div className="route-line"><i /><i /><i /></div></div>
-          <div className="route-card route-card-bottom"><span>03</span><strong>Recebimento confirmado</strong><small>Sem expor o conteúdo do exame</small></div>
+          <div className="route-card route-card-top">
+            <span>01</span>
+            <strong>Pedido criado</strong>
+            <small>Você acompanha o próximo passo</small>
+          </div>
+          <div className="route-card route-card-main">
+            <span className="route-icon">✦</span>
+            <strong>Envelope fechado</strong>
+            <small>Privacidade desde a retirada até o recebimento</small>
+            <div className="route-line">
+              <i />
+              <i />
+              <i />
+            </div>
+          </div>
+          <div className="route-card route-card-bottom">
+            <span>03</span>
+            <strong>Recebimento confirmado</strong>
+            <small>Sem expor o conteúdo do exame</small>
+          </div>
         </div>
       </section>
       <section className="how-it-works" aria-labelledby="how-title">
-        <div className="section-intro"><p className="eyebrow dark">COMO FUNCIONA</p><h2 id="how-title">Uma jornada clara, do pedido à porta.</h2></div>
+        <div className="section-intro">
+          <p className="eyebrow dark">COMO FUNCIONA</p>
+          <h2 id="how-title">Uma jornada clara, do pedido à porta.</h2>
+        </div>
         <ol className="how-grid">
-          <li><span>01</span><h3>Solicite</h3><p>Informe a unidade de origem, o destinatário autorizado e o endereço de recebimento.</p></li>
-          <li><span>02</span><h3>Retirada autorizada</h3><p>A operação só avança quando as autorizações e condições necessárias forem verificadas.</p></li>
-          <li><span>03</span><h3>Receba</h3><p>Acompanhe o pedido e confirme a entrega do envelope no destino indicado.</p></li>
+          <li>
+            <span>01</span>
+            <h3>Solicite</h3>
+            <p>
+              Informe a unidade de origem, o destinatário autorizado e o
+              endereço de recebimento.
+            </p>
+          </li>
+          <li>
+            <span>02</span>
+            <h3>Retirada autorizada</h3>
+            <p>
+              A operação só avança quando as autorizações e condições
+              necessárias forem verificadas.
+            </p>
+          </li>
+          <li>
+            <span>03</span>
+            <h3>Receba</h3>
+            <p>
+              Acompanhe o pedido e confirme a entrega do envelope no destino
+              indicado.
+            </p>
+          </li>
         </ol>
       </section>
-      <section className="public-footer-cta"><div><p className="eyebrow dark">PARA QUEM ENTREGA</p><h2>Quer fazer parte da operação?</h2><p>O cadastro de entregador é separado e passa por análise de documentos, veículo e regras aplicáveis.</p></div><a className="button-link dark-button" href="/cadastro">Conhecer o cadastro <span aria-hidden="true">↗</span></a></section>
-      <footer className="public-footer"><span>exameperto</span><span>Resultados com cuidado, acesso com clareza.</span></footer>
+      <section className="public-footer-cta">
+        <div>
+          <p className="eyebrow dark">PARA QUEM ENTREGA</p>
+          <h2>Quer fazer parte da operação?</h2>
+          <p>
+            O cadastro de entregador é separado e passa por análise de
+            documentos, veículo e regras aplicáveis.
+          </p>
+        </div>
+        <a className="button-link dark-button" href="/cadastro">
+          Conhecer o cadastro <span aria-hidden="true">↗</span>
+        </a>
+      </section>
+      <footer className="public-footer">
+        <span>exameperto</span>
+        <span>Resultados com cuidado, acesso com clareza.</span>
+      </footer>
     </main>
   );
 }
@@ -746,7 +857,11 @@ function PayoutPanel({ session }: { session: Tokens }) {
           A entrega registra o valor devido. Transferência é um evento separado:
           referências incertas são consultadas antes de qualquer nova tentativa.
         </p>
-        <button type="button" onClick={() => void reload()} disabled={busy !== null}>
+        <button
+          type="button"
+          onClick={() => void reload()}
+          disabled={busy !== null}
+        >
           Atualizar livro
         </button>
       </div>
@@ -2167,7 +2282,9 @@ function DelivererPanel({ session }: { session: Tokens }) {
               </option>
             )}
           </select>
-          <label htmlFor="vehicleEvidenceFile">PDF, JPEG ou PNG (até 10 MiB)</label>
+          <label htmlFor="vehicleEvidenceFile">
+            PDF, JPEG ou PNG (até 10 MiB)
+          </label>
           <input
             id="vehicleEvidenceFile"
             name="vehicleFile"
@@ -2471,6 +2588,7 @@ function OrderPanel({ session }: { session: Tokens }) {
   const [patientId, setPatientId] = useState("");
   const [recipientId, setRecipientId] = useState("");
   const [unitId, setUnitId] = useState("");
+  const [unitOptions, setUnitOptions] = useState<AvailableUnit[]>([]);
   const [patientOptions, setPatientOptions] = useState<
     { id: string; label: string }[]
   >([]);
@@ -2525,8 +2643,13 @@ function OrderPanel({ session }: { session: Tokens }) {
   useEffect(() => {
     try {
       const saved = JSON.parse(sessionStorage.getItem(draftKey) ?? "null") as {
-        patientId?: string; recipientId?: string; unitId?: string; documentId?: string;
-        origin?: typeof origin; destination?: typeof destination; step?: number;
+        patientId?: string;
+        recipientId?: string;
+        unitId?: string;
+        documentId?: string;
+        origin?: typeof origin;
+        destination?: typeof destination;
+        step?: number;
       } | null;
       if (!saved) return;
       if (saved.patientId) setPatientId(saved.patientId);
@@ -2541,7 +2664,18 @@ function OrderPanel({ session }: { session: Tokens }) {
     }
   }, []);
   useEffect(() => {
-    sessionStorage.setItem(draftKey, JSON.stringify({ patientId, recipientId, unitId, documentId, origin, destination, step }));
+    sessionStorage.setItem(
+      draftKey,
+      JSON.stringify({
+        patientId,
+        recipientId,
+        unitId,
+        documentId,
+        origin,
+        destination,
+        step,
+      }),
+    );
   }, [patientId, recipientId, unitId, documentId, origin, destination, step]);
   async function api(path: string, init: RequestInit = {}) {
     return parse(
@@ -2559,12 +2693,15 @@ function OrderPanel({ session }: { session: Tokens }) {
     );
   }
   async function load() {
-    const [b, profile, patient, family] = await Promise.all([
+    const [b, profile, patient, family, units] = await Promise.all([
       api("/orders"),
       api("/me/profile").catch(() => null),
       api("/me/patient").catch(() => null),
       api("/me/family-authorizations").catch(() => null),
+      api("/order-options/units").catch(() => ({ result: [] })),
     ]);
+    const availableUnits = (units?.result ?? []) as AvailableUnit[];
+    setUnitOptions(availableUnits);
     const familyGrants =
       (family?.result as { items: Grant[] } | undefined)?.items ?? [];
     const patients = [
@@ -2894,11 +3031,26 @@ function OrderPanel({ session }: { session: Tokens }) {
         ] as const
       ).map((key) => (
         <label key={key}>
-          {({ street: "Rua", number: "Número", district: "Bairro", city: "Cidade", state: "Estado", postalCode: "CEP", latitude: "Latitude", longitude: "Longitude" } as Record<string, string>)[key]}
+          {
+            (
+              {
+                street: "Rua",
+                number: "Número",
+                district: "Bairro",
+                city: "Cidade",
+                state: "Estado",
+                postalCode: "CEP",
+                latitude: "Latitude",
+                longitude: "Longitude",
+              } as Record<string, string>
+            )[key]
+          }
           <input
             aria-label={key}
             required
-            inputMode={key === "latitude" || key === "longitude" ? "decimal" : undefined}
+            inputMode={
+              key === "latitude" || key === "longitude" ? "decimal" : undefined
+            }
             value={value[key]}
             onChange={(e) => setter({ ...value, [key]: e.target.value })}
           />
@@ -2906,55 +3058,910 @@ function OrderPanel({ session }: { session: Tokens }) {
       ))}
     </fieldset>
   );
-  const selectedOrder = orders.find((order) => order.id === selectedOrderId) ?? null;
+  const selectedOrder =
+    orders.find((order) => order.id === selectedOrderId) ?? null;
   const canSubmit = Boolean(documentId && patientId && recipientId && unitId);
-  const stepNames = ["Paciente", "Unidade e retirada", "Destinatário", "Endereço", "Documentos", "Revisão"];
+  const stepNames = [
+    "Paciente",
+    "Unidade e retirada",
+    "Destinatário",
+    "Endereço",
+    "Documentos",
+    "Revisão",
+  ];
   const nextStep = () => setStep((value) => Math.min(6, value + 1));
   const previousStep = () => setStep((value) => Math.max(1, value - 1));
-  const dependencyMessage = "Ainda não há uma unidade de retirada disponível para seleção. O backend exige uma unidade real com protocolo de custódia habilitado; nenhum identificador foi inventado.";
+  const dependencyMessage = unitOptions.length
+    ? "Selecione uma unidade com parceria aceita e protocolo de custódia habilitado."
+    : "Ainda não há uma unidade de retirada disponível para seleção. O catálogo só mostra unidades ativas com parceria aceita, protocolo de custódia habilitado e cobertura de retorno vigente; nenhum identificador foi inventado.";
   const renderOrderSummary = (order: Order) => (
-    <button className="order-list-item" type="button" onClick={() => setSelectedOrderId(order.id)}>
-      <span className="order-list-icon" aria-hidden="true">↗</span>
-      <span><strong>Pedido de entrega</strong><small>{new Date(order.createdAt).toLocaleDateString("pt-BR")} · {orderStatusLabel(order.status)}</small></span>
-      <span className="order-status-pill">{orderStatusLabel(order.status)}</span>
+    <button
+      className="order-list-item"
+      type="button"
+      onClick={() => setSelectedOrderId(order.id)}
+    >
+      <span className="order-list-icon" aria-hidden="true">
+        ↗
+      </span>
+      <span>
+        <strong>Pedido de entrega</strong>
+        <small>
+          {new Date(order.createdAt).toLocaleDateString("pt-BR")} ·{" "}
+          {orderStatusLabel(order.status)}
+        </small>
+      </span>
+      <span className="order-status-pill">
+        {orderStatusLabel(order.status)}
+      </span>
     </button>
   );
   return (
     <section className="patient-orders" aria-label="Pedidos">
       <div className="orders-heading">
-        <div><span className="eyebrow dark">PEDIDOS</span><h2>{selectedOrder ? "Detalhes do pedido" : "Solicitar entrega"}</h2><p>{selectedOrder ? "Acompanhe o que já foi confirmado e o próximo passo." : "Organize uma retirada autorizada em uma jornada simples."}</p></div>
-        {selectedOrder && <button className="text-button" type="button" onClick={() => setSelectedOrderId(null)}>← Voltar aos pedidos</button>}
+        <div>
+          <span className="eyebrow dark">PEDIDOS</span>
+          <h2>{selectedOrder ? "Detalhes do pedido" : "Solicitar entrega"}</h2>
+          <p>
+            {selectedOrder
+              ? "Acompanhe o que já foi confirmado e o próximo passo."
+              : "Organize uma retirada autorizada em uma jornada simples."}
+          </p>
+        </div>
+        {selectedOrder && (
+          <button
+            className="text-button"
+            type="button"
+            onClick={() => setSelectedOrderId(null)}
+          >
+            ← Voltar aos pedidos
+          </button>
+        )}
       </div>
-      {notice && <p className={`feedback ${notice.tone}`} role="alert">{notice.text}</p>}
+      {notice && (
+        <p className={`feedback ${notice.tone}`} role="alert">
+          {notice.text}
+        </p>
+      )}
       {selectedOrder ? (
         <article className="order-detail-card">
-          <div className="order-detail-head"><div><span className="card-kicker">PEDIDO DE ENTREGA</span><h3>{orderStatusLabel(selectedOrder.status)}</h3><p>Solicitado em {new Date(selectedOrder.createdAt).toLocaleDateString("pt-BR")}</p></div><span className="order-status-pill">{orderStatusLabel(selectedOrder.coverageStatus)}</span></div>
-          <div className="order-detail-grid"><div><span className="card-kicker">PRÓXIMO PASSO</span><strong>{selectedOrder.status === "EM_VERIFICACAO" ? "A unidade precisa verificar a retirada" : "Acompanhe as atualizações do pedido"}</strong><p>Valores, cobertura e rota só aparecem depois das verificações correspondentes.</p></div><div><span className="card-kicker">COBERTURA</span><strong>{selectedOrder.coverageStatus === "NAO_CONTRATADA" ? "Ainda não contratada" : orderStatusLabel(selectedOrder.coverageStatus)}</strong><p>Nenhuma aprovação ou preço é presumido.</p></div></div>
-          {activeOrders.current.includes(selectedOrder.id) && <div className="tracking-card"><span className="card-kicker">ACOMPANHAMENTO</span><strong>{locations[selectedOrder.id] ? `Última atualização em ${new Date(locations[selectedOrder.id]!.capturedAt).toLocaleString("pt-BR")}` : "A localização ainda não está disponível"}</strong><p>{locations[selectedOrder.id] ? `${locations[selectedOrder.id]!.stale ? "Atualização desatualizada. " : ""}Precisão aproximada de ${locations[selectedOrder.id]!.accuracyMeters} m.` : "Nenhum marcador será exibido sem posição válida."}</p></div>}
-          {custodies[selectedOrder.id] && <p className="inline-status">Custódia: {orderStatusLabel(custodies[selectedOrder.id]!.status)}.</p>}
-          {(incidents[selectedOrder.id] ?? []).map((incident) => <p className="inline-status" role="status" key={incident.id}>Atenção: {orderStatusLabel(incident.status)}.</p>)}
-          {assignments[selectedOrder.id] && <div className="assignment-status"><strong>Entrega designada</strong><span>{drivers[selectedOrder.id]?.displayName} · {drivers[selectedOrder.id]?.model}</span><small>Identidade operacional necessária para o acompanhamento.</small></div>}
-          {(["RETIRADA", "EM_ENTREGA"] as string[]).includes(selectedOrder.status) && <button type="button" disabled={busy} onClick={() => void issueReceiptCode(selectedOrder)}>Emitir código de recebimento</button>}
-          {receiptCodes[selectedOrder.id] && <p role="status">Código emitido para esta sessão; expira em {new Date(receiptCodes[selectedOrder.id].expiresAt).toLocaleString("pt-BR")}.</p>}
-          <div className="quote-area"><div className="card-heading"><div><span className="card-kicker">ORÇAMENTO E COBERTURA</span><h3>Condições verificadas</h3></div><button type="button" disabled={busy || selectedOrder.status !== "EM_VERIFICACAO"} onClick={() => void quote(selectedOrder)}>Calcular orçamento</button></div>{(quotes[selectedOrder.id] ?? []).length ? (quotes[selectedOrder.id] ?? []).map((q) => <div className="quote-row" key={q.id}><strong>{q.status === "PROPOSTO" ? "Orçamento disponível" : orderStatusLabel(q.status)}</strong><span>{formatMoney(q.grossAmount)} · sua parte {formatMoney(q.patientAmount)}</span><small>Rota calculada por provedor configurado · válido até {new Date(q.expiresAt).toLocaleString("pt-BR")}</small>{q.status === "PROPOSTO" && <button type="button" disabled={busy || !q.cancellationPolicyId} onClick={() => void accept(selectedOrder, q)}>Aceitar condições</button>}</div>) : <p className="empty-state">Nenhum orçamento foi calculado para este pedido.</p>}</div>
+          <div className="order-detail-head">
+            <div>
+              <span className="card-kicker">PEDIDO DE ENTREGA</span>
+              <h3>{orderStatusLabel(selectedOrder.status)}</h3>
+              <p>
+                Solicitado em{" "}
+                {new Date(selectedOrder.createdAt).toLocaleDateString("pt-BR")}
+              </p>
+            </div>
+            <span className="order-status-pill">
+              {orderStatusLabel(selectedOrder.coverageStatus)}
+            </span>
+          </div>
+          <div className="order-detail-grid">
+            <div>
+              <span className="card-kicker">PRÓXIMO PASSO</span>
+              <strong>
+                {selectedOrder.status === "EM_VERIFICACAO"
+                  ? "A unidade precisa verificar a retirada"
+                  : "Acompanhe as atualizações do pedido"}
+              </strong>
+              <p>
+                Valores, cobertura e rota só aparecem depois das verificações
+                correspondentes.
+              </p>
+            </div>
+            <div>
+              <span className="card-kicker">COBERTURA</span>
+              <strong>
+                {selectedOrder.coverageStatus === "NAO_CONTRATADA"
+                  ? "Ainda não contratada"
+                  : orderStatusLabel(selectedOrder.coverageStatus)}
+              </strong>
+              <p>Nenhuma aprovação ou preço é presumido.</p>
+            </div>
+          </div>
+          {activeOrders.current.includes(selectedOrder.id) && (
+            <div className="tracking-card">
+              <span className="card-kicker">ACOMPANHAMENTO</span>
+              <strong>
+                {locations[selectedOrder.id]
+                  ? `Última atualização em ${new Date(locations[selectedOrder.id]!.capturedAt).toLocaleString("pt-BR")}`
+                  : "A localização ainda não está disponível"}
+              </strong>
+              <p>
+                {locations[selectedOrder.id]
+                  ? `${locations[selectedOrder.id]!.stale ? "Atualização desatualizada. " : ""}Precisão aproximada de ${locations[selectedOrder.id]!.accuracyMeters} m.`
+                  : "Nenhum marcador será exibido sem posição válida."}
+              </p>
+            </div>
+          )}
+          {custodies[selectedOrder.id] && (
+            <p className="inline-status">
+              Custódia: {orderStatusLabel(custodies[selectedOrder.id]!.status)}.
+            </p>
+          )}
+          {(incidents[selectedOrder.id] ?? []).map((incident) => (
+            <p className="inline-status" role="status" key={incident.id}>
+              Atenção: {orderStatusLabel(incident.status)}.
+            </p>
+          ))}
+          {assignments[selectedOrder.id] && (
+            <div className="assignment-status">
+              <strong>Entrega designada</strong>
+              <span>
+                {drivers[selectedOrder.id]?.displayName} ·{" "}
+                {drivers[selectedOrder.id]?.model}
+              </span>
+              <small>
+                Identidade operacional necessária para o acompanhamento.
+              </small>
+            </div>
+          )}
+          {(["RETIRADA", "EM_ENTREGA"] as string[]).includes(
+            selectedOrder.status,
+          ) && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void issueReceiptCode(selectedOrder)}
+            >
+              Emitir código de recebimento
+            </button>
+          )}
+          {receiptCodes[selectedOrder.id] && (
+            <p role="status">
+              Código emitido para esta sessão; expira em{" "}
+              {new Date(
+                receiptCodes[selectedOrder.id].expiresAt,
+              ).toLocaleString("pt-BR")}
+              .
+            </p>
+          )}
+          <div className="quote-area">
+            <div className="card-heading">
+              <div>
+                <span className="card-kicker">ORÇAMENTO E COBERTURA</span>
+                <h3>Condições verificadas</h3>
+              </div>
+              <button
+                type="button"
+                disabled={busy || selectedOrder.status !== "EM_VERIFICACAO"}
+                onClick={() => void quote(selectedOrder)}
+              >
+                Calcular orçamento
+              </button>
+            </div>
+            {(quotes[selectedOrder.id] ?? []).length ? (
+              (quotes[selectedOrder.id] ?? []).map((q) => (
+                <div className="quote-row" key={q.id}>
+                  <strong>
+                    {q.status === "PROPOSTO"
+                      ? "Orçamento disponível"
+                      : orderStatusLabel(q.status)}
+                  </strong>
+                  <span>
+                    {formatMoney(q.grossAmount)} · sua parte{" "}
+                    {formatMoney(q.patientAmount)}
+                  </span>
+                  <small>
+                    Rota calculada por provedor configurado · válido até{" "}
+                    {new Date(q.expiresAt).toLocaleString("pt-BR")}
+                  </small>
+                  {q.status === "PROPOSTO" && (
+                    <button
+                      type="button"
+                      disabled={busy || !q.cancellationPolicyId}
+                      onClick={() => void accept(selectedOrder, q)}
+                    >
+                      Aceitar condições
+                    </button>
+                  )}
+                </div>
+              ))
+            ) : (
+              <p className="empty-state">
+                Nenhum orçamento foi calculado para este pedido.
+              </p>
+            )}
+          </div>
         </article>
       ) : (
         <>
           <div className="orders-layout">
             <form className="order-journey" onSubmit={create}>
-              <div className="order-stepper" aria-label="Etapas da solicitação">{stepNames.map((name, index) => <button type="button" className={step === index + 1 ? "is-current" : step > index + 1 ? "is-done" : ""} key={name} onClick={() => setStep(index + 1)}><span>{index + 1}</span>{name}</button>)}</div>
-              {step === 1 && <div className="journey-step"><span className="card-kicker">ETAPA 1 DE 6</span><h3>Quem vai receber o cuidado?</h3><p>Escolha apenas perfis que sua conta pode representar.</p><label>Paciente<select aria-label="Paciente representado" required value={patientId} onChange={(e) => setPatientId(e.target.value)}><option value="" disabled>Selecione um paciente autorizado</option>{patientOptions.map((option) => <option value={option.id} key={option.id}>{option.label}</option>)}</select></label>{!patientOptions.length && <p className="empty-state">Nenhum perfil de paciente autorizado está disponível para esta conta.</p>}<button type="button" onClick={nextStep} disabled={!patientId}>Continuar</button></div>}
-              {step === 2 && <div className="journey-step"><span className="card-kicker">ETAPA 2 DE 6</span><h3>De onde será a retirada?</h3><p>O pedido só pode seguir com uma unidade real e um protocolo de custódia habilitado.</p><label>Unidade de retirada<select aria-label="Unidade de retirada" required value={unitId} onChange={(e) => setUnitId(e.target.value)} disabled><option value="">Nenhuma unidade disponível</option></select></label><p className="dependency-note">{dependencyMessage} Seus dados preenchidos ficam salvos neste navegador e você pode retomar quando uma unidade estiver configurada.</p><div className="journey-actions"><button type="button" className="secondary" onClick={previousStep}>Voltar</button><button type="button" onClick={nextStep} disabled={!unitId}>Continuar</button></div></div>}
-              {step === 3 && <div className="journey-step"><span className="card-kicker">ETAPA 3 DE 6</span><h3>Quem vai receber?</h3><p>O destinatário precisa ter autorização vigente para recebimento.</p><label>Destinatário autorizado<select aria-label="Destinatário autorizado" required value={recipientId} onChange={(e) => setRecipientId(e.target.value)}><option value="" disabled>Selecione uma pessoa autorizada</option>{recipientOptions.map((option) => <option value={option.id} key={option.id}>{option.label}</option>)}</select></label>{!recipientOptions.length && <p className="empty-state">Nenhum destinatário com autorização vigente foi encontrado.</p>}<div className="journey-actions"><button type="button" className="secondary" onClick={previousStep}>Voltar</button><button type="button" onClick={nextStep} disabled={!recipientId}>Continuar</button></div></div>}
-              {step === 4 && <div className="journey-step"><span className="card-kicker">ETAPA 4 DE 6</span><h3>Informe os endereços</h3><p>Esses dados ficam protegidos e são usados somente para calcular a rota autorizada.</p>{fields("Origem", origin, setOrigin)}{fields("Destino", destination, setDestination)}<div className="journey-actions"><button type="button" className="secondary" onClick={previousStep}>Voltar</button><button type="button" onClick={nextStep}>Continuar</button></div></div>}
-              {step === 5 && <div className="journey-step"><span className="card-kicker">ETAPA 5 DE 6</span><h3>Anexe a autorização</h3><p>O arquivo é privado e permanece pendente até a verificação da unidade.</p><label>Evidência de autorização de retirada<input aria-label="Evidência de autorização de retirada" type="file" accept="application/pdf,image/png,image/jpeg" onChange={upload} required={!documentId} /></label><p className={documentId ? "upload-confirmed" : "empty-state"}>{documentId ? "Documento anexado nesta sessão." : "Nenhum documento anexado ainda."}</p><div className="journey-actions"><button type="button" className="secondary" onClick={previousStep}>Voltar</button><button type="button" onClick={nextStep} disabled={!documentId}>Continuar</button></div></div>}
-              {step === 6 && <div className="journey-step"><span className="card-kicker">ETAPA 6 DE 6</span><h3>Revise antes de solicitar</h3><div className="review-grid"><span>Paciente</span><strong>{patientOptions.find((option) => option.id === patientId)?.label ?? "Não selecionado"}</strong><span>Destinatário</span><strong>{recipientOptions.find((option) => option.id === recipientId)?.label ?? "Não selecionado"}</strong><span>Retirada</span><strong>{unitId ? "Unidade selecionada" : "Aguardando unidade"}</strong><span>Documento</span><strong>{documentId ? "Anexado" : "Pendente"}</strong></div><p className="dependency-note">A solicitação só será considerada concluída depois que o backend confirmar a persistência. Rota, cobertura, tarifa e política não são presumidas.</p><div className="journey-actions"><button type="button" className="secondary" onClick={previousStep}>Voltar</button><button type="submit" disabled={busy || !canSubmit}>{busy ? "Enviando…" : "Solicitar entrega"}</button></div></div>}
+              <div className="order-stepper" aria-label="Etapas da solicitação">
+                {stepNames.map((name, index) => (
+                  <button
+                    type="button"
+                    className={
+                      step === index + 1
+                        ? "is-current"
+                        : step > index + 1
+                          ? "is-done"
+                          : ""
+                    }
+                    key={name}
+                    onClick={() => setStep(index + 1)}
+                  >
+                    <span>{index + 1}</span>
+                    {name}
+                  </button>
+                ))}
+              </div>
+              {step === 1 && (
+                <div className="journey-step">
+                  <span className="card-kicker">ETAPA 1 DE 6</span>
+                  <h3>Quem vai receber o cuidado?</h3>
+                  <p>Escolha apenas perfis que sua conta pode representar.</p>
+                  <label>
+                    Paciente
+                    <select
+                      aria-label="Paciente representado"
+                      required
+                      value={patientId}
+                      onChange={(e) => setPatientId(e.target.value)}
+                    >
+                      <option value="" disabled>
+                        Selecione um paciente autorizado
+                      </option>
+                      {patientOptions.map((option) => (
+                        <option value={option.id} key={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {!patientOptions.length && (
+                    <p className="empty-state">
+                      Nenhum perfil de paciente autorizado está disponível para
+                      esta conta.
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={nextStep}
+                    disabled={!patientId}
+                  >
+                    Continuar
+                  </button>
+                </div>
+              )}
+              {step === 2 && (
+                <div className="journey-step">
+                  <span className="card-kicker">ETAPA 2 DE 6</span>
+                  <h3>De onde será a retirada?</h3>
+                  <p>
+                    O pedido só pode seguir com uma unidade real e um protocolo
+                    de custódia habilitado.
+                  </p>
+                  <label>
+                    Unidade de retirada
+                    <select
+                      aria-label="Unidade de retirada"
+                      required
+                      value={unitId}
+                      onChange={(e) => setUnitId(e.target.value)}
+                      disabled={!unitOptions.length}
+                    >
+                      <option value="">
+                        {unitOptions.length
+                          ? "Selecione uma unidade"
+                          : "Nenhuma unidade disponível"}
+                      </option>
+                      {unitOptions.map((option) => (
+                        <option value={option.id} key={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <p className="dependency-note">
+                    {dependencyMessage} Seus dados preenchidos ficam salvos
+                    neste navegador e você pode retomar quando uma unidade
+                    estiver configurada.
+                  </p>
+                  <div className="journey-actions">
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={previousStep}
+                    >
+                      Voltar
+                    </button>
+                    <button type="button" onClick={nextStep} disabled={!unitId}>
+                      Continuar
+                    </button>
+                  </div>
+                </div>
+              )}
+              {step === 3 && (
+                <div className="journey-step">
+                  <span className="card-kicker">ETAPA 3 DE 6</span>
+                  <h3>Quem vai receber?</h3>
+                  <p>
+                    O destinatário precisa ter autorização vigente para
+                    recebimento.
+                  </p>
+                  <label>
+                    Destinatário autorizado
+                    <select
+                      aria-label="Destinatário autorizado"
+                      required
+                      value={recipientId}
+                      onChange={(e) => setRecipientId(e.target.value)}
+                    >
+                      <option value="" disabled>
+                        Selecione uma pessoa autorizada
+                      </option>
+                      {recipientOptions.map((option) => (
+                        <option value={option.id} key={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {!recipientOptions.length && (
+                    <p className="empty-state">
+                      Nenhum destinatário com autorização vigente foi
+                      encontrado.
+                    </p>
+                  )}
+                  <div className="journey-actions">
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={previousStep}
+                    >
+                      Voltar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={nextStep}
+                      disabled={!recipientId}
+                    >
+                      Continuar
+                    </button>
+                  </div>
+                </div>
+              )}
+              {step === 4 && (
+                <div className="journey-step">
+                  <span className="card-kicker">ETAPA 4 DE 6</span>
+                  <h3>Informe os endereços</h3>
+                  <p>
+                    Esses dados ficam protegidos e são usados somente para
+                    calcular a rota autorizada.
+                  </p>
+                  {fields("Origem", origin, setOrigin)}
+                  {fields("Destino", destination, setDestination)}
+                  <div className="journey-actions">
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={previousStep}
+                    >
+                      Voltar
+                    </button>
+                    <button type="button" onClick={nextStep}>
+                      Continuar
+                    </button>
+                  </div>
+                </div>
+              )}
+              {step === 5 && (
+                <div className="journey-step">
+                  <span className="card-kicker">ETAPA 5 DE 6</span>
+                  <h3>Anexe a autorização</h3>
+                  <p>
+                    O arquivo é privado e permanece pendente até a verificação
+                    da unidade.
+                  </p>
+                  <label>
+                    Evidência de autorização de retirada
+                    <input
+                      aria-label="Evidência de autorização de retirada"
+                      type="file"
+                      accept="application/pdf,image/png,image/jpeg"
+                      onChange={upload}
+                      required={!documentId}
+                    />
+                  </label>
+                  <p
+                    className={documentId ? "upload-confirmed" : "empty-state"}
+                  >
+                    {documentId
+                      ? "Documento anexado nesta sessão."
+                      : "Nenhum documento anexado ainda."}
+                  </p>
+                  <div className="journey-actions">
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={previousStep}
+                    >
+                      Voltar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={nextStep}
+                      disabled={!documentId}
+                    >
+                      Continuar
+                    </button>
+                  </div>
+                </div>
+              )}
+              {step === 6 && (
+                <div className="journey-step">
+                  <span className="card-kicker">ETAPA 6 DE 6</span>
+                  <h3>Revise antes de solicitar</h3>
+                  <div className="review-grid">
+                    <span>Paciente</span>
+                    <strong>
+                      {patientOptions.find((option) => option.id === patientId)
+                        ?.label ?? "Não selecionado"}
+                    </strong>
+                    <span>Destinatário</span>
+                    <strong>
+                      {recipientOptions.find(
+                        (option) => option.id === recipientId,
+                      )?.label ?? "Não selecionado"}
+                    </strong>
+                    <span>Retirada</span>
+                    <strong>
+                      {unitId ? "Unidade selecionada" : "Aguardando unidade"}
+                    </strong>
+                    <span>Documento</span>
+                    <strong>{documentId ? "Anexado" : "Pendente"}</strong>
+                  </div>
+                  <p className="dependency-note">
+                    A solicitação só será considerada concluída depois que o
+                    backend confirmar a persistência. Rota, cobertura, tarifa e
+                    política não são presumidas.
+                  </p>
+                  <div className="journey-actions">
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={previousStep}
+                    >
+                      Voltar
+                    </button>
+                    <button type="submit" disabled={busy || !canSubmit}>
+                      {busy ? "Enviando…" : "Solicitar entrega"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </form>
-            <aside className="order-side-note"><span className="card-kicker">COMO FUNCIONA</span><h3>Você decide em cada etapa.</h3><p>O pedido é criado somente após a revisão. Enquanto isso, o preenchimento fica disponível para retomada neste navegador.</p><div><strong>Sem dados fictícios</strong><small>Unidades, valores e aprovações aparecem apenas quando vierem das APIs reais.</small></div></aside>
+            <aside className="order-side-note">
+              <span className="card-kicker">COMO FUNCIONA</span>
+              <h3>Você decide em cada etapa.</h3>
+              <p>
+                O pedido é criado somente após a revisão. Enquanto isso, o
+                preenchimento fica disponível para retomada neste navegador.
+              </p>
+              <div>
+                <strong>Sem dados fictícios</strong>
+                <small>
+                  Unidades, valores e aprovações aparecem apenas quando vierem
+                  das APIs reais.
+                </small>
+              </div>
+            </aside>
           </div>
-          <section className="order-history" aria-labelledby="order-history-title"><div className="card-heading"><div><span className="card-kicker">HISTÓRICO</span><h3 id="order-history-title">Pedidos recentes</h3></div></div>{orders.length ? orders.map(renderOrderSummary) : <div className="empty-state"><span className="empty-icon" aria-hidden="true">○</span><strong>Você ainda não tem pedidos.</strong><p>Quando uma solicitação for persistida, ela aparecerá aqui com o próximo passo.</p></div>}</section>
+          <section
+            className="order-history"
+            aria-labelledby="order-history-title"
+          >
+            <div className="card-heading">
+              <div>
+                <span className="card-kicker">HISTÓRICO</span>
+                <h3 id="order-history-title">Pedidos recentes</h3>
+              </div>
+            </div>
+            {orders.length ? (
+              orders.map(renderOrderSummary)
+            ) : (
+              <div className="empty-state">
+                <span className="empty-icon" aria-hidden="true">
+                  ○
+                </span>
+                <strong>Você ainda não tem pedidos.</strong>
+                <p>
+                  Quando uma solicitação for persistida, ela aparecerá aqui com
+                  o próximo passo.
+                </p>
+              </div>
+            )}
+          </section>
         </>
       )}
+    </section>
+  );
+}
+
+function UnitCatalogPanel({ session }: { session: Tokens }) {
+  const [units, setUnits] = useState<CatalogUnit[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const [name, setName] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [selected, setSelected] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [evidence, setEvidence] = useState("");
+  const [partnershipNote, setPartnershipNote] = useState("");
+  const [protocolNumber, setProtocolNumber] = useState("1");
+  const [protocolRules, setProtocolRules] = useState("{}");
+  const [coverage, setCoverage] = useState(false);
+  async function api(path: string, init: RequestInit = {}) {
+    return parse(
+      await fetch(`/api/v1${path}`, {
+        ...init,
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+          "Content-Type": "application/json",
+          ...(init.headers ?? {}),
+        },
+      }),
+    );
+  }
+  async function load() {
+    try {
+      const result = await api("/admin/units");
+      setUnits(result.result as CatalogUnit[]);
+    } catch (error) {
+      setNotice({
+        tone: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Não foi possível carregar o catálogo.",
+      });
+    }
+  }
+  useEffect(() => {
+    void load();
+  }, []);
+  async function mutate(action: () => Promise<unknown>, success: string) {
+    setBusy(true);
+    setNotice(null);
+    try {
+      await action();
+      await load();
+      setNotice({ tone: "info", text: success });
+    } catch (error) {
+      setNotice({
+        tone: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Não foi possível concluir a alteração.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section
+      className="patient-orders catalog-panel"
+      aria-label="Unidades e protocolos"
+    >
+      <div className="orders-heading">
+        <div>
+          <span className="eyebrow dark">ADMINISTRAÇÃO OPERACIONAL</span>
+          <h2>Unidades e protocolos</h2>
+          <p>
+            Cadastre o catálogo, registre a comprovação de parceria e habilite a
+            operação em etapas separadas.
+          </p>
+        </div>
+      </div>
+      <MfaAccess session={session} />
+      {notice && (
+        <p className={`feedback ${notice.tone}`} role="alert">
+          {notice.text}
+        </p>
+      )}
+      <div className="orders-layout">
+        <form
+          className="order-journey"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void mutate(
+              () =>
+                api(editingId ? `/admin/units/${editingId}` : "/admin/units", {
+                  method: editingId ? "PUT" : "POST",
+                  body: JSON.stringify({
+                    name,
+                    city,
+                    state: state.toUpperCase(),
+                  }),
+                }),
+              editingId
+                ? "Unidade atualizada."
+                : "Unidade cadastrada como CADASTRADA. O cadastro não homologa a parceria.",
+            );
+          }}
+        >
+          <span className="card-kicker">{editingId ? "EDITAR CADASTRO" : "NOVO CADASTRO"}</span>
+          <h3>{editingId ? "Editar unidade" : "Registrar unidade"}</h3>
+          <p>
+            Informe somente dados institucionais recebidos. Nenhum hospital ou
+            aceite é criado automaticamente.
+          </p>
+          <label>
+            Nome da unidade
+            <input
+              required
+              maxLength={200}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </label>
+          <label>
+            Cidade
+            <input
+              required
+              maxLength={120}
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+            />
+          </label>
+          <label>
+            UF
+            <input
+              required
+              minLength={2}
+              maxLength={2}
+              value={state}
+              onChange={(e) => setState(e.target.value)}
+            />
+          </label>
+          <button disabled={busy}>Cadastrar unidade</button>
+        </form>
+        <aside className="order-side-note">
+          <span className="card-kicker">REGRA OPERACIONAL</span>
+          <h3>Três decisões diferentes.</h3>
+          <p>
+            Cadastro identifica a unidade. A parceria guarda a referência da
+            comprovação e o aceite explícito. O protocolo só pode ser habilitado
+            com unidade ativa, parceria aceita e cobertura de retorno
+            confirmada.
+          </p>
+          <strong>Sem parceiro presumido</strong>
+          <small>
+            Ative apenas registros cuja comprovação institucional exista fora
+            deste sistema.
+          </small>
+        </aside>
+      </div>
+      <section className="order-history">
+        <div className="card-heading">
+          <div>
+            <span className="card-kicker">CATÁLOGO</span>
+            <h3>Unidades cadastradas</h3>
+          </div>
+        </div>
+        {units.length ? (
+          units.map((unit) => (
+            <article className="catalog-unit" key={unit.id}>
+              <div className="catalog-unit-head">
+                <div>
+                  <h3>{unit.name}</h3>
+                  <p>
+                    {unit.city}/{unit.state}
+                  </p>
+                </div>
+                <span className="order-status-pill">
+                  {unit.registrationStatus}
+                </span>
+              </div>
+              <p>
+                {unit.partnership
+                  ? `Parceria: ${unit.partnership.status}`
+                  : "Parceria ainda não registrada"}{" "}
+                · {unit.protocols.length} protocolo(s)
+              </p>
+              <div className="catalog-actions">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    void mutate(
+                      () =>
+                        api(
+                          `/admin/units/${unit.id}/activation?active=${unit.registrationStatus !== "ATIVA"}`,
+                          { method: "POST" },
+                        ),
+                      unit.registrationStatus === "ATIVA"
+                        ? "Unidade desativada."
+                        : "Unidade ativada.",
+                    )
+                  }
+                >
+                  {unit.registrationStatus === "ATIVA"
+                    ? "Desativar unidade"
+                    : "Ativar unidade"}
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => {
+                    setEditingId(unit.id);
+                    setName(unit.name);
+                    setCity(unit.city);
+                    setState(unit.state);
+                    setSelected(selected === unit.id ? null : unit.id);
+                  }}
+                >
+ Editar cadastro · Gerenciar parceria e protocolo
+                </button>
+              </div>
+              {selected === unit.id && (
+                <div className="catalog-editor">
+                  <div>
+                    <h4>Comprovação de parceria</h4>
+                    <p>
+                      Estado atual:{" "}
+                      {unit.partnership?.status ?? "não registrado"}
+                    </p>
+                    <label>
+                      Referência da comprovação
+                      <input
+                        value={evidence}
+                        onChange={(e) => setEvidence(e.target.value)}
+                        placeholder="Protocolo ou referência fornecida"
+                      />
+                    </label>
+                    <label>
+                      Observação
+                      <textarea
+                        value={partnershipNote}
+                        onChange={(e) => setPartnershipNote(e.target.value)}
+                      />
+                    </label>
+                    <div className="catalog-actions">
+                      <button
+                        type="button"
+                        disabled={busy || !evidence.trim()}
+                        onClick={() =>
+                          void mutate(
+                            () =>
+                              api(`/admin/units/${unit.id}/partnership`, {
+                                method: "POST",
+                                body: JSON.stringify({
+                                  evidenceReference: evidence,
+                                  note: partnershipNote || null,
+                                  status: "ACEITA",
+                                }),
+                              }),
+                            "Aceite de parceria registrado. Isso não habilita o protocolo sozinho.",
+                          )
+                        }
+                      >
+                        Registrar aceite
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={busy || !evidence.trim()}
+                        onClick={() =>
+                          void mutate(
+                            () =>
+                              api(`/admin/units/${unit.id}/partnership`, {
+                                method: "POST",
+                                body: JSON.stringify({
+                                  evidenceReference: evidence,
+                                  note: partnershipNote || null,
+                                  status: "REVOGADA",
+                                }),
+                              }),
+                            "Parceria revogada.",
+                          )
+                        }
+                      >
+                        Revogar
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <h4>Novo protocolo</h4>
+                    <label>
+                      Número
+                      <input
+                        type="number"
+                        min="1"
+                        value={protocolNumber}
+                        onChange={(e) => setProtocolNumber(e.target.value)}
+                      />
+                    </label>
+                    <label>
+                      Regras JSON
+                      <textarea
+                        value={protocolRules}
+                        onChange={(e) => setProtocolRules(e.target.value)}
+                      />
+                    </label>
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={coverage}
+                        onChange={(e) => setCoverage(e.target.checked)}
+                      />{" "}
+                      Cobertura de retorno confirmada
+                    </label>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        void mutate(
+                          () =>
+                            api(`/admin/units/${unit.id}/protocols`, {
+                              method: "POST",
+                              body: JSON.stringify({
+                                number: Number(protocolNumber),
+                                rules: protocolRules,
+                                returnCoverageConfirmed: coverage,
+                                startsAt: new Date().toISOString(),
+                                endsAt: null,
+                              }),
+                            }),
+                          "Protocolo criado como SUSPENSO.",
+                        )
+                      }
+                    >
+                      Cadastrar protocolo
+                    </button>
+                    <div className="catalog-protocols">
+                      {unit.protocols.map((protocol) => (
+                        <div key={protocol.id}>
+                          <strong>Protocolo {protocol.number}</strong>
+                          <span>
+                            {protocol.status} ·{" "}
+                            {protocol.returnCoverageConfirmed
+                              ? "retorno confirmado"
+                              : "retorno pendente"}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() =>
+                              void mutate(
+                                () =>
+                                  api(
+                                    `/admin/units/${unit.id}/protocols/${protocol.id}/activation?active=${protocol.status !== "HABILITADO"}`,
+                                    { method: "POST" },
+                                  ),
+                                protocol.status === "HABILITADO"
+                                  ? "Protocolo suspenso."
+                                  : "Protocolo habilitado.",
+                              )
+                            }
+                          >
+                            {protocol.status === "HABILITADO"
+                              ? "Suspender"
+                              : "Habilitar"}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </article>
+          ))
+        ) : (
+          <div className="empty-state">
+            <strong>Catálogo sem unidades.</strong>
+            <p>
+              Cadastre a primeira unidade com autorização administrativa real
+              para que ela possa avançar pelas etapas.
+            </p>
+          </div>
+        )}
+      </section>
     </section>
   );
 }
@@ -3240,7 +4247,10 @@ function DeliveryWorkPanel({ session }: { session: Tokens }) {
           body: body ? JSON.stringify(body) : undefined,
         });
         if (action !== "incidents" && response.result) {
-          setCustody((current) => ({ ...current, [task.orderId]: response.result as Custody }));
+          setCustody((current) => ({
+            ...current,
+            [task.orderId]: response.result as Custody,
+          }));
         }
       },
       action === "pickup"
@@ -3829,41 +4839,182 @@ function PrivacyOperationsPanel({ session }: { session: Tokens }) {
   );
 }
 
-function PatientDashboard({ session, capabilities, go }: { session: Tokens; capabilities: Capabilities; go: (route: AppRoute) => void }) {
+function PatientDashboard({
+  session,
+  capabilities,
+  go,
+}: {
+  session: Tokens;
+  capabilities: Capabilities;
+  go: (route: AppRoute) => void;
+}) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     Promise.all([
-      fetch("/api/v1/me/profile", { headers: { Authorization: `Bearer ${session.accessToken}` } }).then(parse),
-      fetch("/api/v1/orders", { headers: { Authorization: `Bearer ${session.accessToken}` } }).then(parse),
-    ]).then(([profileResult, ordersResult]) => {
-      setProfile(profileResult.result as Profile);
-      setOrders((ordersResult.result as Order[]) ?? []);
-    }).catch((cause) => setError(cause instanceof Error ? cause.message : "Não foi possível carregar sua conta."))
+      fetch("/api/v1/me/profile", {
+        headers: { Authorization: `Bearer ${session.accessToken}` },
+      }).then(parse),
+      fetch("/api/v1/orders", {
+        headers: { Authorization: `Bearer ${session.accessToken}` },
+      }).then(parse),
+    ])
+      .then(([profileResult, ordersResult]) => {
+        setProfile(profileResult.result as Profile);
+        setOrders((ordersResult.result as Order[]) ?? []);
+      })
+      .catch((cause) =>
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Não foi possível carregar sua conta.",
+        ),
+      )
       .finally(() => setLoading(false));
   }, [session.accessToken]);
   const firstName = profile?.name?.split(" ")[0] ?? "seja bem-vindo";
-  const statusLabel = profile?.emailVerifiedAt ? "E-mail confirmado" : "Confirme seu e-mail";
+  const statusLabel = profile?.emailVerifiedAt
+    ? "E-mail confirmado"
+    : "Confirme seu e-mail";
   return (
     <section className="patient-dashboard" aria-labelledby="dashboard-title">
       <div className="dashboard-welcome">
-        <div><p className="eyebrow dark">VISÃO GERAL</p><h2 id="dashboard-title">Olá, {firstName}.</h2><p>Este é o ponto de partida para cuidar dos seus pedidos e recebimentos.</p></div>
-        <span className={`profile-chip ${profile?.emailVerifiedAt ? "is-ok" : "is-pending"}`}><i />{statusLabel}</span>
+        <div>
+          <p className="eyebrow dark">VISÃO GERAL</p>
+          <h2 id="dashboard-title">Olá, {firstName}.</h2>
+          <p>
+            Este é o ponto de partida para cuidar dos seus pedidos e
+            recebimentos.
+          </p>
+        </div>
+        <span
+          className={`profile-chip ${profile?.emailVerifiedAt ? "is-ok" : "is-pending"}`}
+        >
+          <i />
+          {statusLabel}
+        </span>
       </div>
-      {error && <p className="feedback error" role="alert">{error}</p>}
+      {error && (
+        <p className="feedback error" role="alert">
+          {error}
+        </p>
+      )}
       <div className="dashboard-primary">
-        <div><span className="card-kicker">PRÓXIMO PASSO</span><h3>Precisa buscar um resultado?</h3><p>Crie um pedido de entrega com as informações da unidade e de quem vai receber.</p><button onClick={() => go("pedidos")}>Solicitar entrega <span aria-hidden="true">→</span></button></div>
-        <div className="primary-mark" aria-hidden="true"><span>✦</span><i /><i /><i /></div>
+        <div>
+          <span className="card-kicker">PRÓXIMO PASSO</span>
+          <h3>Precisa buscar um resultado?</h3>
+          <p>
+            Crie um pedido de entrega com as informações da unidade e de quem
+            vai receber.
+          </p>
+          <button onClick={() => go("pedidos")}>
+            Solicitar entrega <span aria-hidden="true">→</span>
+          </button>
+        </div>
+        <div className="primary-mark" aria-hidden="true">
+          <span>✦</span>
+          <i />
+          <i />
+          <i />
+        </div>
       </div>
       <div className="dashboard-columns">
-        <article className="dashboard-card recent-card"><div className="card-heading"><div><span className="card-kicker">ATIVIDADE</span><h3>Pedidos recentes</h3></div><button className="text-button" onClick={() => go("pedidos")}>Ver pedidos <span aria-hidden="true">↗</span></button></div>
-          {loading ? <p className="empty-state">Carregando seus pedidos…</p> : orders.length ? <div className="real-list">{orders.slice(0, 3).map((order) => <button className="real-row" key={order.id} onClick={() => go("pedidos")}><span className="row-icon">↗</span><span><strong>Pedido de retirada</strong><small>{new Date(order.createdAt).toLocaleDateString("pt-BR")} · {order.status.replaceAll("_", " ")}</small></span><span aria-hidden="true">→</span></button>)}</div> : <div className="empty-state"><span className="empty-icon" aria-hidden="true">○</span><strong>Você ainda não tem pedidos.</strong><p>Quando precisar receber um resultado, comece por aqui.</p><button className="text-button" onClick={() => go("pedidos")}>Fazer primeiro pedido →</button></div>}
+        <article className="dashboard-card recent-card">
+          <div className="card-heading">
+            <div>
+              <span className="card-kicker">ATIVIDADE</span>
+              <h3>Pedidos recentes</h3>
+            </div>
+            <button className="text-button" onClick={() => go("pedidos")}>
+              Ver pedidos <span aria-hidden="true">↗</span>
+            </button>
+          </div>
+          {loading ? (
+            <p className="empty-state">Carregando seus pedidos…</p>
+          ) : orders.length ? (
+            <div className="real-list">
+              {orders.slice(0, 3).map((order) => (
+                <button
+                  className="real-row"
+                  key={order.id}
+                  onClick={() => go("pedidos")}
+                >
+                  <span className="row-icon">↗</span>
+                  <span>
+                    <strong>Pedido de retirada</strong>
+                    <small>
+                      {new Date(order.createdAt).toLocaleDateString("pt-BR")} ·{" "}
+                      {order.status.replaceAll("_", " ")}
+                    </small>
+                  </span>
+                  <span aria-hidden="true">→</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <span className="empty-icon" aria-hidden="true">
+                ○
+              </span>
+              <strong>Você ainda não tem pedidos.</strong>
+              <p>Quando precisar receber um resultado, comece por aqui.</p>
+              <button className="text-button" onClick={() => go("pedidos")}>
+                Fazer primeiro pedido →
+              </button>
+            </div>
+          )}
         </article>
         <div className="dashboard-side">
-          <article className="dashboard-card mini-card"><span className="card-kicker">SEU PERFIL</span><h3>{capabilities.patientProfile ? "Perfil de paciente ativo" : "Complete seu perfil"}</h3><p>{capabilities.patientProfile ? "Suas informações estão prontas para uma nova solicitação." : "Adicione seu perfil para solicitar uma entrega."}</p><button className="text-button" onClick={() => go(capabilities.patientProfile ? "perfil" : "familia")}>{capabilities.patientProfile ? "Revisar perfil" : "Começar agora"} →</button></article>
-          <article className="dashboard-card link-card"><button onClick={() => go("beneficios")}><span className="link-symbol">+</span><span><strong>Benefícios</strong><small>Confira apoios disponíveis para seu pedido</small></span><span>→</span></button><button onClick={() => go("familia")}><span className="link-symbol">⌁</span><span><strong>Família autorizada</strong><small>Gerencie quem pode ajudar</small></span><span>→</span></button><button onClick={() => go("perfil")}><span className="link-symbol">◌</span><span><strong>Configurações</strong><small>Dados e segurança da conta</small></span><span>→</span></button></article>
+          <article className="dashboard-card mini-card">
+            <span className="card-kicker">SEU PERFIL</span>
+            <h3>
+              {capabilities.patientProfile
+                ? "Perfil de paciente ativo"
+                : "Complete seu perfil"}
+            </h3>
+            <p>
+              {capabilities.patientProfile
+                ? "Suas informações estão prontas para uma nova solicitação."
+                : "Adicione seu perfil para solicitar uma entrega."}
+            </p>
+            <button
+              className="text-button"
+              onClick={() =>
+                go(capabilities.patientProfile ? "perfil" : "familia")
+              }
+            >
+              {capabilities.patientProfile ? "Revisar perfil" : "Começar agora"}{" "}
+              →
+            </button>
+          </article>
+          <article className="dashboard-card link-card">
+            <button onClick={() => go("beneficios")}>
+              <span className="link-symbol">+</span>
+              <span>
+                <strong>Benefícios</strong>
+                <small>Confira apoios disponíveis para seu pedido</small>
+              </span>
+              <span>→</span>
+            </button>
+            <button onClick={() => go("familia")}>
+              <span className="link-symbol">⌁</span>
+              <span>
+                <strong>Família autorizada</strong>
+                <small>Gerencie quem pode ajudar</small>
+              </span>
+              <span>→</span>
+            </button>
+            <button onClick={() => go("perfil")}>
+              <span className="link-symbol">◌</span>
+              <span>
+                <strong>Configurações</strong>
+                <small>Dados e segurança da conta</small>
+              </span>
+              <span>→</span>
+            </button>
+          </article>
         </div>
       </div>
     </section>
@@ -3908,6 +5059,7 @@ function PortfolioApp({
   const allowed = (value: AppRoute) =>
     ![
       "operacao",
+      "catalogo",
       "analise-beneficios",
       "financeiro",
       "operacao-privacidade",
@@ -3915,11 +5067,13 @@ function PortfolioApp({
     capabilities?.areas.includes(
       value === "operacao"
         ? "OPERACAO"
-        : value === "analise-beneficios"
-          ? "ANALISE_BENEFICIO"
-          : value === "financeiro"
-            ? "FINANCEIRO"
-            : "OPERACAO_PRIVACIDADE",
+        : value === "catalogo"
+          ? "OPERACAO"
+          : value === "analise-beneficios"
+            ? "ANALISE_BENEFICIO"
+            : value === "financeiro"
+              ? "FINANCEIRO"
+              : "OPERACAO_PRIVACIDADE",
     );
   const routes = (Object.keys(routeLabels) as AppRoute[]).filter(allowed);
   const workspaces = [
@@ -3928,7 +5082,10 @@ function PortfolioApp({
       ? [{ label: "Trabalho de entrega", route: "entregador" as AppRoute }]
       : []),
     ...(capabilities?.areas.includes("OPERACAO")
-      ? [{ label: "Operação", route: "operacao" as AppRoute }]
+      ? [
+          { label: "Operação", route: "operacao" as AppRoute },
+          { label: "Catálogo de unidades", route: "catalogo" as AppRoute },
+        ]
       : []),
     ...(capabilities?.areas.includes("ANALISE_BENEFICIO")
       ? [
@@ -3979,6 +5136,8 @@ function PortfolioApp({
             <VehicleReviewPanel session={session} />
           </>
         );
+      case "catalogo":
+        return <UnitCatalogPanel session={session} />;
       case "analise-beneficios":
         return (
           <>
@@ -4002,7 +5161,13 @@ function PortfolioApp({
           </>
         );
       default:
-        return <PatientDashboard session={session} capabilities={capabilities!} go={go} />;
+        return (
+          <PatientDashboard
+            session={session}
+            capabilities={capabilities!}
+            go={go}
+          />
+        );
     }
   }
   return (
@@ -4135,7 +5300,9 @@ function AccountPage() {
   const [busy, setBusy] = useState(false);
   const [session, setSession] = useState<Tokens | null>(null);
   const [feedback, setFeedback] = useState<Notice | null>(null);
-  const [emailHint, setEmailHint] = useState(() => window.sessionStorage.getItem("exameperto-email") ?? "");
+  const [emailHint, setEmailHint] = useState(
+    () => window.sessionStorage.getItem("exameperto-email") ?? "",
+  );
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [expired, setExpired] = useState(false);
   const [restoring, setRestoring] = useState(true);
@@ -4234,7 +5401,10 @@ function AccountPage() {
         const email = String(fields.email ?? "");
         setEmailHint(email);
         window.sessionStorage.setItem("exameperto-email", email);
-        setFeedback({ tone: "info", text: "Solicitação recebida. Se o endereço puder iniciar um cadastro, enviaremos as instruções. Se você já possui uma conta, entre ou recupere o acesso." });
+        setFeedback({
+          tone: "info",
+          text: "Solicitação recebida. Se o endereço puder iniciar um cadastro, enviaremos as instruções. Se você já possui uma conta, entre ou recupere o acesso.",
+        });
       } else if (mode === "recovery") {
         const email = String(fields.email ?? "");
         setEmailHint(email);
@@ -4248,9 +5418,12 @@ function AccountPage() {
       }
       form.reset();
     } catch (error) {
-      const registrationGuidance = mode === "register" && error instanceof Error && error.message.includes("integração necessária")
-        ? " O cadastro não foi concluído. Se você já possui uma conta, entre ou recupere o acesso."
-        : "";
+      const registrationGuidance =
+        mode === "register" &&
+        error instanceof Error &&
+        error.message.includes("integração necessária")
+          ? " O cadastro não foi concluído. Se você já possui uma conta, entre ou recupere o acesso."
+          : "";
       setFeedback({
         tone: "error",
         text:
@@ -4337,7 +5510,14 @@ function AccountPage() {
   return (
     <main className="auth-page">
       <header className="auth-header">
-        <a className="public-brand" href="/" onClick={(event) => { event.preventDefault(); navigate("/"); }}>
+        <a
+          className="public-brand"
+          href="/"
+          onClick={(event) => {
+            event.preventDefault();
+            navigate("/");
+          }}
+        >
           <span className="brand-mark">EP</span>
           <span>exameperto</span>
         </a>
@@ -4346,58 +5526,273 @@ function AccountPage() {
       <div className="auth-layout">
         <section className="auth-intro" aria-labelledby="page-title">
           <span className="eyebrow public-eyebrow">EXAMEPERTO · CONTA</span>
-          <h1 id="page-title">Tudo perto, <em>com clareza.</em></h1>
-          <p>Entre para acompanhar seus pedidos, recebimentos e dados da conta em um só lugar.</p>
-          <div className="auth-signal" aria-hidden="true"><span /><span /><span /></div>
+          <h1 id="page-title">
+            Tudo perto, <em>com clareza.</em>
+          </h1>
+          <p>
+            Entre para acompanhar seus pedidos, recebimentos e dados da conta em
+            um só lugar.
+          </p>
+          <div className="auth-signal" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
         </section>
         <section className="auth-card" aria-label="Acesso à conta">
           <nav className="auth-links" aria-label="Navegação de acesso">
-            <a className={mode === "login" ? "is-current" : ""} href={authPath("login")} onClick={(event) => { event.preventDefault(); changeMode("login"); }}>Entrar</a>
-            <a className={mode === "register" ? "is-current" : ""} href={authPath("register")} onClick={(event) => { event.preventDefault(); changeMode("register"); }}>Criar conta</a>
-            <a className={mode === "recovery" || mode === "recovery/complete" ? "is-current" : ""} href={authPath("recovery")} onClick={(event) => { event.preventDefault(); changeMode("recovery"); }}>Recuperar acesso</a>
+            <a
+              className={mode === "login" ? "is-current" : ""}
+              href={authPath("login")}
+              onClick={(event) => {
+                event.preventDefault();
+                changeMode("login");
+              }}
+            >
+              Entrar
+            </a>
+            <a
+              className={mode === "register" ? "is-current" : ""}
+              href={authPath("register")}
+              onClick={(event) => {
+                event.preventDefault();
+                changeMode("register");
+              }}
+            >
+              Criar conta
+            </a>
+            <a
+              className={
+                mode === "recovery" || mode === "recovery/complete"
+                  ? "is-current"
+                  : ""
+              }
+              href={authPath("recovery")}
+              onClick={(event) => {
+                event.preventDefault();
+                changeMode("recovery");
+              }}
+            >
+              Recuperar acesso
+            </a>
           </nav>
           <div className="auth-card-heading">
             <span className="step">SUA CONTA</span>
             <h2>{labels[mode]}</h2>
             <p>
-              {mode === "register" && "Crie seu acesso para acompanhar sua jornada."}
+              {mode === "register" &&
+                "Crie seu acesso para acompanhar sua jornada."}
               {mode === "login" && "Use seu e-mail e senha para continuar."}
-              {mode === "verification" && `Confirme o endereço ${emailHint || "informado no cadastro"}.`}
-              {mode === "verification/resend" && "Peça uma nova mensagem de confirmação."}
-              {mode === "recovery" && "Enviaremos instruções para recuperar o acesso."}
-              {mode === "recovery/complete" && "Defina uma nova senha com o código recebido."}
+              {mode === "verification" &&
+                `Confirme o endereço ${emailHint || "informado no cadastro"}.`}
+              {mode === "verification/resend" &&
+                "Peça uma nova mensagem de confirmação."}
+              {mode === "recovery" &&
+                "Enviaremos instruções para recuperar o acesso."}
+              {mode === "recovery/complete" &&
+                "Defina uma nova senha com o código recebido."}
             </p>
           </div>
-          {restoring ? <p className="loading-state" role="status">Verificando seu acesso…</p> : (
+          {restoring ? (
+            <p className="loading-state" role="status">
+              Verificando seu acesso…
+            </p>
+          ) : (
             <form key={mode} className="auth-form" onSubmit={submit}>
-              {mode === "register" && <>
-                <label htmlFor="name">Nome completo</label>
-                <input id="name" name="name" autoComplete="name" required maxLength={160} />
-              </>}
-              {hasEmail && <>
-                <label htmlFor="email">E-mail</label>
-                <input id="email" name="email" type="email" autoComplete="email" required maxLength={254} defaultValue={emailHint} />
-              </>}
-              {(mode === "verification" || mode === "recovery/complete") && <>
-                <label htmlFor="token">Código recebido por e-mail</label>
-                <input id="token" name="token" autoComplete="one-time-code" required minLength={16} maxLength={512} />
-              </>}
-              {(mode === "register" || mode === "login" || mode === "recovery/complete") && <>
-                <label htmlFor="password">{mode === "recovery/complete" ? "Nova senha" : "Senha"}</label>
-                <div className="password-control">
-                  <input id="password" name={mode === "recovery/complete" ? "newPassword" : "password"} type={passwordVisible ? "text" : "password"} autoComplete={mode === "login" ? "current-password" : "new-password"} required minLength={mode === "login" ? 1 : 12} maxLength={128} />
-                  <button type="button" className="password-toggle" aria-pressed={passwordVisible} onClick={() => setPasswordVisible((visible) => !visible)}>{passwordVisible ? "Ocultar" : "Mostrar"}</button>
-                </div>
-              </>}
-              <button className="auth-submit" type="submit" disabled={busy}>{busy ? "Entrando…" : mode === "register" ? "Criar conta" : labels[mode]} <span aria-hidden="true">→</span></button>
-              {feedback && <p className={`feedback ${feedback.tone}`} role="alert">{feedback.text}</p>}
+              {mode === "register" && (
+                <>
+                  <label htmlFor="name">Nome completo</label>
+                  <input
+                    id="name"
+                    name="name"
+                    autoComplete="name"
+                    required
+                    maxLength={160}
+                  />
+                </>
+              )}
+              {hasEmail && (
+                <>
+                  <label htmlFor="email">E-mail</label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    maxLength={254}
+                    defaultValue={emailHint}
+                  />
+                </>
+              )}
+              {(mode === "verification" || mode === "recovery/complete") && (
+                <>
+                  <label htmlFor="token">Código recebido por e-mail</label>
+                  <input
+                    id="token"
+                    name="token"
+                    autoComplete="one-time-code"
+                    required
+                    minLength={16}
+                    maxLength={512}
+                  />
+                </>
+              )}
+              {(mode === "register" ||
+                mode === "login" ||
+                mode === "recovery/complete") && (
+                <>
+                  <label htmlFor="password">
+                    {mode === "recovery/complete" ? "Nova senha" : "Senha"}
+                  </label>
+                  <div className="password-control">
+                    <input
+                      id="password"
+                      name={
+                        mode === "recovery/complete"
+                          ? "newPassword"
+                          : "password"
+                      }
+                      type={passwordVisible ? "text" : "password"}
+                      autoComplete={
+                        mode === "login" ? "current-password" : "new-password"
+                      }
+                      required
+                      minLength={mode === "login" ? 1 : 12}
+                      maxLength={128}
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle"
+                      aria-pressed={passwordVisible}
+                      onClick={() => setPasswordVisible((visible) => !visible)}
+                    >
+                      {passwordVisible ? "Ocultar" : "Mostrar"}
+                    </button>
+                  </div>
+                </>
+              )}
+              <button className="auth-submit" type="submit" disabled={busy}>
+                {busy
+                  ? "Entrando…"
+                  : mode === "register"
+                    ? "Criar conta"
+                    : labels[mode]}{" "}
+                <span aria-hidden="true">→</span>
+              </button>
+              {feedback && (
+                <p className={`feedback ${feedback.tone}`} role="alert">
+                  {feedback.text}
+                </p>
+              )}
             </form>
           )}
-          {mode === "login" && <p className="auth-support">Ainda não tem acesso? <a href={authPath("register")} onClick={(event) => { event.preventDefault(); changeMode("register"); }}>Crie sua conta</a></p>}
-          {mode === "register" && <p className="auth-support"><a href={authPath("verification")} onClick={(event) => { event.preventDefault(); changeMode("verification"); }}>Continuar para confirmação</a> · <a href={authPath("login")} onClick={(event) => { event.preventDefault(); changeMode("login"); }}>Entrar</a> · <a href={authPath("recovery")} onClick={(event) => { event.preventDefault(); changeMode("recovery"); }}>Recuperar acesso</a></p>}
-          {(mode === "verification" || mode === "verification/resend") && <p className="auth-support"><a href={authPath("verification/resend")} onClick={(event) => { event.preventDefault(); changeMode("verification/resend"); }}>Reenviar confirmação</a> · <a href={authPath("login")} onClick={(event) => { event.preventDefault(); changeMode("login"); }}>Voltar para entrar</a></p>}
-          {mode === "recovery/complete" && <p className="auth-support"><a href={authPath("recovery")} onClick={(event) => { event.preventDefault(); changeMode("recovery"); }}>Solicitar outro código</a> · <a href={authPath("login")} onClick={(event) => { event.preventDefault(); changeMode("login"); }}>Voltar para entrar</a></p>}
-          {mode === "recovery" && <p className="auth-support"><a href={authPath("login")} onClick={(event) => { event.preventDefault(); changeMode("login"); }}>Voltar para entrar</a></p>}
+          {mode === "login" && (
+            <p className="auth-support">
+              Ainda não tem acesso?{" "}
+              <a
+                href={authPath("register")}
+                onClick={(event) => {
+                  event.preventDefault();
+                  changeMode("register");
+                }}
+              >
+                Crie sua conta
+              </a>
+            </p>
+          )}
+          {mode === "register" && (
+            <p className="auth-support">
+              <a
+                href={authPath("verification")}
+                onClick={(event) => {
+                  event.preventDefault();
+                  changeMode("verification");
+                }}
+              >
+                Continuar para confirmação
+              </a>{" "}
+              ·{" "}
+              <a
+                href={authPath("login")}
+                onClick={(event) => {
+                  event.preventDefault();
+                  changeMode("login");
+                }}
+              >
+                Entrar
+              </a>{" "}
+              ·{" "}
+              <a
+                href={authPath("recovery")}
+                onClick={(event) => {
+                  event.preventDefault();
+                  changeMode("recovery");
+                }}
+              >
+                Recuperar acesso
+              </a>
+            </p>
+          )}
+          {(mode === "verification" || mode === "verification/resend") && (
+            <p className="auth-support">
+              <a
+                href={authPath("verification/resend")}
+                onClick={(event) => {
+                  event.preventDefault();
+                  changeMode("verification/resend");
+                }}
+              >
+                Reenviar confirmação
+              </a>{" "}
+              ·{" "}
+              <a
+                href={authPath("login")}
+                onClick={(event) => {
+                  event.preventDefault();
+                  changeMode("login");
+                }}
+              >
+                Voltar para entrar
+              </a>
+            </p>
+          )}
+          {mode === "recovery/complete" && (
+            <p className="auth-support">
+              <a
+                href={authPath("recovery")}
+                onClick={(event) => {
+                  event.preventDefault();
+                  changeMode("recovery");
+                }}
+              >
+                Solicitar outro código
+              </a>{" "}
+              ·{" "}
+              <a
+                href={authPath("login")}
+                onClick={(event) => {
+                  event.preventDefault();
+                  changeMode("login");
+                }}
+              >
+                Voltar para entrar
+              </a>
+            </p>
+          )}
+          {mode === "recovery" && (
+            <p className="auth-support">
+              <a
+                href={authPath("login")}
+                onClick={(event) => {
+                  event.preventDefault();
+                  changeMode("login");
+                }}
+              >
+                Voltar para entrar
+              </a>
+            </p>
+          )}
         </section>
       </div>
     </main>

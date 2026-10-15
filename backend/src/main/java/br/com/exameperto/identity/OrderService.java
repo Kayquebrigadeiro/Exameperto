@@ -25,6 +25,8 @@ class OrderService {
     OrderView create(UUID actor, OrderInput input, String idem) {
         requireAddress(input.origin()); requireAddress(input.destination()); authorizePedidos(actor,input.patientId()); authorizeRecipient(input.patientId(),input.recipientUserId());
         requireOwnedAuthorization(actor,input.pickupAuthorizationDocumentId());
+        if (jdbc.queryForObject("SELECT count(*) FROM unidade_retirada u JOIN aceite_unidade_retirada a ON a.unidade_id=u.id AND a.estado='ACEITA' JOIN protocolo_custodia p ON p.unidade_id=u.id AND p.estado='HABILITADO' AND p.cobertura_retorno_confirmada AND p.inicio<=clock_timestamp() AND (p.fim IS NULL OR p.fim>clock_timestamp()) WHERE u.id=? AND u.estado_cadastro='ATIVA'",Long.class,input.pickupUnitId()) == 0)
+            throw error(HttpStatus.UNPROCESSABLE_ENTITY,"UNIT_NOT_AVAILABLE","A unidade selecionada não está operacional neste momento.");
         UUID existing=replay(actor,"CREATE_ORDER",idem,hash(input)); if(existing!=null)return order(existing);
         UUID id=UUID.randomUUID(); UUID auth=UUID.randomUUID();
         try {

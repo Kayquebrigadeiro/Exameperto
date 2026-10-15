@@ -8,6 +8,7 @@ export const appRouteLabels = {
   entregador: "Cadastro de entrega",
   entregas: "Minhas entregas",
   operacao: "Operação",
+  catalogo: "Unidades e protocolos",
   "analise-beneficios": "Análise de benefícios",
   financeiro: "Financeiro",
   "operacao-privacidade": "Operação de privacidade",
