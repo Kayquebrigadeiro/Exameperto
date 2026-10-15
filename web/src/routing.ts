@@ -1,17 +1,24 @@
 export const appRouteLabels = {
-  inicio: "Visão geral",
-  perfil: "Conta",
-  familia: "Família",
+  inicio: "Escolher área",
+  paciente: "Área do paciente",
+  "paciente-pedidos": "Meus pedidos",
+  "paciente-beneficios": "Benefícios",
+  pedidos: "Meus pedidos",
   beneficios: "Benefícios",
-  pedidos: "Pedidos",
-  privacidade: "Privacidade",
-  entregador: "Cadastro de entrega",
-  entregas: "Minhas entregas",
-  operacao: "Operação",
-  catalogo: "Unidades e protocolos",
-  "analise-beneficios": "Análise de benefícios",
+  perfil: "Conta",
+  familia: "Área familiar",
+  "familia-pedidos": "Pedidos do representado",
+  "familia-autorizacoes": "Autorizações",
+  entregador: "Área do entregador",
+  "entregador-cadastro": "Cadastro e documentos",
+  entregas: "Entregas",
+  operacao: "Área de operação",
+  catalogo: "Catálogo de unidades",
+  "analise-beneficios": "Área de benefícios",
+  "beneficios-fila": "Fila de benefícios",
   financeiro: "Financeiro",
-  "operacao-privacidade": "Operação de privacidade",
+  privacidade: "Privacidade da conta",
+  "operacao-privacidade": "Privacidade operacional",
 } as const;
 
 export type AppRoute = keyof typeof appRouteLabels;
@@ -45,16 +52,60 @@ export function authRouteFromPath(
 }
 
 export function appPath(route: AppRoute) {
-  return route === "inicio" ? "/app" : `/app/${route}`;
+  const paths: Record<AppRoute, string> = {
+    inicio: "/app",
+    paciente: "/app/paciente",
+    "paciente-pedidos": "/app/paciente/pedidos",
+    "paciente-beneficios": "/app/paciente/beneficios",
+    pedidos: "/app/paciente/pedidos",
+    beneficios: "/app/paciente/beneficios",
+    perfil: "/app/conta",
+    familia: "/app/familiar",
+    "familia-pedidos": "/app/familiar/pedidos",
+    "familia-autorizacoes": "/app/familiar/autorizacoes",
+    entregador: "/app/entregador",
+    "entregador-cadastro": "/app/entregador/cadastro",
+    entregas: "/app/entregador/entregas",
+    operacao: "/app/operacao",
+    catalogo: "/app/operacao/catalogo",
+    "analise-beneficios": "/app/beneficios",
+    "beneficios-fila": "/app/beneficios/fila",
+    financeiro: "/app/financeiro",
+    privacidade: "/app/privacidade",
+    "operacao-privacidade": "/app/privacidade/operacao",
+  };
+  return paths[route];
 }
 
 export function appRouteFromPath(
   pathname = window.location.pathname,
 ): AppRoute | null {
   if (pathname === "/app" || pathname === "/app/") return "inicio";
-  if (!pathname.startsWith("/app/")) return null;
-  const candidate = decodeURIComponent(pathname.slice(5)) as AppRoute;
-  return candidate in appRouteLabels ? candidate : null;
+  const paths = Object.entries(appRouteLabels).map(([route]) => [route, appPath(route as AppRoute)] as const);
+  const canonical = paths.find(([, path]) => path === pathname)?.[0] as AppRoute | undefined;
+  if (canonical) return canonical;
+  const aliases: Record<string, AppRoute> = {
+    "/app/pedidos": "paciente-pedidos",
+    "/app/beneficios": "paciente-beneficios",
+    "/app/familia": "familia",
+    "/app/entregas": "entregas",
+    "/app/analise-beneficios": "beneficios-fila",
+    "/app/operacao-privacidade": "operacao-privacidade",
+    "/app/conta": "perfil",
+    "/app/privacidade": "privacidade",
+  };
+  return aliases[pathname] ?? null;
+}
+
+export function isLegacyAppPath(pathname = window.location.pathname) {
+  return [
+    "/app/pedidos",
+    "/app/beneficios",
+    "/app/familia",
+    "/app/entregas",
+    "/app/analise-beneficios",
+    "/app/operacao-privacidade",
+  ].includes(pathname);
 }
 
 export function isKnownPublicPath(pathname = window.location.pathname) {

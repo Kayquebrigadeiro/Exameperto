@@ -9,6 +9,7 @@ import {
   appRouteLabels as routeLabels,
   authPath,
   authRouteFromPath,
+  isLegacyAppPath,
   isKnownPublicPath,
   navigate,
 } from "./routing";
@@ -5138,7 +5139,7 @@ function PatientDashboard({
             Crie um pedido de entrega com as informações da unidade e de quem
             vai receber.
           </p>
-          <button onClick={() => go("pedidos")}>
+          <button onClick={() => go("paciente-pedidos")}>
             Solicitar entrega <span aria-hidden="true">→</span>
           </button>
         </div>
@@ -5156,7 +5157,7 @@ function PatientDashboard({
               <span className="card-kicker">ATIVIDADE</span>
               <h3>Pedidos recentes</h3>
             </div>
-            <button className="text-button" onClick={() => go("pedidos")}>
+            <button className="text-button" onClick={() => go("paciente-pedidos")}>
               Ver pedidos <span aria-hidden="true">↗</span>
             </button>
           </div>
@@ -5168,7 +5169,7 @@ function PatientDashboard({
                 <button
                   className="real-row"
                   key={order.id}
-                  onClick={() => go("pedidos")}
+                  onClick={() => go("paciente-pedidos")}
                 >
                   <span className="row-icon">↗</span>
                   <span>
@@ -5189,7 +5190,7 @@ function PatientDashboard({
               </span>
               <strong>Você ainda não tem pedidos.</strong>
               <p>Quando precisar receber um resultado, comece por aqui.</p>
-              <button className="text-button" onClick={() => go("pedidos")}>
+              <button className="text-button" onClick={() => go("paciente-pedidos")}>
                 Fazer primeiro pedido →
               </button>
             </div>
@@ -5210,16 +5211,14 @@ function PatientDashboard({
             </p>
             <button
               className="text-button"
-              onClick={() =>
-                go(capabilities.patientProfile ? "perfil" : "familia")
-              }
+              onClick={() => go(capabilities.patientProfile ? "perfil" : "paciente")}
             >
               {capabilities.patientProfile ? "Revisar perfil" : "Começar agora"}{" "}
               →
             </button>
           </article>
           <article className="dashboard-card link-card">
-            <button onClick={() => go("beneficios")}>
+            <button onClick={() => go("paciente-beneficios")}>
               <span className="link-symbol">+</span>
               <span>
                 <strong>Benefícios</strong>
@@ -5227,7 +5226,7 @@ function PatientDashboard({
               </span>
               <span>→</span>
             </button>
-            <button onClick={() => go("familia")}>
+            <button onClick={() => go("familia-autorizacoes")}>
               <span className="link-symbol">⌁</span>
               <span>
                 <strong>Família autorizada</strong>
@@ -5250,6 +5249,69 @@ function PatientDashboard({
   );
 }
 
+type ActingArea =
+  | "paciente"
+  | "familiar"
+  | "entregador"
+  | "operacao"
+  | "beneficios"
+  | "financeiro"
+  | "privacidade-operacional";
+
+const actingAreaLabels: Record<ActingArea, string> = {
+  paciente: "Paciente",
+  familiar: "Familiar",
+  entregador: "Entregador",
+  operacao: "Operação",
+  beneficios: "Benefícios",
+  financeiro: "Financeiro",
+  "privacidade-operacional": "Privacidade operacional",
+};
+
+function AreaChooser({
+  areas,
+  go,
+}: {
+  areas: ActingArea[];
+  go: (route: AppRoute) => void;
+}) {
+  const destinations: Record<ActingArea, AppRoute> = {
+    paciente: "paciente",
+    familiar: "familia",
+    entregador: "entregador",
+    operacao: "operacao",
+    beneficios: "analise-beneficios",
+    financeiro: "financeiro",
+    "privacidade-operacional": "operacao-privacidade",
+  };
+  return (
+    <section className="area-chooser" aria-labelledby="area-chooser-title">
+      <div className="section-heading">
+        <span className="eyebrow dark">CONTEXTO DE ATUAÇÃO</span>
+        <h2 id="area-chooser-title">Onde você quer atuar agora?</h2>
+        <p>
+          Cada área tem seu próprio painel. A escolha só organiza a interface;
+          o backend continua revalidando papel, vínculo, escopo e MFA.
+        </p>
+      </div>
+      <div className="area-choice-grid">
+        {areas.map((area) => (
+          <button
+            className="area-choice"
+            type="button"
+            key={area}
+            onClick={() => go(destinations[area])}
+          >
+            <span className="card-kicker">ATUAR COMO</span>
+            <strong>{actingAreaLabels[area]}</strong>
+            <span>Entrar no dashboard específico →</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function PortfolioApp({
   session,
   onSessionAction,
@@ -5264,130 +5326,93 @@ function PortfolioApp({
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [route, setRoute] = useState<AppRoute>(appRouteFromPath() ?? "inicio");
+  const [activeInstitutionId, setActiveInstitutionId] = useState("");
   useEffect(() => {
-    fetch("/api/v1/me/capabilities", {
-      headers: { Authorization: `Bearer ${session.accessToken}` },
-    })
+    fetch("/api/v1/me/capabilities", { headers: { Authorization: `Bearer ${session.accessToken}` } })
       .then(parse)
       .then((value) => setCapabilities(value.result as Capabilities))
-      .catch((error) =>
-        setNotice({
-          tone: "error",
-          text:
-            error instanceof Error
-              ? error.message
-              : "Capacidades indisponíveis.",
-        }),
-      );
+      .catch((error) => setNotice({ tone: "error", text: error instanceof Error ? error.message : "Capacidades indisponíveis." }));
   }, [session.accessToken]);
   useEffect(() => {
     const change = () => setRoute(appRouteFromPath() ?? "inicio");
     addEventListener("popstate", change);
     return () => removeEventListener("popstate", change);
   }, []);
-  const allowed = (value: AppRoute) =>
-    ![
-      "operacao",
-      "catalogo",
-      "analise-beneficios",
-      "financeiro",
-      "operacao-privacidade",
-    ].includes(value) ||
-    capabilities?.areas.includes(
-      value === "operacao"
-        ? "OPERACAO"
-        : value === "catalogo"
-          ? "OPERACAO"
-          : value === "analise-beneficios"
-            ? "ANALISE_BENEFICIO"
-            : value === "financeiro"
-              ? "FINANCEIRO"
-              : "OPERACAO_PRIVACIDADE",
-    );
-  const routes = (Object.keys(routeLabels) as AppRoute[]).filter(allowed);
-  const workspaces = [
-    { label: "Minha conta", route: "inicio" as AppRoute },
-    { label: "Área do entregador", route: "entregador" as AppRoute },
-    ...(capabilities?.areas.includes("OPERACAO")
-      ? [
-          { label: "Operação", route: "operacao" as AppRoute },
-          { label: "Catálogo de unidades", route: "catalogo" as AppRoute },
-        ]
-      : []),
-    ...(capabilities?.areas.includes("ANALISE_BENEFICIO")
-      ? [
-          {
-            label: "Análise de benefícios",
-            route: "analise-beneficios" as AppRoute,
-          },
-        ]
-      : []),
-    ...(capabilities?.areas.includes("FINANCEIRO")
-      ? [{ label: "Financeiro", route: "financeiro" as AppRoute }]
-      : []),
-    ...(capabilities?.areas.includes("OPERACAO_PRIVACIDADE")
-      ? [
-          {
-            label: "Privacidade operacional",
-            route: "operacao-privacidade" as AppRoute,
-          },
-        ]
-      : []),
-  ];
+  useEffect(() => {
+    if (capabilities && !activeInstitutionId) setActiveInstitutionId(capabilities.institutions[0]?.institutionId ?? "");
+  }, [capabilities, activeInstitutionId]);
+  const actingAreas: ActingArea[] = capabilities
+    ? [
+        ...(capabilities.areas.includes("PACIENTE") ? ["paciente" as const] : []),
+        ...(capabilities.areas.includes("FAMILIAR") ? ["familiar" as const] : []),
+        ...(capabilities.areas.includes("ENTREGADOR") ? ["entregador" as const] : []),
+        ...(capabilities.areas.includes("OPERACAO") ? ["operacao" as const] : []),
+        ...(capabilities.areas.includes("ANALISE_BENEFICIO") ? ["beneficios" as const] : []),
+        ...(capabilities.areas.includes("FINANCEIRO") ? ["financeiro" as const] : []),
+        ...(capabilities.areas.includes("OPERACAO_PRIVACIDADE") ? ["privacidade-operacional" as const] : []),
+      ]
+    : [];
+  const areaForRoute = (value: AppRoute): ActingArea | null => {
+    if (["paciente", "paciente-pedidos", "paciente-beneficios", "beneficios", "pedidos", "familia-autorizacoes"].includes(value)) return "paciente";
+    if (["familia", "familia-pedidos"].includes(value)) return "familiar";
+    if (["entregador", "entregador-cadastro", "entregas"].includes(value)) return "entregador";
+    if (["operacao", "catalogo"].includes(value)) return "operacao";
+    if (["analise-beneficios", "beneficios-fila"].includes(value)) return "beneficios";
+    if (value === "financeiro") return "financeiro";
+    if (value === "operacao-privacidade") return "privacidade-operacional";
+    return null;
+  };
+  const activeArea = areaForRoute(route);
+  const areaRoutes: Record<ActingArea, AppRoute[]> = {
+    paciente: ["paciente", "paciente-pedidos", "paciente-beneficios", "familia-autorizacoes"],
+    familiar: ["familia", "familia-pedidos"],
+    entregador: ["entregador", "entregador-cadastro", "entregas"],
+    operacao: ["operacao", "catalogo"],
+    beneficios: ["analise-beneficios", "beneficios-fila"],
+    financeiro: ["financeiro"],
+    "privacidade-operacional": ["operacao-privacidade"],
+  };
+  const areaDestination: Record<ActingArea, AppRoute> = {
+    paciente: "paciente", familiar: "familia", entregador: "entregador", operacao: "operacao",
+    beneficios: "analise-beneficios", financeiro: "financeiro", "privacidade-operacional": "operacao-privacidade",
+  };
+  const allowed = (value: AppRoute) => {
+    const area = areaForRoute(value);
+    return !area || actingAreas.includes(area);
+  };
+  useEffect(() => {
+    const parsed = appRouteFromPath();
+    if (parsed && isLegacyAppPath() && appPath(parsed) !== window.location.pathname) {
+      navigate(appPath(parsed), true);
+      return;
+    }
+    if (capabilities && route === "inicio" && actingAreas.length === 1) navigate(appPath(areaDestination[actingAreas[0]]), true);
+  }, [capabilities, route, actingAreas.length]);
   const go = (value: AppRoute) => {
+    if (!allowed(value)) {
+      setNotice({ tone: "error", text: "Esta área não está disponível para a sessão atual." });
+      return;
+    }
     setRoute(value);
     navigate(appPath(value));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   function content() {
     switch (route) {
-      case "perfil":
-        return <ProfilePanel session={session} />;
-      case "familia":
-        return <FamilyPanel session={session} />;
-      case "beneficios":
-        return <BenefitPanel session={session} />;
-      case "pedidos":
-        return <OrderPanel session={session} />;
-      case "privacidade":
-        return <PrivacyPanel session={session} />;
-      case "entregador":
-        return <DelivererPanel session={session} />;
-      case "entregas":
-        return <DeliveryWorkPanel session={session} />;
-      case "operacao":
-        return <OperationalWorkspace session={session} />;
-      case "catalogo":
-        return <UnitCatalogPanel session={session} />;
-      case "analise-beneficios":
-        return (
-          <>
-            <MfaAccess session={session} />
-            <BenefitReviewPanel session={session} />
-          </>
-        );
-      case "financeiro":
-        return (
-          <>
-            <MfaAccess session={session} />
-            {capabilities && <FinancialWorkspace session={session} capabilities={capabilities} />}
-          </>
-        );
-      case "operacao-privacidade":
-        return (
-          <>
-            <MfaAccess session={session} />
-            <PrivacyOperationsPanel session={session} />
-          </>
-        );
-      default:
-        return (
-          <PatientDashboard
-            session={session}
-            capabilities={capabilities!}
-            go={go}
-          />
-        );
+      case "paciente": return <PatientDashboard session={session} capabilities={capabilities!} go={go} />;
+      case "paciente-pedidos": case "pedidos": case "familia-pedidos": return <OrderPanel session={session} />;
+      case "paciente-beneficios": case "beneficios": return <BenefitPanel session={session} />;
+      case "perfil": return <ProfilePanel session={session} />;
+      case "familia": case "familia-autorizacoes": return <FamilyPanel session={session} />;
+      case "privacidade": return <PrivacyPanel session={session} />;
+      case "entregador": case "entregador-cadastro": return <DelivererPanel session={session} />;
+      case "entregas": return <DeliveryWorkPanel session={session} />;
+      case "operacao": return <OperationalWorkspace session={session} />;
+      case "catalogo": return <UnitCatalogPanel session={session} />;
+      case "analise-beneficios": case "beneficios-fila": return <><MfaAccess session={session} /><BenefitReviewPanel session={session} /></>;
+      case "financeiro": return <><MfaAccess session={session} />{capabilities && <FinancialWorkspace session={session} capabilities={capabilities} />}</>;
+      case "operacao-privacidade": return <><MfaAccess session={session} /><PrivacyOperationsPanel session={session} /></>;
+      default: return <AreaChooser areas={actingAreas} go={go} />;
     }
   }
   return (
@@ -5397,28 +5422,27 @@ function PortfolioApp({
           <span>EP</span>
           <strong>Exameperto</strong>
         </button>
-        {workspaces.length > 1 && (
+        {actingAreas.length > 1 && (
           <label className="workspace-picker">
-            Área de trabalho
+            Trocar área
             <select
-              aria-label="Selecionar área"
-              value={
-                workspaces.find((item) => item.route === route)?.route ??
-                "inicio"
-              }
-              onChange={(event) => go(event.target.value as AppRoute)}
+              aria-label="Selecionar área de atuação"
+              value={activeArea ?? "inicio"}
+              onChange={(event) => {
+                const selected = event.target.value as ActingArea | "inicio";
+                go(selected === "inicio" ? "inicio" : areaDestination[selected]);
+              }}
             >
-              {workspaces.map((item) => (
-                <option value={item.route} key={item.route}>
-                  {item.label}
-                </option>
+              <option value="inicio">Escolher área</option>
+              {actingAreas.map((area) => (
+                <option value={area} key={area}>{actingAreaLabels[area]}</option>
               ))}
             </select>
           </label>
         )}
-        <p className="workspace-label">ÁREAS DA CONTA</p>
+        <p className="workspace-label">{activeArea ? `ÁREA · ${actingAreaLabels[activeArea].toUpperCase()}` : "ÁREAS DISPONÍVEIS"}</p>
         <nav aria-label="Áreas do produto">
-          {routes.map((value) => (
+          {(activeArea ? areaRoutes[activeArea] : ["inicio" as AppRoute]).map((value) => (
             <a
               key={value}
               href={appPath(value)}
@@ -5432,6 +5456,10 @@ function PortfolioApp({
             </a>
           ))}
         </nav>
+        <div className="shared-links" aria-label="Conta e segurança">
+          <a href={appPath("perfil")} onClick={(event) => { event.preventDefault(); go("perfil"); }}>Conta e segurança</a>
+          <a href={appPath("privacidade")} onClick={(event) => { event.preventDefault(); go("privacidade"); }}>Privacidade da conta</a>
+        </div>
         <div className="session-tools">
           <span className="status-dot">Sessão protegida</span>
           <button
@@ -5452,8 +5480,9 @@ function PortfolioApp({
       <main className="portfolio-content">
         <header className="portfolio-topbar">
           <div>
-            <span className="eyebrow dark">PORTFÓLIO LOCAL · 127.0.0.1</span>
+            <span className="eyebrow dark">EXAMEPERTO · {activeArea ? actingAreaLabels[activeArea].toUpperCase() : "SELEÇÃO DE ÁREA"}</span>
             <h1>{routeLabels[route]}</h1>
+            {activeArea && <p className="acting-context">Contexto ativo: {actingAreaLabels[activeArea]}</p>}
           </div>
           <div className="role-summary">
             {capabilities?.globalRoles.map((role) => (
@@ -5464,6 +5493,13 @@ function PortfolioApp({
               !capabilities.institutions.length && <span>CONTA BÁSICA</span>}
           </div>
         </header>
+        {activeArea && ["operacao", "beneficios", "financeiro", "privacidade-operacional"].includes(activeArea) && (
+          <div className="institution-banner" aria-label="Instituição ativa">
+            <span>INSTITUIÇÃO ATIVA</span>
+            <strong>{capabilities?.institutions.find((item) => item.institutionId === activeInstitutionId)?.institutionName ?? "Vínculo institucional não informado"}</strong>
+            <small>O backend revalida vínculo, papel e escopo em cada ação.</small>
+          </div>
+        )}
         {notice && (
           <p className={`feedback ${notice.tone}`} role="alert">
             {notice.text}

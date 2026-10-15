@@ -66,6 +66,13 @@ class IntegratedAcceptanceBrowserFlowTest {
         jdbc.update("INSERT INTO papel_global(usuario_id,papel) VALUES (?, 'ANALISTA_OPERACIONAL'), (?, 'GESTOR_FINANCEIRO'), (?, 'OPERADOR_PRIVACIDADE')", accountId, accountId, accountId);
         UUID patient = UUID.randomUUID();
         jdbc.update("INSERT INTO paciente(id,usuario_id,cpf_cifrado,cpf_busca,nascimento,identidade_estado) VALUES (?,?,?,?,DATE '1980-01-01','VERIFICADA')", patient, accountId, protector.encrypt("12345678901"), protector.lookup("12345678901"));
+        String representedEmail = account("represented-patient");
+        UUID representedUser = user(representedEmail), representedPatient = UUID.randomUUID(), invitation = UUID.randomUUID(), grant = UUID.randomUUID();
+        jdbc.update("INSERT INTO paciente(id,usuario_id,cpf_cifrado,cpf_busca,nascimento,identidade_estado) VALUES (?,?,?,?,DATE '1975-01-01','VERIFICADA')", representedPatient, representedUser, protector.encrypt("22345678901"), protector.lookup("22345678901"));
+        jdbc.update("INSERT INTO convite_familiar(id,paciente_id,destinatario_email_busca,token_hash,estado,expira_em,consumido_em,aceito_por,aceito_em,confirmado_em) VALUES (?,?,?,?,'CONFIRMADO',clock_timestamp()+interval '30 days',clock_timestamp(),?,clock_timestamp(),clock_timestamp())", invitation, representedPatient, protector.lookup(emailAddress), protector.tokenHash("synthetic-invitation"), accountId);
+        jdbc.update("INSERT INTO convite_familiar_escopo(convite_id,escopo) VALUES (?, 'PEDIDOS'), (?, 'BENEFICIOS')", invitation, invitation);
+        jdbc.update("INSERT INTO autorizacao_paciente(id,paciente_id,familiar_id,concedida_por,convite_id,confirmada_em,expira_em) VALUES (?,?,?, ?,?,clock_timestamp(),clock_timestamp()+interval '30 days')", grant, representedPatient, accountId, representedUser, invitation);
+        jdbc.update("INSERT INTO autorizacao_escopo(autorizacao_id,escopo) VALUES (?, 'PEDIDOS'), (?, 'BENEFICIOS')", grant, grant);
         UUID deliverer = UUID.randomUUID();
         jdbc.update("INSERT INTO entregador(id,usuario_id,nascimento,estado) VALUES (?,?,DATE '1990-01-01','EM_ANALISE')", deliverer, accountId);
 

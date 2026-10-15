@@ -1010,6 +1010,40 @@ textarea:focus-visible {
   padding-top: 1rem;
   border-top: 1px solid #365047;
 }
+.shared-links {
+  display: grid;
+  gap: .25rem;
+  margin-top: .7rem;
+  padding: .7rem .4rem 0;
+  border-top: 1px solid #365047;
+}
+.shared-links a {
+  padding: .45rem .35rem;
+  color: #9db8ad;
+  font-size: .7rem;
+  text-decoration: none;
+}
+.shared-links a:hover { color: #fff; background: #294139; }
+.acting-context { margin: .35rem 0 0; color: #587066; font-size: .78rem; }
+.institution-banner {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: .3rem .8rem;
+  margin: 0 0 1.2rem;
+  padding: .8rem 1rem;
+  border: 1px solid #cbd9cd;
+  border-left: .25rem solid #91d1b6;
+  background: #edf3e9;
+}
+.institution-banner span { color: #476f5d; font: .62rem 'DM Mono', monospace; letter-spacing: .1em; }
+.institution-banner strong { color: #193b36; font-size: .82rem; }
+.institution-banner small { grid-column: 2; color: #496055; font-size: .7rem; }
+.area-chooser { max-width: 920px; }
+.area-choice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+.area-choice { display: grid; gap: .55rem; min-height: 9rem; padding: 1.2rem; border: 1px solid #cbd9cd; border-radius: .65rem; background: #fffef8; color: #193b36; text-align: left; box-shadow: 0 1rem 2rem rgba(31, 62, 53, .06); }
+.area-choice:hover { border-color: #91d1b6; background: #f1f6ed; transform: translateY(-2px); }
+.area-choice strong { font-size: 1.25rem; letter-spacing: -.04em; }
+.area-choice > span:last-child { color: #5b7569; font-size: .74rem; }
 .session-tools .status-dot {
   grid-column: 1/-1;
   color: #9db8ad;
@@ -1505,6 +1539,9 @@ textarea:focus-visible {
     padding: 0.45rem 0 0;
     border: 0;
   }
+  .shared-links { display: flex; overflow-x: auto; margin-top: .35rem; padding: .35rem 0 0; }
+  .institution-banner { grid-template-columns: 1fr; }
+  .institution-banner small { grid-column: 1; }
   .session-tools .status-dot {
     display: none;
   }
@@ -1557,7 +1594,7 @@ textarea:focus-visible {
 .operational-workspace .tabs { margin-top: 1.25rem; }
 .review-toolbar { display: grid; grid-template-columns: minmax(14rem, 1fr) 12rem auto; gap: .8rem; align-items: end; margin: 1rem 0; }
 .review-toolbar label { display: grid; gap: .35rem; font-size: .75rem; font-weight: 700; color: #25483d; }
-.review-toolbar span { color: #6c8279; font-size: .85rem; padding-bottom: .7rem; }
+.review-toolbar span { color: #435f53; font-size: .85rem; padding-bottom: .7rem; }
 .review-detail-card { background: #f9f8f1; border: 1px solid #cbd6cc; border-radius: 1rem; padding: 1.2rem; }
 .review-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; margin: 1rem 0; }
 .review-detail-grid > div { display: grid; gap: .25rem; padding: .9rem; border: 1px solid #d8e0d8; border-radius: .7rem; }

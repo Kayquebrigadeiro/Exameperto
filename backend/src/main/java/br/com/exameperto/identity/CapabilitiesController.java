@@ -25,7 +25,9 @@ class CapabilitiesController {
         boolean patient=exists("SELECT count(*) FROM paciente WHERE usuario_id=?",user);
         boolean deliverer=exists("SELECT count(*) FROM entregador WHERE usuario_id=?",user);
         boolean family=exists("SELECT count(*) FROM autorizacao_paciente WHERE familiar_id=? AND revogada_em IS NULL AND expira_em>clock_timestamp()",user);
-        Set<String> areas=new LinkedHashSet<>(List.of("INICIO","CONTA","PACIENTE","FAMILIAR","PRIVACIDADE"));
+        Set<String> areas=new LinkedHashSet<>(List.of("INICIO","CONTA","PRIVACIDADE"));
+        if (patient) areas.add("PACIENTE");
+        if (family) areas.add("FAMILIAR");
         if (deliverer) areas.add("ENTREGADOR");
         if (global.contains("ANALISTA_OPERACIONAL")) areas.add("OPERACAO");
         if (institutions.stream().anyMatch(i->"ANALISTA_BENEFICIO".equals(i.role()))) areas.add("ANALISE_BENEFICIO");
@@ -39,4 +41,3 @@ class CapabilitiesController {
 
 record InstitutionCapability(UUID institutionId,String institutionName,String institutionStatus,String role) {}
 record CapabilitiesView(List<String> globalRoles,List<InstitutionCapability> institutions,List<String> areas,boolean patientProfile,boolean delivererProfile,boolean activeFamilyAuthorization) {}
-

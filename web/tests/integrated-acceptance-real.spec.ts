@@ -27,39 +27,41 @@ test('navegação integrada pública e autenticada por perfil e área', async ({
   await page.getByLabel('E-mail', { exact: true }).fill(email);
   await page.getByLabel('Senha', { exact: true }).fill(password);
   await page.locator('button[type=submit]').click();
-  await expect(page.getByRole('heading', { name: /Olá,/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Onde você quer atuar agora?' })).toBeVisible();
   await expect(page.getByText('Sessão protegida', { exact: true })).toBeVisible();
 
   const nav = page.getByRole('navigation', { name: 'Áreas do produto' });
-  const areas = [
-    'Conta', 'Família', 'Benefícios', 'Pedidos', 'Privacidade',
-    'Cadastro de entrega', 'Minhas entregas', 'Operação',
-    'Análise de benefícios', 'Financeiro', 'Operação de privacidade',
-  ];
+  const areas = ['Paciente', 'Familiar', 'Entregador', 'Operação', 'Benefícios', 'Financeiro', 'Privacidade operacional'];
   for (const area of areas) {
-    await nav.getByRole('link', { name: area, exact: true }).click();
-    await expect(page.locator('main.portfolio-content > header.portfolio-topbar').getByRole('heading', { name: area, exact: true })).toBeVisible();
-    await expect(nav.getByRole('link', { name: area, exact: true })).toHaveAttribute('aria-current', 'page');
-    if (area === 'Financeiro') await page.screenshot({ path: 'test-results/reconstrucao-financeiro-sanitizado.png', fullPage: true });
-    if (area === 'Operação de privacidade') await page.screenshot({ path: 'test-results/reconstrucao-operacao-privacidade-sanitizado.png', fullPage: true });
+    await page.getByLabel('Selecionar área de atuação').selectOption({ label: area });
+    await expect(page.locator('main.portfolio-content > header.portfolio-topbar')).toContainText(area);
+    await expect(nav).toBeVisible();
   }
 
-  await nav.getByRole('link', { name: 'Conta', exact: true }).click();
-  await nav.getByRole('link', { name: 'Família', exact: true }).click();
+  await page.getByLabel('Selecionar área de atuação').selectOption({ label: 'Paciente' });
+  await nav.getByRole('link', { name: 'Meus pedidos', exact: true }).click();
+  await expect(page).toHaveURL(/\/app\/paciente\/pedidos$/);
+  await page.getByLabel('Selecionar área de atuação').selectOption({ label: 'Familiar' });
+  await expect(page.getByText('Atuando em nome de')).toBeVisible();
+  await nav.getByRole('link', { name: 'Pedidos do representado', exact: true }).click();
+  await expect(page).toHaveURL(/\/app\/familiar\/pedidos$/);
   await page.goBack();
-  await expect(page.getByRole('heading', { name: 'Seu perfil', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/app\/familiar$/);
   await page.goForward();
-  await expect(page.getByRole('heading', { name: 'Família', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/app\/familiar\/pedidos$/);
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Família', exact: true })).toBeVisible();
-  await expect(page.getByText('Nenhum acesso familiar vigente.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Pedidos do representado', exact: true })).toBeVisible();
 
   await page.goto('/app/operacao');
-  await expect(page.getByRole('heading', { name: 'Operação', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Área de operação', exact: true })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Segurança de ações privilegiadas' })).toBeVisible();
   await page.goto('/app/financeiro');
   await expect(page.locator('main.portfolio-content > header.portfolio-topbar').getByRole('heading', { name: 'Financeiro', exact: true })).toBeVisible();
   await expect(page.getByText(/Nenhum|indisponível|MFA|required/i).first()).toBeVisible();
+
+  await page.screenshot({ path: 'test-results/reconstrucao-financeiro-sanitizado.png', fullPage: true });
+  await page.goto('/app/privacidade/operacao');
+  await page.screenshot({ path: 'test-results/reconstrucao-operacao-privacidade-sanitizado.png', fullPage: true });
 
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -76,7 +78,7 @@ test('navegação integrada pública e autenticada por perfil e área', async ({
   await page.getByLabel('E-mail', { exact: true }).fill(email);
   await page.getByLabel('Senha', { exact: true }).fill(password);
   await page.locator('button[type=submit]').click();
-  await expect(page.getByRole('heading', { name: /Olá,/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Onde você quer atuar agora?' })).toBeVisible();
   await context.clearCookies();
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Entrar', exact: true })).toBeVisible();
