@@ -42,6 +42,11 @@ test('navegação integrada pública e autenticada por perfil e área', async ({
   }
 
   await page.getByLabel('Selecionar área de atuação').selectOption({ label: 'Paciente' });
+  await nav.getByRole('link', { name: 'Benefícios', exact: true }).click();
+  await expect(page).toHaveURL(/\/app\/paciente\/beneficios$/);
+  await expect(page.getByLabel('Política vigente')).toBeVisible();
+  await expect(page.getByLabel('Política vigente').locator('option').filter({ hasText: 'SYNTHETIC-BENEFIT' })).toHaveCount(1);
+  await page.getByLabel('Selecionar área de atuação').selectOption({ label: 'Paciente' });
   await nav.getByRole('link', { name: 'Meus pedidos', exact: true }).click();
   await expect(page).toHaveURL(/\/app\/paciente\/pedidos$/);
   await page.getByLabel('Selecionar área de atuação').selectOption({ label: 'Familiar' });

@@ -4282,6 +4282,22 @@ paths:
       parameters: [{in: path, name: id, required: true, schema: {type: string, format: uuid}}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ReviewDecision'}}}}
       responses: {'403': {$ref: '#/components/responses/Error403'}, '404': {$ref: '#/components/responses/Error404'}, '409': {$ref: '#/components/responses/Error409'}, '422': {$ref: '#/components/responses/Error422'}}
+  /benefit-policies:
+    get:
+      operationId: listActiveBenefitPoliciesV7
+      summary: Listar políticas de benefício vigentes
+      tags: [benefits]
+      description: Conta autenticada; somente políticas ativas, vigentes e de instituições habilitadas, sem permitir escolha de critérios fora do catálogo.
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: Políticas disponíveis para uma nova solicitação
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/BenefitPolicyOptionV7'}
+        '401': {$ref: '#/components/responses/Error401'}
   /benefit-requests:
     post:
       operationId: createBenefitRequestV7
@@ -4437,6 +4453,17 @@ components:
       description: Obrigatório em requisições WEB com cookie, além de Origin permitido; omitido em MOBILE sem cookie.
         Falha 403.
   schemas:
+    BenefitPolicyOptionV7:
+      type: object
+      required: [id, institutionId, institutionName, code, version, criteria, maximumPercentage]
+      properties:
+        id: {type: string, format: uuid}
+        institutionId: {type: string, format: uuid}
+        institutionName: {type: string}
+        code: {type: string}
+        version: {type: integer, minimum: 1}
+        criteria: {type: string}
+        maximumPercentage: {type: number, minimum: 0, maximum: 100}
     BenefitRequestInputV7:
       type: object
       required: [patientId, policyId, dimensions]

@@ -62,6 +62,7 @@ class IntegratedAcceptanceBrowserFlowTest {
         UUID accountId = user(emailAddress);
         UUID institutionBenefit = UUID.randomUUID(), institutionFinance = UUID.randomUUID();
         jdbc.update("INSERT INTO instituicao(id,nome,estado) VALUES (?,?,'HABILITADA'), (?,?,'HABILITADA')", institutionBenefit, "Instituição sintética benefício", institutionFinance, "Instituição sintética financeira");
+        jdbc.update("INSERT INTO politica_beneficio(id,instituicao_id,codigo,versao,criterios,percentual_maximo,vigencia_inicio,estado) VALUES (?,?,?,1,'{\"dimensoes\":[\"IDADE\",\"RENDA\"]}'::jsonb,60,clock_timestamp(),'ATIVA')", UUID.randomUUID(), institutionBenefit, "SYNTHETIC-BENEFIT");
         jdbc.update("INSERT INTO membro_instituicao(instituicao_id,usuario_id,papel) VALUES (?,?,'ANALISTA_BENEFICIO'), (?,?,'GESTOR_FINANCEIRO')", institutionBenefit, accountId, institutionFinance, accountId);
         jdbc.update("INSERT INTO papel_global(usuario_id,papel) VALUES (?, 'ANALISTA_OPERACIONAL'), (?, 'GESTOR_FINANCEIRO'), (?, 'OPERADOR_PRIVACIDADE')", accountId, accountId, accountId);
         UUID patient = UUID.randomUUID();

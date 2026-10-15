@@ -115,6 +115,15 @@ type BenefitRequest = {
   policyMaximumPercentage: number;
   pendingDimensions: string[];
 };
+type BenefitPolicyOption = {
+  id: string;
+  institutionId: string;
+  institutionName: string;
+  code: string;
+  version: number;
+  criteria: string;
+  maximumPercentage: number;
+};
 type Funding = {
   id: string;
   programId: string;
@@ -504,6 +513,9 @@ function ScopeFields() {
 
 function ProfilePanel({ session }: { session: Tokens }) {
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [patient, setPatient] = useState<Patient | null | undefined>(undefined);
+  const [cpf, setCpf] = useState("");
+  const [birthDate, setBirthDate] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
@@ -523,11 +535,43 @@ function ProfilePanel({ session }: { session: Tokens }) {
     );
   }
   async function load() {
-    const { result } = await api();
+    const [{ result }, patientResponse] = await Promise.all([
+      api(),
+      fetch("/api/v1/me/patient", { headers: { Authorization: `Bearer ${session.accessToken}` } }),
+    ]);
     const value = result as Profile;
     setProfile(value);
     setName(value.name);
     setPhone(value.phone ?? "");
+    if (patientResponse.ok) setPatient((await patientResponse.json()) as Patient);
+    else if (patientResponse.status === 404) setPatient(null);
+    else await parse(patientResponse);
+  }
+  async function createPatient(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setNotice(null);
+    try {
+      const { result } = await parse(await fetch("/api/v1/me/patient", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.accessToken}`,
+          Origin: window.location.origin,
+        },
+        body: JSON.stringify({ cpf, birthDate }),
+      }));
+      setPatient(result as Patient);
+      setCpf("");
+      setBirthDate("");
+      setNotice({ tone: "info", text: "Perfil de paciente criado. A identidade permanece pendente até verificação autorizada." });
+    } catch (error) {
+      setNotice({ tone: "error", text: error instanceof Error ? error.message : "Não foi possível criar o perfil de paciente." });
+    } finally {
+      setBusy(false);
+    }
   }
   useEffect(() => {
     load().catch((error) =>
@@ -621,6 +665,18 @@ function ProfilePanel({ session }: { session: Tokens }) {
               Isso não é anonimização integral.
             </p>
           </div>
+          {patient === null && (
+            <form className="work-card" onSubmit={createPatient}>
+              <h3>Começar como paciente</h3>
+              <p>Esta é uma adesão explícita; o cadastro não concede verificação de identidade nem habilitação de outros papéis.</p>
+              <label htmlFor="patient-cpf">CPF</label>
+              <input id="patient-cpf" value={cpf} onChange={(event) => setCpf(event.target.value)} inputMode="numeric" required />
+              <label htmlFor="patient-birth-date">Data de nascimento</label>
+              <input id="patient-birth-date" type="date" value={birthDate} onChange={(event) => setBirthDate(event.target.value)} required />
+              <button disabled={busy}>Criar perfil de paciente</button>
+            </form>
+          )}
+          {patient && <p className="feedback info">Perfil de paciente ativo para esta conta. Estado de identidade: {patient.identityStatus}.</p>}
         </div>
       ) : (
         <p className="feedback info" role="status">
@@ -1351,6 +1407,7 @@ function FamilyPanel({ session }: { session: Tokens }) {
 
 function BenefitPanel({ session }: { session: Tokens }) {
   const [policyId, setPolicyId] = useState("");
+  const [policies, setPolicies] = useState<BenefitPolicyOption[]>([]);
   const [patientId, setPatientId] = useState("");
   const [dimensions, setDimensions] = useState<string[]>(["IDADE"]);
   const [requests, setRequests] = useState<BenefitRequest[]>([]);
@@ -1371,12 +1428,12 @@ function BenefitPanel({ session }: { session: Tokens }) {
   }
   async function load(showNotice = true) {
     try {
-      const [{ result }, patient, family] = await Promise.all([
+      const [requestsResponse, patient, family] = await Promise.all([
         api("/api/v1/benefit-requests"),
         api("/api/v1/me/patient").catch(() => null),
         api("/api/v1/me/family-authorizations").catch(() => null),
       ]);
-      setRequests(result);
+      setRequests(requestsResponse.result as BenefitRequest[]);
       const options = [
         ...(patient
           ? [
@@ -1401,7 +1458,15 @@ function BenefitPanel({ session }: { session: Tokens }) {
   }
   useEffect(() => {
     void load(false);
+    api("/api/v1/benefit-policies")
+      .then(({ result }) => {
+        const availablePolicies = result as BenefitPolicyOption[];
+        setPolicies(availablePolicies);
+        if (!policyId && availablePolicies[0]) setPolicyId(availablePolicies[0].id);
+      })
+      .catch((e) => setNotice({ tone: "error", text: (e as Error).message }));
   }, [session.accessToken]);
+  const selectedPolicy = policies.find((policy) => policy.id === policyId);
   async function create(event: FormEvent) {
     event.preventDefault();
     setNotice(null);
@@ -1489,19 +1554,28 @@ function BenefitPanel({ session }: { session: Tokens }) {
         <p className="acting-context">
           O backend exige titularidade ou concessão BENEFICIOS vigente.
         </p>
-        <span className="form-step">ETAPA 2 · PROGRAMA</span>
+        <span className="form-step">ETAPA 2 · POLÍTICA</span>
         <label>
-          Identificador da política vigente
-          <input
-            required
-            value={policyId}
-            onChange={(e) => setPolicyId(e.target.value)}
-          />
+          Política vigente
+          <select required value={policyId} onChange={(e) => setPolicyId(e.target.value)}>
+            <option value="" disabled>Selecione uma política autorizada</option>
+            {policies.map((policy) => (
+              <option value={policy.id} key={policy.id}>
+                {policy.institutionName} · {policy.code} · versão {policy.version}
+              </option>
+            ))}
+          </select>
         </label>
+        {selectedPolicy && (
+          <div className="dependency-note" aria-live="polite">
+            <strong>Critérios publicados pela política</strong>
+            <span>{selectedPolicy.criteria} · limite máximo registrado: {selectedPolicy.maximumPercentage}%.</span>
+          </div>
+        )}
         <p className="dependency-note">
-          O catálogo institucional ainda não possui endpoint de consulta. Use
-          somente o identificador fornecido por uma instituição real habilitada;
-          a ausência desse vínculo bloqueia esta etapa.
+          O catálogo mostra somente políticas ativas, vigentes e vinculadas a
+          instituições habilitadas. Critérios e limite de cálculo são
+          apresentados pelo servidor no detalhe da solicitação após o envio.
         </p>
         <span className="form-step">ETAPA 3 · CRITÉRIOS</span>
         <fieldset>
@@ -5211,9 +5285,9 @@ function PatientDashboard({
             </p>
             <button
               className="text-button"
-              onClick={() => go(capabilities.patientProfile ? "perfil" : "paciente")}
+              onClick={() => go("perfil")}
             >
-              {capabilities.patientProfile ? "Revisar perfil" : "Começar agora"}{" "}
+              {capabilities.patientProfile ? "Revisar perfil" : "Começar na conta"}{" "}
               →
             </button>
           </article>
@@ -5295,7 +5369,7 @@ function AreaChooser({
         </p>
       </div>
       <div className="area-choice-grid">
-        {areas.map((area) => (
+        {areas.length ? areas.map((area) => (
           <button
             className="area-choice"
             type="button"
@@ -5306,7 +5380,13 @@ function AreaChooser({
             <strong>{actingAreaLabels[area]}</strong>
             <span>Entrar no dashboard específico →</span>
           </button>
-        ))}
+        )) : (
+          <div className="empty-state">
+            <strong>Nenhuma área de atuação está habilitada para esta conta.</strong>
+            <p>Revise a conta e, se desejar atuar como paciente, crie o perfil explicitamente em Conta e segurança.</p>
+            <button type="button" onClick={() => go("perfil")}>Abrir conta e segurança →</button>
+          </div>
+        )}
       </div>
     </section>
   );
