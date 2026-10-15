@@ -3420,7 +3420,7 @@ function OrderPanel({ session }: { session: Tokens }) {
           )}
           {receiptCodes[selectedOrder.id] && (
             <p role="status">
-              Código emitido para esta sessão; expira em{" "}
+              Código temporário: <code>{receiptCodes[selectedOrder.id].code}</code> · expira em{" "}
               {new Date(
                 receiptCodes[selectedOrder.id].expiresAt,
               ).toLocaleString("pt-BR")}

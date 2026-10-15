@@ -1,5 +1,33 @@
 # Status — atualizado em 14/10/2026
 
+## Validação final da jornada do entregador — 14/10/2026
+
+Partindo de `83e8ab5`, os testes de designação e custódia foram atualizados
+para a interface atual: navegam por `/app/entregas`, usam as abas de ofertas e
+entrega atribuída, abrem pedidos pelo detalhe e não dependem de UUID visível.
+Os fixtures agora respeitam a FK de unidade da V19 e têm ordem temporal
+determinística apenas no banco descartável.
+
+O fluxo Chromium completo passou com Spring e PostgreSQL 17.6 descartável:
+duas ofertas elegíveis foram aceitas pela interface, viraram entregas
+atribuídas, uma seguiu retirada → custódia → início → recebimento → encerramento;
+a outra seguiu retirada → ocorrência e permaneceu aberta. O destinatário emitiu
+o código pela interface e o entregador o confirmou. Um terceiro entregador não
+teve acesso ao código da entrega (`404`); o histórico de ocorrência permaneceu
+visível ao destinatário. Nenhuma API foi interceptada.
+
+A investigação encontrou uma regressão real: a API retornava o código de
+recebimento, mas `/app/pedidos` mostrava somente a expiração. A tela agora
+mostra o código apenas na sessão do destinatário. As demais falhas eram
+seletores antigos, nome de região anterior e fixtures sem a unidade V19 ou com
+ordenação não determinística.
+
+Validação final: `AssignmentBrowserFlowTest` passou; `CustodyBrowserFlowTest`
+passou após exercitar oferta → aceite → custódia → ocorrência/recebimento;
+`DelivererBrowserFlowTest` e testes de evidência/veículo permanecem isolados e
+sem dados pessoais. O teste ainda registra um aviso React de `key` no painel de
+pedidos, sem falha funcional. O ambiente normal não recebeu registros.
+
 ## Experiência do entregador — 14/10/2026
 
 `/app/entregador` foi reorganizado em visão geral, cadastro/documentos e

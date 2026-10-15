@@ -40,6 +40,12 @@ test('navegador → API real → PostgreSQL ensaia custódia e segredo do destin
   await loginUi(driverPage, process.env.CUSTODY_DRIVER_EMAIL!);
   await driverPage.getByRole('navigation', { name: 'Áreas do produto' }).getByRole('link', { name: 'Minhas entregas', exact: true }).click();
   const deliveryPanel = driverPage.getByRole('region', { name: 'Ofertas e entregas' });
+  const offers = deliveryPanel.getByRole('button', { name: 'Aceitar oferta', exact: true });
+  await expect(offers).toHaveCount(2);
+  await offers.first().click();
+  await expect(deliveryPanel.getByText('Oferta aceita e tarefa atribuída.')).toBeVisible();
+  await deliveryPanel.getByRole('tab', { name: 'Ofertas', exact: true }).click();
+  await deliveryPanel.getByRole('button', { name: 'Aceitar oferta', exact: true }).click();
   await deliveryPanel.getByRole('tab', { name: 'Entrega atribuída', exact: true }).click();
   const deliveryTask = deliveryPanel.locator('.task-record').nth(0);
   const incidentTask = deliveryPanel.locator('.task-record').nth(1);
@@ -66,10 +72,14 @@ test('navegador → API real → PostgreSQL ensaia custódia e segredo do destin
 
   await loginUi(page, process.env.CUSTODY_RECIPIENT_EMAIL!);
   await page.getByRole('navigation', { name: 'Áreas do produto' }).getByRole('link', { name: 'Pedidos', exact: true }).click();
-  const panel = page.getByRole('region', { name: 'Pedidos e orçamentos' });
-  const deliveryCard = panel.locator('article', { hasText: delivered });
-  const incidentCard = panel.locator('article', { hasText: incident });
-  await expect(incidentCard).toContainText('OCORRENCIA');
+  const panel = page.getByRole('region', { name: 'Pedidos', exact: true });
+  const orderItems = panel.locator('button.order-list-item');
+  await expect(orderItems).toHaveCount(2);
+  await orderItems.nth(1).click();
+  await expect(panel).toContainText('Ocorrência');
+  await panel.getByRole('button', { name: '← Voltar aos pedidos' }).click();
+  await orderItems.nth(0).click();
+  const deliveryCard = panel.locator('.order-detail-card');
   await deliveryCard.getByRole('button', { name: 'Emitir código de recebimento' }).click();
   const secretLine = deliveryCard.getByText('Código temporário:');
   await expect(secretLine).toBeVisible();
