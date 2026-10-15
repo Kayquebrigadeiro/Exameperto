@@ -37,4 +37,10 @@ docker compose --env-file "$ENV_FILE" -f "$ROOT_DIR/infra/compose.yaml" exec -T 
   "select case when (select max(installed_rank) from flyway_schema_history)=19 and (select estado from controle_restauracao where singleton)='NORMAL' then 'ok' else 'fail' end" \
   | grep -qx ok || fail "migrações ou gate de restauração não estão prontos"
 
+if [[ "${EXAME_PERTO_ROUTE_ENABLED:-false}" == "true" && -n "${EXAME_PERTO_ROUTE_API_KEY:-}" ]]; then
+  echo "OK: adaptador de rota configurado (chave presente; provedor não consultado neste script)."
+else
+  echo "INFO: adaptador de rota não configurado; o orçamento dependente de rota permanece bloqueado."
+fi
+echo "INFO: acessibilidade do provedor e consulta de rota são verificações explícitas, não executadas na inicialização."
 echo "OK: Vite → backend → PostgreSQL; V19 aplicada; restauração NORMAL; configuração privada estruturalmente válida."

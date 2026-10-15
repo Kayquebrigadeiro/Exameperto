@@ -10,13 +10,16 @@ async function login(page: import('@playwright/test').Page, email: string) {
 
 test('navegador → API → PostgreSQL: catálogo vazio e rascunho da jornada', async ({ page }) => {
   await page.goto('/'); await login(page, process.env.ORDER_PATIENT_EMAIL!);
-  const nav = page.getByRole('navigation', { name: 'Áreas do produto' });
-  await nav.getByRole('link', { name: 'Unidades e protocolos', exact: true }).click();
+  await page.getByRole('button', { name: /Operação/ }).click();
+  let nav = page.getByRole('navigation', { name: 'Áreas do produto' });
+  await nav.getByRole('link', { name: 'Catálogo de unidades', exact: true }).click();
   const catalog = page.getByRole('region', { name: 'Unidades e protocolos', exact: true });
   await expect(catalog.getByRole('heading', { name: 'Unidades e protocolos', exact: true })).toBeVisible();
   await expect(catalog.getByText('Catálogo sem unidades.', { exact: true })).toBeVisible();
   await expect(catalog.getByText(/Nenhum hospital ou aceite/)).toBeVisible();
-  await nav.getByRole('link', { name: 'Pedidos', exact: true }).click();
+  await page.getByLabel('Selecionar área de atuação').selectOption('paciente');
+  nav = page.getByRole('navigation', { name: 'Áreas do produto' });
+  await nav.getByRole('link', { name: 'Meus pedidos', exact: true }).click();
   const panel = page.getByRole('region', { name: 'Pedidos', exact: true });
   await expect(panel.getByLabel('Paciente representado')).toHaveValue(process.env.ORDER_PATIENT_ID!);
   await panel.getByRole('button', { name: 'Continuar' }).click();

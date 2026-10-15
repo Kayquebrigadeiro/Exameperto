@@ -66,6 +66,14 @@ review:
   file-safety-inspection-enabled: true
 payment:
   max-event-payload-bytes: 65536
+orders:
+  route:
+    enabled: ${EXAME_PERTO_ROUTE_ENABLED:false}
+    api-key: ${EXAME_PERTO_ROUTE_API_KEY:}
+    endpoint: ${EXAME_PERTO_ROUTE_ENDPOINT:https://api.heigit.org/openrouteservice/v2/directions/driving-car}
+    timeout: ${EXAME_PERTO_ROUTE_TIMEOUT:PT3S}
+    max-response-bytes: ${EXAME_PERTO_ROUTE_MAX_RESPONSE_BYTES:65536}
+    max-retries: ${EXAME_PERTO_ROUTE_MAX_RETRIES:1}
 tracking:
   enabled: ${EXAME_PERTO_TRACKING_ENABLED:false}
   max-age: PT2M

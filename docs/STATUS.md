@@ -903,6 +903,18 @@ Evidências: `BenefitFlowTest` passou com PostgreSQL 17.6/Testcontainers e confi
 
 Ainda dependem de decisão/homologação externa: critérios profissionais de elegibilidade, provedores de rota/pagamento/repasse, operação GPS em aparelho e políticas reais de retenção/expurgo. Não houve migração, escrita no banco normal, alteração de conta real ou deploy.
 
+## Integração de rota rodoviária — 15/10/2026
+
+Base: `fd5fc2374ccf3213d9faa9eb8e4d2df3020e0aa2`. O adaptador server-side de rota foi conectado ao openrouteservice/HeiGIT no perfil `driving-car`, preservando `RouteProvider`, o cálculo tarifário, cobertura, validade, idempotência e o histórico já existentes. A chamada envia somente as coordenadas confirmadas do pedido; o orçamento persiste `openrouteservice`, referência hash, metros, segundos, instante e `transito_incluido=false`. Não há fallback em linha reta.
+
+Guardas adicionadas: chave e endpoint somente em configuração do servidor, HTTPS fora de testes locais, timeout de 3 s, corpo limitado a 64 KiB, no máximo uma repetição para 429/502/503/504, coordenadas válidas, distância até 6.000 km, duração positiva e validação do resumo JSON. Rota inexistente, resposta inválida, limite ou timeout bloqueiam a cotação sem alterar pedido, tarifa ou reserva. A duração continua estimativa de rede viária, não trânsito ao vivo nem hora garantida.
+
+Coordenadas continuam sendo uma etapa explícita e confirmada do contrato; sem latitude/longitude o backend retorna `INVALID_ADDRESS` e não consulta o provedor. Não foi criada geocodificação automática. A solução futura escolhida, caso autorizada com tela de confirmação, é o Pelias do mesmo provedor; a etapa permanece pendente por não haver confirmação humana nem decisão de retenção dos resultados.
+
+Validação: `ConfiguredRouteProviderTest` passou 5/5 com servidor HTTP local controlado, cobrindo resposta válida/unidades, rota inexistente, JSON inválido, limite, 429/repetição, timeout e coordenadas ausentes. `OrderFlowTest` passou 1/1 após alinhar seu fixture à V19; `OrderBrowserFlowTest` passou 1/1 com Chromium → Vite → Spring → PostgreSQL 17.6 descartável, sem interceptação da API. `QuoteAcceptanceFlowTest` passou 4/4 e `npm run build` passou. A execução browser usa resposta controlada apenas no teste e não homologa o fornecedor externo.
+
+O script `verify-local-environment.sh` agora distingue adaptador configurado de provedor consultado; não faz consulta externa automática. A variável `EXAME_PERTO_ROUTE_API_KEY` não estava presente nesta máquina, portanto nenhuma consulta real ao HeiGIT foi realizada. Homologação externa depende de o responsável criar/configurar privadamente uma chave openrouteservice Standard, respeitar 2.000 Directions/dia e 40/min e executar um ensaio separado com coordenadas públicas. O ambiente normal permanece com orçamento dependente de rota bloqueado até essa configuração.
+
 ## Fechamento de integrações entre jornadas — 15/10/2026
 
 Base: `1050e2e`. A comparação do escopo com o código e as evidências encontrou uma lacuna de interface na ligação benefício + financiamento: o backend já aceitava `programId` e executava a validação de benefício vigente, reserva concorrente e liberação, mas a tela de pedidos sempre enviava `null`. Foi implementado `GET /api/v1/order-options/benefit-programs?patientId=...`, com autorização de pedidos, instituição, política vigente, benefício aprovado e programa habilitado; a tela passou a selecionar o registro autorizado e enviá-lo ao orçamento. O contrato OpenAPI foi atualizado; não houve migração.
