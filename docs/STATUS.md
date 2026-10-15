@@ -18,14 +18,18 @@ papel, MFA, escopo institucional e impedimento de autoanálise no backend.
 
 Verificações: build web e compilação Java passaram; `BenefitFlowTest` passou
 1/1 e `PrivacyFlowTest` passou 4/4, ambos com PostgreSQL 17.6 descartável.
-O Chromium/Spring/PostgreSQL foi iniciado sem interceptação, mas a jornada
-privilegiada expirou ao aguardar o botão de atribuição após abrir o detalhe;
-portanto não é declarada como aprovação. A primeira execução registrou que a
-fila carregava, mas a leitura do detalhe pendente era recusada antes da
-correção de autorização por instituição; a repetição ainda precisa ser
-investigada. Não houve escrita no banco normal nem deploy. Próxima ação:
-reproduzir a resposta do detalhe no navegador e só então capturar screenshots
-e fazer push da implementação validada.
+No Chromium/Spring/PostgreSQL real, sem interceptação, a jornada passou 1/1.
+Foi confirmado por HTTP que a fila e o detalhe retornam 200, a atribuição,
+inspeção e decisão retornam 200 e os GETs seguintes atualizam a tela; o banco
+descartável confirmou a atribuição e a decisão. As recusas de autoanálise e
+ausência de MFA também foram exercitadas. A causa do timeout original foi um
+seletor do teste (`Motivo`) que não correspondia ao rótulo vigente
+`Justificativa`; uma tentativa intermediária também encontrou Vite órfão em
+`5187`, que foi limpo sem tocar no ambiente normal. O teste agora afirma
+`ATRIBUIDA` após atribuição e inspeção. Capturas sem dados pessoais:
+`/tmp/exameperto-analise-beneficios.png` e
+`/tmp/exameperto-operacao-privacidade.png`. Não houve escrita no banco normal
+nem deploy. Próxima ação: revisão e push do commit corretivo.
 
 ## Experiência da área operacional — 14/10/2026
 

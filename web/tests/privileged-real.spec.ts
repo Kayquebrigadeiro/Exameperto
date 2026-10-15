@@ -85,10 +85,13 @@ test('navegador → análise operacional, benefícios e privacidade com MFA e bl
   await benefitPanel.getByRole('button', { name: 'Abrir detalhe' }).first().click();
   await benefitPanel.getByRole('button', { name: 'Assumir análise' }).click();
   await expect(benefits.getByRole('alert').filter({ hasText: 'Etapa de análise persistida' })).toBeVisible();
+  await expect(benefitPanel).toContainText('ATRIBUIDA');
   await benefitPanel.getByRole('button', { name: /Inspecionar/ }).click();
   await expect(benefits.getByRole('alert').filter({ hasText: 'Etapa de análise persistida' })).toBeVisible();
+  await expect(benefitPanel).toContainText('ATRIBUIDA');
+  await benefits.screenshot({ path: '/tmp/exameperto-analise-beneficios.png', fullPage: true });
   await benefitPanel.getByLabel('Percentual').fill('50');
-  await benefitPanel.getByLabel('Motivo').fill('análise sintética');
+  await benefitPanel.getByLabel('Justificativa').fill('análise sintética');
   await benefitPanel.getByRole('button', { name: 'Registrar decisão' }).click();
   await expect(benefits.getByRole('alert').filter({ hasText: 'Etapa de análise persistida' })).toBeVisible();
 
@@ -102,6 +105,7 @@ test('navegador → análise operacional, benefícios e privacidade com MFA e bl
   await privacyPanel.getByLabel('Resposta ao titular').fill('Resposta preparada no ensaio sintético.');
   await privacyPanel.getByRole('button', { name: 'Registrar resposta' }).click();
   await expect(privacy.getByRole('alert').filter({ hasText: 'Estado atualizado pelo servidor' })).toBeVisible();
+  await privacy.screenshot({ path: '/tmp/exameperto-operacao-privacidade.png', fullPage: true });
   await privacyPanel.getByRole('button', { name: /Autorizar expurgo/ }).click();
   await expect(privacy.getByRole('alert').filter({ hasText: 'Estado atualizado pelo servidor' })).toBeVisible();
   await privacyPanel.getByRole('button', { name: /Executar alvos/ }).click();
