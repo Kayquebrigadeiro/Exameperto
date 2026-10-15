@@ -23,4 +23,12 @@ test('navegador → API → PostgreSQL: catálogo vazio e rascunho da jornada', 
   await expect(panel.getByLabel('Unidade de retirada')).toBeDisabled();
   await expect(panel).toContainText('Ainda não há uma unidade de retirada disponível para seleção');
   await expect(panel).toContainText('nenhum identificador foi inventado');
+  await expect(panel.getByText('Rascunho local deste navegador')).toBeVisible();
+  await page.reload();
+  const reloaded = page.getByRole('region', { name: 'Pedidos', exact: true });
+  await expect(reloaded.getByText('Rascunho local deste navegador')).toBeVisible();
+  await expect(reloaded.getByLabel('Unidade de retirada')).toBeDisabled();
+  await reloaded.getByRole('button', { name: 'Descartar rascunho' }).click();
+  await expect(page).toHaveURL(/\/app/);
+  await expect(page.evaluate(() => sessionStorage.getItem('exameperto-order-draft'))).resolves.toBeNull();
 });

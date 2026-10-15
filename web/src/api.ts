@@ -7,10 +7,20 @@ export async function parseApiResponse(response: Response) {
     const message =
       result.code === "INTEGRATION_UNAVAILABLE"
         ? `Não foi possível concluir a solicitação. A integração necessária está indisponível. ${result.message ?? "Nenhum efeito externo foi confirmado."}`
+        : result.code === "INVALID_ROUTE"
+          ? "A rota não pôde ser confirmada pelo provedor configurado. Nenhum orçamento foi criado; revise os endereços e tente novamente quando a integração estiver disponível."
+          : result.code === "UNIT_NOT_CONFIRMED"
+            ? "A unidade ainda não confirmou a retirada. O pedido foi preservado; aguarde essa verificação antes de solicitar o orçamento."
+            : result.code === "BENEFIT_UNAVAILABLE"
+              ? "Não há cobertura válida confirmada para este paciente e programa. O orçamento não foi criado."
+              : result.code === "QUOTE_EXPIRED"
+                ? "Este orçamento expirou. Solicite uma nova cotação para receber condições atuais."
         : result.code === "POLICY_UNDEFINED"
-          ? "A operação aguarda a validação da política aplicável."
-          : (result.message ?? "Não foi possível concluir a solicitação.");
-    throw new Error(message);
+                  ? "A operação está bloqueada porque a política de tarifa ou cancelamento ainda não está vigente. Nenhum valor foi confirmado."
+                  : (result.message ?? "Não foi possível concluir a solicitação.");
+    const error = new Error(message) as Error & { code?: string };
+    error.code = result.code;
+    throw error;
   }
   return { result, etag: response.headers.get("ETag") };
 }

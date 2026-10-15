@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ChangeEvent, Dispatch, SetStateAction } from "react";
+import type { ChangeEvent } from "react";
 import type { FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import { parseApiResponse as parse, uploadWithProgress } from "./api";
@@ -2637,6 +2637,11 @@ function OrderPanel({ session }: { session: Tokens }) {
   const [locations, setLocations] = useState<
     Record<string, LiveLocation | null>
   >({});
+  const [editingAddresses, setEditingAddresses] = useState(false);
+  const [detailOrigin, setDetailOrigin] = useState<typeof origin | null>(null);
+  const [detailDestination, setDetailDestination] = useState<
+    typeof destination | null
+  >(null);
   const socket = useRef<WebSocket | null>(null);
   const reconnect = useRef<number | undefined>(undefined);
   const activeOrders = useRef<string[]>([]);
@@ -2664,7 +2669,20 @@ function OrderPanel({ session }: { session: Tokens }) {
       sessionStorage.removeItem(draftKey);
     }
   }, []);
+  const hasDraft = Boolean(
+    patientId ||
+      recipientId ||
+      unitId ||
+      documentId ||
+      Object.values(origin).some(Boolean) ||
+      Object.values(destination).some(Boolean) ||
+      step > 1,
+  );
   useEffect(() => {
+    if (!hasDraft) {
+      sessionStorage.removeItem(draftKey);
+      return;
+    }
     sessionStorage.setItem(
       draftKey,
       JSON.stringify({
@@ -2677,7 +2695,7 @@ function OrderPanel({ session }: { session: Tokens }) {
         step,
       }),
     );
-  }, [patientId, recipientId, unitId, documentId, origin, destination, step]);
+  }, [patientId, recipientId, unitId, documentId, origin, destination, step, hasDraft]);
   async function api(path: string, init: RequestInit = {}) {
     return parse(
       await fetch(`/api/v1${path}`, {
@@ -2858,6 +2876,32 @@ function OrderPanel({ session }: { session: Tokens }) {
       socket.current = null;
     };
   }, [session.accessToken]);
+  useEffect(() => {
+    if (!selectedOrderId) {
+      setDetailOrigin(null);
+      setDetailDestination(null);
+      setEditingAddresses(false);
+      return;
+    }
+    api(`/orders/${selectedOrderId}/addresses`)
+      .then((response) => {
+        const addresses = response.result as {
+          origin: typeof origin;
+          destination: typeof destination;
+        };
+        const normalize = (value: typeof origin) => ({
+          ...value,
+          latitude: String(value.latitude ?? ""),
+          longitude: String(value.longitude ?? ""),
+        });
+        setDetailOrigin(normalize(addresses.origin));
+        setDetailDestination(normalize(addresses.destination));
+      })
+      .catch(() => {
+        setDetailOrigin(null);
+        setDetailDestination(null);
+      });
+  }, [selectedOrderId]);
   async function upload(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -2941,10 +2985,39 @@ function OrderPanel({ session }: { session: Tokens }) {
         tone: "info",
         text: "Orçamento calculado com rota e tarifa versionadas.",
       });
+      await load();
     } catch (err) {
       setNotice({
         tone: "error",
         text: err instanceof Error ? err.message : "Orçamento não confirmado.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function updateAddresses(order: Order, event: FormEvent) {
+    event.preventDefault();
+    if (!detailOrigin || !detailDestination) return;
+    setBusy(true);
+    try {
+      await api(`/orders/${order.id}/addresses`, {
+        method: "PUT",
+        body: JSON.stringify({
+          origin: address(detailOrigin),
+          destination: address(detailDestination),
+          version: order.version,
+        }),
+      });
+      setEditingAddresses(false);
+      setNotice({
+        tone: "info",
+        text: "Endereço atualizado. O orçamento anterior foi substituído; solicite uma nova cotação quando a unidade confirmar a retirada.",
+      });
+      await load();
+    } catch (err) {
+      setNotice({
+        tone: "error",
+        text: err instanceof Error ? err.message : "Endereço não atualizado.",
       });
     } finally {
       setBusy(false);
@@ -3015,7 +3088,7 @@ function OrderPanel({ session }: { session: Tokens }) {
   const fields = (
     label: string,
     value: typeof origin,
-    setter: Dispatch<SetStateAction<typeof origin>>,
+    setter: (value: typeof origin) => void,
   ) => (
     <fieldset>
       <legend>{label}</legend>
@@ -3072,6 +3145,45 @@ function OrderPanel({ session }: { session: Tokens }) {
   ];
   const nextStep = () => setStep((value) => Math.min(6, value + 1));
   const previousStep = () => setStep((value) => Math.max(1, value - 1));
+  const discardDraft = () => {
+    sessionStorage.removeItem(draftKey);
+    setPatientId("");
+    setRecipientId("");
+    setUnitId("");
+    setDocumentId("");
+    setOrigin({
+      street: "",
+      number: "",
+      district: "",
+      city: "",
+      state: "",
+      postalCode: "",
+      latitude: "",
+      longitude: "",
+    });
+    setDestination({
+      street: "",
+      number: "",
+      district: "",
+      city: "",
+      state: "",
+      postalCode: "",
+      latitude: "",
+      longitude: "",
+    });
+    setStep(1);
+    setNotice({ tone: "info", text: "Rascunho local descartado." });
+  };
+  const nextAction = (order: Order, currentQuotes: Quote[]) => {
+    const proposal = currentQuotes.find((quoteItem) => quoteItem.status === "PROPOSTO");
+    if (order.status === "EM_VERIFICACAO") return "A unidade precisa verificar a retirada antes da cotação.";
+    if (proposal) return "Revise a composição e aceite o orçamento antes do vencimento.";
+    if (currentQuotes.some((quoteItem) => quoteItem.status === "EXPIRADO")) return "O orçamento venceu; solicite uma nova cotação.";
+    if (order.status === "AGUARDANDO_ACEITE") return "Aguarde a atualização das condições do orçamento.";
+    if (order.coverageStatus === "PENDENTE_PAGAMENTO") return "A confirmação do pagamento ainda depende do provedor configurado.";
+    if (order.coverageStatus === "PAGAMENTO_FALHOU") return "A confirmação de pagamento falhou; aguarde orientação para tentar novamente.";
+    return "Acompanhe as atualizações do pedido.";
+  };
   const dependencyMessage = unitOptions.length
     ? "Selecione uma unidade com parceria aceita e protocolo de custódia habilitado."
     : "Ainda não há uma unidade de retirada disponível para seleção. O catálogo só mostra unidades ativas com parceria aceita, protocolo de custódia habilitado e cobertura de retorno vigente; nenhum identificador foi inventado.";
@@ -3141,14 +3253,10 @@ function OrderPanel({ session }: { session: Tokens }) {
           <div className="order-detail-grid">
             <div>
               <span className="card-kicker">PRÓXIMO PASSO</span>
-              <strong>
-                {selectedOrder.status === "EM_VERIFICACAO"
-                  ? "A unidade precisa verificar a retirada"
-                  : "Acompanhe as atualizações do pedido"}
-              </strong>
+              <strong>{nextAction(selectedOrder, quotes[selectedOrder.id] ?? [])}</strong>
               <p>
-                Valores, cobertura e rota só aparecem depois das verificações
-                correspondentes.
+                O sistema só confirma rota, tarifa, cobertura e pagamento quando
+                as respectivas APIs retornam sucesso.
               </p>
             </div>
             <div>
@@ -3198,6 +3306,44 @@ function OrderPanel({ session }: { session: Tokens }) {
               </small>
             </div>
           )}
+          <div className="order-addresses">
+            <div className="card-heading">
+              <div>
+                <span className="card-kicker">ENDEREÇOS</span>
+                <h3>Dados usados na rota</h3>
+              </div>
+              {detailOrigin && !editingAddresses &&
+                !["ACEITA", "RETIRADA", "EM_ENTREGA"].includes(selectedOrder.status) && (
+                  <button type="button" className="secondary" onClick={() => setEditingAddresses(true)}>
+                    Alterar endereço
+                  </button>
+                )}
+            </div>
+            {editingAddresses && detailOrigin && detailDestination ? (
+              <form onSubmit={(event) => void updateAddresses(selectedOrder, event)}>
+                {fields("Origem", detailOrigin, (value) => setDetailOrigin(value))}
+                {fields("Destino", detailDestination, (value) => setDetailDestination(value))}
+                <p className="dependency-note">
+                  Ao salvar, o orçamento atual será substituído e uma nova
+                  cotação dependerá das verificações da unidade e das integrações
+                  de rota, tarifa e cobertura.
+                </p>
+                <div className="journey-actions">
+                  <button type="button" className="secondary" onClick={() => setEditingAddresses(false)}>
+                    Cancelar
+                  </button>
+                  <button type="submit" disabled={busy}>Salvar endereço</button>
+                </div>
+              </form>
+            ) : detailOrigin && detailDestination ? (
+              <div className="address-summary">
+                <p><strong>Origem:</strong> {detailOrigin.street}, {detailOrigin.number} · {detailOrigin.city}/{detailOrigin.state} · {detailOrigin.postalCode}</p>
+                <p><strong>Destino:</strong> {detailDestination.street}, {detailDestination.number} · {detailDestination.city}/{detailDestination.state} · {detailDestination.postalCode}</p>
+              </div>
+            ) : (
+              <p className="empty-state">Os endereços protegidos ainda não puderam ser carregados.</p>
+            )}
+          </div>
           {(["RETIRADA", "EM_ENTREGA"] as string[]).includes(
             selectedOrder.status,
           ) && (
@@ -3218,6 +3364,31 @@ function OrderPanel({ session }: { session: Tokens }) {
               .
             </p>
           )}
+          <div className="order-history">
+            <span className="card-kicker">HISTÓRICO DISPONÍVEL</span>
+            <ul>
+              <li>
+                <strong>Solicitação registrada</strong>
+                <span>{new Date(selectedOrder.createdAt).toLocaleString("pt-BR")}</span>
+              </li>
+              {(quotes[selectedOrder.id] ?? []).map((q) => (
+                <li key={`history-${q.id}`}>
+                  <strong>Orçamento {orderStatusLabel(q.status).toLowerCase()}</strong>
+                  <span>{new Date(q.calculatedAt).toLocaleString("pt-BR")}</span>
+                </li>
+              ))}
+              {(incidents[selectedOrder.id] ?? []).map((incident) => (
+                <li key={`history-incident-${incident.id}`}>
+                  <strong>Ocorrência: {orderStatusLabel(incident.status)}</strong>
+                  <span>{new Date(incident.createdAt).toLocaleString("pt-BR")}</span>
+                </li>
+              ))}
+              <li>
+                <strong>Situação atual: {orderStatusLabel(selectedOrder.status)}</strong>
+                <span>Próximo passo exibido acima</span>
+              </li>
+            </ul>
+          </div>
           <div className="quote-area">
             <div className="card-heading">
               <div>
@@ -3226,10 +3397,12 @@ function OrderPanel({ session }: { session: Tokens }) {
               </div>
               <button
                 type="button"
-                disabled={busy || selectedOrder.status !== "EM_VERIFICACAO"}
+                disabled={busy || !["EM_VERIFICACAO", "AGUARDANDO_ACEITE"].includes(selectedOrder.status)}
                 onClick={() => void quote(selectedOrder)}
               >
-                Calcular orçamento
+                {quotes[selectedOrder.id]?.some((item) => item.status === "EXPIRADO")
+                  ? "Solicitar nova cotação"
+                  : "Calcular orçamento"}
               </button>
             </div>
             {(quotes[selectedOrder.id] ?? []).length ? (
@@ -3241,21 +3414,32 @@ function OrderPanel({ session }: { session: Tokens }) {
                       : orderStatusLabel(q.status)}
                   </strong>
                   <span>
-                    {formatMoney(q.grossAmount)} · sua parte{" "}
-                    {formatMoney(q.patientAmount)}
+                    Frete {formatMoney(q.grossAmount)} · subsídio{" "}
+                    {q.subsidyAmount > 0 ? `-${formatMoney(q.subsidyAmount)}` : "nenhum confirmado"}
                   </span>
                   <small>
-                    Rota calculada por provedor configurado · válido até{" "}
+                    Rota: {q.routeProvider} · tarifa v{q.tariffVersion} · válido até{" "}
                     {new Date(q.expiresAt).toLocaleString("pt-BR")}
                   </small>
-                  {q.status === "PROPOSTO" && (
+                  <div className="quote-composition">
+                    <span>Frete <strong>{formatMoney(q.grossAmount)}</strong></span>
+                    <span>Desconto/subsídio <strong>{q.subsidyAmount > 0 ? `-${formatMoney(q.subsidyAmount)}` : formatMoney(0)}</strong></span>
+                    <span>Total do paciente <strong>{formatMoney(q.patientAmount)}</strong></span>
+                  </div>
+                  {q.status === "PROPOSTO" && new Date(q.expiresAt).getTime() > Date.now() && (
                     <button
                       type="button"
                       disabled={busy || !q.cancellationPolicyId}
                       onClick={() => void accept(selectedOrder, q)}
                     >
-                      Aceitar condições
+                      Aceitar orçamento
                     </button>
+                  )}
+                  {q.status === "PROPOSTO" && !q.cancellationPolicyId && (
+                    <p className="dependency-note">Aceite bloqueado: a política de cancelamento ainda não está vigente.</p>
+                  )}
+                  {q.status === "EXPIRADO" && (
+                    <p className="dependency-note">Este orçamento não pode ser aceito. Solicite uma nova cotação.</p>
                   )}
                 </div>
               ))
@@ -3268,6 +3452,15 @@ function OrderPanel({ session }: { session: Tokens }) {
         </article>
       ) : (
         <>
+          <div className="draft-notice" role="status">
+            <div>
+              <strong>Rascunho local deste navegador</strong>
+              <p>O preenchimento abaixo ainda não foi enviado ao servidor. Ele sobrevive ao recarregar este navegador, não é um pedido e não fica disponível em outra conta.</p>
+            </div>
+            <button type="button" className="secondary" disabled={!hasDraft} onClick={discardDraft}>
+              Descartar rascunho
+            </button>
+          </div>
           <div className="orders-layout">
             <form className="order-journey" onSubmit={create}>
               <div className="order-stepper" aria-label="Etapas da solicitação">
@@ -5469,6 +5662,8 @@ function AccountPage() {
           ...(access ? { Authorization: `Bearer ${access}` } : {}),
         },
       );
+      if (action === "logout")
+        window.sessionStorage.removeItem("exameperto-order-draft");
       setSession(action === "refresh" ? (result as Tokens) : null);
       if (action === "logout") navigate("/acesso", true);
       setFeedback({

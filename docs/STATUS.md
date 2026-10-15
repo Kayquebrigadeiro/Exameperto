@@ -22,6 +22,40 @@ papel operacional, verifica o formulário sem JSON e depois verifica o catálogo
 vazio e o bloqueio da jornada de pedidos no mesmo backend/PostgreSQL
 descartável. Nenhuma unidade sintética foi criada no banco normal.
 
+## Orçamento e detalhe da jornada de pedidos — 14/10/2026
+
+Partindo de `af6ee0c`, `/app/pedidos` agora apresenta uma revisão antes da
+criação do pedido e deixa explícito que a cotação só é solicitada depois que o
+pedido persistido e a verificação da unidade permitem essa transição. O detalhe
+mostra situação, próximo passo, histórico formado apenas por eventos retornados
+pelas APIs, endereço protegido e composição da cotação: frete, desconto/subsídio
+e total do paciente. Valores, rota, tarifa, política, cobertura e pagamento não
+são inventados nem tratados como confirmados fora das respostas do backend.
+
+O detalhe permite alterar endereços enquanto o domínio ainda permite essa
+transição. A API `PUT /api/v1/orders/{id}/addresses` usa a versão do pedido,
+substitui propostas/aceites afetados e retorna o pedido a `EM_VERIFICACAO`; a
+interface preserva os campos em caso de erro e orienta a solicitar novo
+orçamento. Expiração e aceite continuam sendo decididos pelo backend; aceite
+fica bloqueado sem política de cancelamento ou após `expira_em`. Indisponibilidade
+de rota, tarifa, cobertura ou pagamento aparece como bloqueio específico e não
+cria pedido, preço, saldo ou confirmação falsos.
+
+O rascunho é explicitamente local ao `sessionStorage` desta origem, não é
+persistência de domínio, não aparece no backend e não é compartilhado entre
+contas. Há ação `Descartar rascunho`; a chave é removida após criação confirmada
+do pedido e no logout para impedir exposição no mesmo navegador. O reload foi
+testado no navegador isolado: a etapa e os campos retornam; o descarte remove a
+chave. Não existe endpoint de rascunho persistente nesta etapa.
+
+Validação: build web, compilação backend, `OrderBrowserFlowTest` (Chromium →
+Spring → PostgreSQL 17.6 descartável) e `QuoteAcceptanceFlowTest` (rota, tarifa,
+expiração, versões, aceite, pagamento ausente, cobertura sintética e troca de
+endereço) passaram após o fixture criar unidade/parceria/protocolo apenas no
+banco de teste. O banco normal permanece sem unidades sintéticas e a conta/dados
+locais foram preservados. A validação visual manual deve usar
+`http://127.0.0.1:5173/app/pedidos` após login real; não foi feito deploy.
+
 ## Catálogo administrativo de unidades e protocolos — 14/10/2026
 
 Partindo do commit `219da88`, foi implementado o catálogo operacional em
