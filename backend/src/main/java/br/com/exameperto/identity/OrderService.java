@@ -18,12 +18,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 class OrderService {
-    private final JdbcTemplate jdbc; private final DataProtector protector; private final ObjectMapper json; private final RouteProvider routes; private final DelivererService evidence; private final PaymentProvider payments;
-    OrderService(JdbcTemplate jdbc, DataProtector protector, ObjectMapper json, RouteProvider routes, DelivererService evidence, PaymentProvider payments){this.jdbc=jdbc;this.protector=protector;this.json=json;this.routes=routes;this.evidence=evidence;this.payments=payments;}
+    private final JdbcTemplate jdbc; private final DataProtector protector; private final ObjectMapper json; private final RouteProvider routes; private final DelivererService evidence; private final PaymentProvider payments; private final ConfiguredGeocoder geocoder; private final boolean requireConfirmedLocation;
+    OrderService(JdbcTemplate jdbc, DataProtector protector, ObjectMapper json, RouteProvider routes, DelivererService evidence, PaymentProvider payments, ConfiguredGeocoder geocoder, @org.springframework.beans.factory.annotation.Value("${orders.require-confirmed-location:${orders.route.enabled:false}}") boolean requireConfirmedLocation){this.jdbc=jdbc;this.protector=protector;this.json=json;this.routes=routes;this.evidence=evidence;this.payments=payments;this.geocoder=geocoder;this.requireConfirmedLocation=requireConfirmedLocation;}
 
     @Transactional
     OrderView create(UUID actor, OrderInput input, String idem) {
-        requireAddress(input.origin()); requireAddress(input.destination()); authorizePedidos(actor,input.patientId()); authorizeRecipient(input.patientId(),input.recipientUserId());
+        Address origin=prepareAddress(input.origin()), destination=prepareAddress(input.destination()); authorizePedidos(actor,input.patientId()); authorizeRecipient(input.patientId(),input.recipientUserId());
         requireOwnedAuthorization(actor,input.pickupAuthorizationDocumentId());
         if (jdbc.queryForObject("SELECT count(*) FROM unidade_retirada u JOIN aceite_unidade_retirada a ON a.unidade_id=u.id AND a.estado='ACEITA' JOIN protocolo_custodia p ON p.unidade_id=u.id AND p.estado='HABILITADO' AND p.cobertura_retorno_confirmada AND p.inicio<=clock_timestamp() AND (p.fim IS NULL OR p.fim>clock_timestamp()) WHERE u.id=? AND u.estado_cadastro='ATIVA'",Long.class,input.pickupUnitId()) == 0)
             throw error(HttpStatus.UNPROCESSABLE_ENTITY,"UNIT_NOT_AVAILABLE","A unidade selecionada não está operacional neste momento.");
@@ -31,7 +31,7 @@ class OrderService {
         UUID id=UUID.randomUUID(); UUID auth=UUID.randomUUID();
         try {
             jdbc.update("INSERT INTO pedido(id,paciente_id,solicitante_id,origem_cifrada,destino_cifrada,origem_lat,origem_lon,destino_lat,destino_lon,destinatario_id,unidade_id,estado) VALUES (?,?,?,?,?,?,?,?,?,?,?,'EM_VERIFICACAO')",
-                id,input.patientId(),actor,protect(input.origin()),protect(input.destination()),input.origin().latitude(),input.origin().longitude(),input.destination().latitude(),input.destination().longitude(),input.recipientUserId(),input.pickupUnitId());
+                id,input.patientId(),actor,protect(origin),protect(destination),origin.latitude(),origin.longitude(),destination.latitude(),destination.longitude(),input.recipientUserId(),input.pickupUnitId());
             jdbc.update("INSERT INTO autorizacao_retirada(id,pedido_id,documento_id,estado,criada_por,valida_ate) VALUES (?,?,?,'PENDENTE',?,clock_timestamp()+interval '24 hours')",auth,id,input.pickupAuthorizationDocumentId(),actor);
             if(idem!=null)jdbc.update("INSERT INTO pedido_idempotencia(ator_id,operacao,chave,request_hash,pedido_id) VALUES (?,?,?,?,?)",actor,"CREATE_ORDER",idem,hash(input),id);
         } catch (RuntimeException ex) { throw error(HttpStatus.CONFLICT,"ORDER_CONFLICT","Não foi possível registrar o pedido."); }
@@ -49,10 +49,10 @@ class OrderService {
 
     @Transactional
     OrderView updateAddresses(UUID actor,UUID id,OrderAddressUpdateInput input){
-        requireAddress(input.origin()); requireAddress(input.destination()); authorizeRead(actor,id); Map<String,Object> row=forUpdate(id); requireVersion(row,input.version());
+        Address origin=prepareAddress(input.origin()), destination=prepareAddress(input.destination()); authorizeRead(actor,id); Map<String,Object> row=forUpdate(id); requireVersion(row,input.version());
         if("ACEITA".equals(row.get("estado"))||jdbc.queryForObject("SELECT count(*) FROM designacao WHERE pedido_id=? AND encerrada_em IS NULL",Long.class,id)>0)throw error(HttpStatus.CONFLICT,"ORDER_ASSIGNED","O endereço não pode mudar após a designação.");
         releaseCoverageForReplacement(id,"endereco");
-        jdbc.update("UPDATE pedido SET origem_cifrada=?,destino_cifrada=?,origem_lat=?,origem_lon=?,destino_lat=?,destino_lon=?,estado='EM_VERIFICACAO',version=version+1,updated_at=clock_timestamp() WHERE id=? AND version=?",protect(input.origin()),protect(input.destination()),input.origin().latitude(),input.origin().longitude(),input.destination().latitude(),input.destination().longitude(),id,input.version());
+        jdbc.update("UPDATE pedido SET origem_cifrada=?,destino_cifrada=?,origem_lat=?,origem_lon=?,destino_lat=?,destino_lon=?,estado='EM_VERIFICACAO',version=version+1,updated_at=clock_timestamp() WHERE id=? AND version=?",protect(origin),protect(destination),origin.latitude(),origin.longitude(),destination.latitude(),destination.longitude(),id,input.version());
         jdbc.update("UPDATE orcamento SET estado='SUBSTITUIDO',version=version+1 WHERE pedido_id=? AND estado IN ('PROPOSTO','ACEITO')",id); return order(id);
     }
 
@@ -69,6 +69,7 @@ class OrderService {
         requireVersion(o,version); expireQuotes(orderId);
         Map<String,Object> auth=authorization(orderId); if(!"VERIFICADA".equals(auth.get("estado"))||auth.get("revogada_em")!=null||((java.sql.Timestamp)auth.get("valida_ate")).toInstant().isBefore(Instant.now()))throw error(HttpStatus.UNPROCESSABLE_ENTITY,"UNIT_NOT_CONFIRMED","A unidade ainda não confirmou o procedimento de retirada.");
         Address origin=read((byte[])o.get("origem_cifrada")), destination=read((byte[])o.get("destino_cifrada"));
+        if(requireConfirmedLocation && (origin.locationConfirmedAt()==null || destination.locationConfirmedAt()==null)) throw error(HttpStatus.UNPROCESSABLE_ENTITY,"LOCATION_CONFIRMATION_REQUIRED","Confirme novamente a localização dos dois endereços antes de solicitar o orçamento.");
         RouteProvider.RouteResult route=routes.route(origin,destination); validateRoute(route);
         Map<String,Object> tariff=activeTariff(); BigDecimal amount=calculate(route,tariff); UUID id=UUID.randomUUID(); Instant now=Instant.now();
         CoverageSplit split=coverage(input.programId(),(UUID)o.get("paciente_id"),amount);
@@ -206,7 +207,13 @@ class OrderService {
     private OrderView replayAcceptance(UUID actor,UUID quote,String key,byte[] requestHash){try{Map<String,Object> r=jdbc.queryForMap("SELECT request_hash,pedido_id FROM aceite_idempotencia WHERE ator_id=? AND operacao=? AND chave=?",actor,"ACCEPT:"+quote,key);if(!MessageDigest.isEqual((byte[])r.get("request_hash"),requestHash))throw error(HttpStatus.CONFLICT,"IDEMPOTENCY_CONFLICT","A chave já foi usada com dados diferentes.");authorizeRead(actor,(UUID)r.get("pedido_id"));return order((UUID)r.get("pedido_id"));}catch(EmptyResultDataAccessException e){return null;}}
     private byte[] hashBytes(byte[] value){try{return MessageDigest.getInstance("SHA-256").digest(value);}catch(Exception e){throw new IllegalStateException(e);}}
     private void requireVersion(Map<String,Object> r,long v){if(((Number)r.get("version")).longValue()!=v)throw error(HttpStatus.PRECONDITION_FAILED,"VERSION_MISMATCH","O pedido mudou; recarregue antes de cotar.");}
-    private void requireAddress(Address a){if(a.latitude()==null||a.longitude()==null||!a.postalCode().matches("\\d{8}"))throw error(HttpStatus.BAD_REQUEST,"INVALID_ADDRESS","Endereço ou coordenadas inválidos.");}
+    private Address prepareAddress(Address a){
+        if(a==null||a.latitude()==null||a.longitude()==null||!a.postalCode().matches("\\d{8}"))throw error(HttpStatus.BAD_REQUEST,"INVALID_ADDRESS","Informe o endereço e confirme uma localização encontrada.");
+        if(!requireConfirmedLocation) return a;
+        if(a.locationConfirmationToken()==null||a.locationConfirmationToken().isBlank()) throw error(HttpStatus.UNPROCESSABLE_ENTITY,"LOCATION_CONFIRMATION_REQUIRED","Confirme a localização encontrada antes de continuar.");
+        try { var p=json.readTree(geocoder.confirm(a.locationConfirmationToken(),a)); BigDecimal lat=p.path("latitude").decimalValue(), lon=p.path("longitude").decimalValue(); if(lat.compareTo(a.latitude())!=0||lon.compareTo(a.longitude())!=0) throw new IllegalArgumentException(); return new Address(a.street(),a.number(),a.district(),a.city(),a.state(),a.postalCode(),lat,lon,a.complement(),a.reference(),p.path("provider").asText(),p.path("reference").asText(),Instant.now(),null); }
+        catch(OrderException e){throw e;} catch(Exception e){throw error(HttpStatus.UNPROCESSABLE_ENTITY,"LOCATION_CONFIRMATION_INVALID","Confirme novamente a localização depois de revisar os campos do endereço.");}
+    }
     private static OrderException notFound(){return error(HttpStatus.NOT_FOUND,"NOT_FOUND","Pedido não encontrado.");}
     static OrderException error(HttpStatus s,String c,String m){return new OrderException(s,c,m);}
     static final class OrderException extends org.springframework.web.server.ResponseStatusException {private final ApiError body;OrderException(HttpStatus s,String c,String m){super(s,m);body=new ApiError(c,m,UUID.randomUUID(),s.is5xxServerError());}ApiError body(){return body;}}

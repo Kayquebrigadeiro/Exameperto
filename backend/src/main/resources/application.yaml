@@ -74,6 +74,12 @@ orders:
     timeout: ${EXAME_PERTO_ROUTE_TIMEOUT:PT3S}
     max-response-bytes: ${EXAME_PERTO_ROUTE_MAX_RESPONSE_BYTES:65536}
     max-retries: ${EXAME_PERTO_ROUTE_MAX_RETRIES:1}
+  geocode:
+    enabled: ${EXAME_PERTO_GEOCODE_ENABLED:${EXAME_PERTO_ROUTE_ENABLED:false}}
+    api-key: ${EXAME_PERTO_GEOCODE_API_KEY:${EXAME_PERTO_ROUTE_API_KEY:}}
+    endpoint: ${EXAME_PERTO_GEOCODE_ENDPOINT:https://api.heigit.org/pelias/v1/search}
+    timeout: ${EXAME_PERTO_GEOCODE_TIMEOUT:PT3S}
+    max-response-bytes: ${EXAME_PERTO_GEOCODE_MAX_RESPONSE_BYTES:65536}
 tracking:
   enabled: ${EXAME_PERTO_TRACKING_ENABLED:false}
   max-age: PT2M

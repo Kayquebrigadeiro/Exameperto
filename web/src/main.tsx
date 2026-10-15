@@ -153,6 +153,7 @@ type Order = {
   pickupAuthorizationId: string;
   pickupUnitId: string;
 };
+type GeocodeCandidate = { label: string; latitude: number; longitude: number; provider: string; reference: string; confirmationToken: string };
 type AvailableUnit = { id: string; label: string };
 type CatalogProtocol = {
   id: string;
@@ -2740,8 +2741,7 @@ function OrderPanel({ session }: { session: Tokens }) {
     city: "",
     state: "",
     postalCode: "",
-    latitude: "",
-    longitude: "",
+    latitude: "", longitude: "", complement: "", reference: "", locationConfirmationToken: "",
   });
   const [destination, setDestination] = useState({
     street: "",
@@ -2750,8 +2750,7 @@ function OrderPanel({ session }: { session: Tokens }) {
     city: "",
     state: "",
     postalCode: "",
-    latitude: "",
-    longitude: "",
+    latitude: "", longitude: "", complement: "", reference: "", locationConfirmationToken: "",
   });
   const [documentId, setDocumentId] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
@@ -2781,6 +2780,9 @@ function OrderPanel({ session }: { session: Tokens }) {
   const [detailDestination, setDetailDestination] = useState<
     typeof destination | null
   >(null);
+  const [originCandidates, setOriginCandidates] = useState<GeocodeCandidate[]>([]);
+  const [destinationCandidates, setDestinationCandidates] = useState<GeocodeCandidate[]>([]);
+  const [searchingLocation, setSearchingLocation] = useState<"origin" | "destination" | null>(null);
   const socket = useRef<WebSocket | null>(null);
   const reconnect = useRef<number | undefined>(undefined);
   const activeOrders = useRef<string[]>([]);
@@ -3032,6 +3034,7 @@ function OrderPanel({ session }: { session: Tokens }) {
           ...value,
           latitude: String(value.latitude ?? ""),
           longitude: String(value.longitude ?? ""),
+          complement: value.complement ?? "", reference: value.reference ?? "", locationConfirmationToken: "",
         });
         setDetailOrigin(normalize(addresses.origin));
         setDetailDestination(normalize(addresses.destination));
@@ -3077,9 +3080,27 @@ function OrderPanel({ session }: { session: Tokens }) {
   function address(value: typeof origin) {
     return {
       ...value,
-      latitude: Number(value.latitude),
-      longitude: Number(value.longitude),
+      latitude: value.latitude ? Number(value.latitude) : null,
+      longitude: value.longitude ? Number(value.longitude) : null,
     };
+  }
+  async function searchLocation(kind: "origin" | "destination") {
+    const value = kind === "origin" ? origin : destination;
+    setSearchingLocation(kind);
+    try {
+      const response = await api("/order-options/geocode", { method: "POST", body: JSON.stringify({ address: { ...address(value), latitude: null, longitude: null, locationConfirmationToken: null } }) });
+      const candidates = (response.result ?? []) as GeocodeCandidate[];
+      (kind === "origin" ? setOriginCandidates : setDestinationCandidates)(candidates);
+      setNotice({ tone: "info", text: candidates.length ? "Escolha explicitamente um resultado. Nenhum local foi selecionado automaticamente." : "Nenhum resultado encontrado. Corrija a busca e tente novamente; seus dados foram preservados." });
+    } catch (err) { setNotice({ tone: "error", text: err instanceof Error ? err.message : "Não foi possível buscar a localização." }); }
+    finally { setSearchingLocation(null); }
+  }
+  function confirmLocation(kind: "origin" | "destination", candidate: GeocodeCandidate) {
+    const setter = kind === "origin" ? setOrigin : setDestination;
+    const value = kind === "origin" ? origin : destination;
+    setter({ ...value, latitude: String(candidate.latitude), longitude: String(candidate.longitude), locationConfirmationToken: candidate.confirmationToken });
+    (kind === "origin" ? setOriginCandidates : setDestinationCandidates)([]);
+    setNotice({ tone: "info", text: `Local confirmado: ${candidate.label}. A estimativa de rota ainda não é comprovação de residência.` });
   }
   async function create(e: FormEvent) {
     e.preventDefault();
@@ -3236,6 +3257,7 @@ function OrderPanel({ session }: { session: Tokens }) {
     label: string,
     value: typeof origin,
     setter: (value: typeof origin) => void,
+    kind: "origin" | "destination",
   ) => (
     <fieldset>
       <legend>{label}</legend>
@@ -3247,8 +3269,8 @@ function OrderPanel({ session }: { session: Tokens }) {
           "city",
           "state",
           "postalCode",
-          "latitude",
-          "longitude",
+          "complement",
+          "reference",
         ] as const
       ).map((key) => (
         <label key={key}>
@@ -3261,21 +3283,31 @@ function OrderPanel({ session }: { session: Tokens }) {
                 city: "Cidade",
                 state: "Estado",
                 postalCode: "CEP",
-                latitude: "Latitude",
-                longitude: "Longitude",
+                complement: "Complemento (opcional)",
+                reference: "Referência (opcional)",
               } as Record<string, string>
             )[key]
           }
           <input
             aria-label={key}
-            required
-            inputMode={
-              key === "latitude" || key === "longitude" ? "decimal" : undefined
-            }
+            required={!["complement", "reference"].includes(key)}
             value={value[key]}
-            onChange={(e) => setter({ ...value, [key]: e.target.value })}
+            onChange={(e) => setter({ ...value, [key]: e.target.value, ...(key !== "complement" && key !== "reference" ? { latitude: "", longitude: "", locationConfirmationToken: "" } : {}) })}
           />
         </label>
+      ))}
+      <div className="journey-actions">
+        <button type="button" className="secondary" disabled={searchingLocation !== null} onClick={() => void searchLocation(kind)}>
+          {searchingLocation === kind ? "Buscando localização…" : "Buscar localização"}
+        </button>
+        {value.locationConfirmationToken && <span role="status">Local confirmado para cotação.</span>}
+      </div>
+      {(kind === "origin" ? originCandidates : destinationCandidates).map((candidate) => (
+        <div className="candidate-card" key={candidate.confirmationToken}>
+          <strong>{candidate.label}</strong>
+          <small>Estimativa de localização pelo {candidate.provider}.</small>
+          <button type="button" onClick={() => confirmLocation(kind, candidate)}>Confirmar este local</button>
+        </div>
       ))}
     </fieldset>
   );
@@ -3305,8 +3337,7 @@ function OrderPanel({ session }: { session: Tokens }) {
       city: "",
       state: "",
       postalCode: "",
-      latitude: "",
-      longitude: "",
+      latitude: "", longitude: "", complement: "", reference: "", locationConfirmationToken: "",
     });
     setDestination({
       street: "",
@@ -3315,8 +3346,7 @@ function OrderPanel({ session }: { session: Tokens }) {
       city: "",
       state: "",
       postalCode: "",
-      latitude: "",
-      longitude: "",
+      latitude: "", longitude: "", complement: "", reference: "", locationConfirmationToken: "",
     });
     setStep(1);
     setNotice({ tone: "info", text: "Rascunho local descartado." });
@@ -3469,8 +3499,8 @@ function OrderPanel({ session }: { session: Tokens }) {
             </div>
             {editingAddresses && detailOrigin && detailDestination ? (
               <form onSubmit={(event) => void updateAddresses(selectedOrder, event)}>
-                {fields("Origem", detailOrigin, (value) => setDetailOrigin(value))}
-                {fields("Destino", detailDestination, (value) => setDetailDestination(value))}
+                {fields("Origem", detailOrigin, (value) => setDetailOrigin(value), "origin")}
+                {fields("Destino", detailDestination, (value) => setDetailDestination(value), "destination")}
                 <p className="dependency-note">
                   Ao salvar, o orçamento atual será substituído e uma nova
                   cotação dependerá das verificações da unidade e das integrações
@@ -3786,8 +3816,8 @@ function OrderPanel({ session }: { session: Tokens }) {
                     Esses dados ficam protegidos e são usados somente para
                     calcular a rota autorizada.
                   </p>
-                  {fields("Origem", origin, setOrigin)}
-                  {fields("Destino", destination, setDestination)}
+                  {fields("Origem", origin, setOrigin, "origin")}
+                  {fields("Destino", destination, setDestination, "destination")}
                   <div className="journey-actions">
                     <button
                       type="button"

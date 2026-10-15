@@ -68,6 +68,11 @@ final class DataProtector {
         } catch (GeneralSecurityException ex) { throw new IllegalStateException("Busca indisponível."); }
     }
     String token() { byte[] bytes = new byte[32]; random.nextBytes(bytes); return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes); }
+    String seal(String value) { return Base64.getUrlEncoder().withoutPadding().encodeToString(encrypt(value)); }
+    String unseal(String value) {
+        try { return decrypt(Base64.getUrlDecoder().decode(value)); }
+        catch (RuntimeException ex) { throw new IllegalArgumentException("Token inválido.", ex); }
+    }
     byte[] tokenHash(String token) {
         try { return MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8)); }
         catch (GeneralSecurityException ex) { throw new IllegalStateException(ex); }

@@ -31,6 +31,7 @@ test('navegador → API → PostgreSQL: catálogo vazio e rascunho da jornada', 
   const reloaded = page.getByRole('region', { name: 'Pedidos', exact: true });
   await expect(reloaded.getByText('Rascunho local deste navegador')).toBeVisible();
   await expect(reloaded.getByLabel('Unidade de retirada')).toBeDisabled();
+  await page.screenshot({ path: '../backend/target/orders-address-empty-sanitized.png', fullPage: true });
   await reloaded.getByRole('button', { name: 'Descartar rascunho' }).click();
   await expect(page).toHaveURL(/\/app/);
   await expect(page.evaluate(() => sessionStorage.getItem('exameperto-order-draft'))).resolves.toBeNull();

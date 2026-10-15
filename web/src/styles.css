@@ -1328,6 +1328,17 @@ textarea:focus-visible {
   border-left: 0.25rem solid #ad683c;
   color: #70533e !important;
 }
+.candidate-card {
+  display: grid;
+  gap: .35rem;
+  margin-top: .7rem;
+  padding: .8rem;
+  border: 1px solid #9bb7a4;
+  border-radius: .45rem;
+  background: #f1f7ee;
+}
+.candidate-card small { color: #5e7168; }
+.candidate-card button { justify-self: start; }
 
 .patient-orders {
   max-width: 78rem;

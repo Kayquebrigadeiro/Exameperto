@@ -29,19 +29,24 @@ nome, paciente, documento ou endereço textual. A requisição usa
 provedor, referência hash, distância em metros, duração em segundos,
 instante de cálculo e `transito_incluido=false`.
 
-O provedor de rota não é geocodificador. O contrato atual exige que cada
-endereço tenha latitude/longitude confirmadas antes do pedido; sem elas,
-o backend retorna `INVALID_ADDRESS` e não chama o provedor. Não foi
-adotada geocodificação automática porque converter um endereço protegido
-em coordenada sem confirmação criaria risco de localização incorreta e
-enviaria dados pessoais a terceiro. Uma futura busca de endereço deverá
-ser uma ação explícita, com candidatos confirmáveis, limites e política
-de privacidade próprios; não será autocomplete a cada tecla.
-Se essa capacidade for autorizada, a alternativa coerente é o mesmo
-serviço Pelias de geocodificação do openrouteservice (`/pelias/v1/search`),
-com busca explícita, poucos candidatos, confirmação humana e a mesma chave
-privada. Ela não foi habilitada nesta etapa porque ainda não existe a tela
-de confirmação nem uma decisão de retenção/uso de resultados.
+O provedor de rota não é geocodificador. A tela agora faz uma busca
+explícita no Pelias do mesmo provedor (`/pelias/v1/search`), sem
+autocomplete: envia rua, número, bairro, cidade, UF e CEP, apresenta até
+cinco candidatos e exige confirmação humana. O complemento e a referência
+ficam fora da busca. O backend cifra um token temporário vinculado à busca,
+coordenadas, provedor e referência; ao criar ou alterar o pedido ele
+valida esse token e persiste apenas os metadados da confirmação junto ao
+endereço protegido. Alterar qualquer campo pesquisável invalida a seleção.
+Sem confirmação, o pedido/orçamento permanece bloqueado. A estimativa não
+é comprovação de residência. A interface oferece a alternativa textual
+acessível; mapa não foi incluído, pois não é necessário para confirmar e
+introduziria uma dependência separada de biblioteca/tiles e seus termos.
+
+O plano Standard do provedor publica 1.000 consultas de Geocoding por dia
+e 100 por minuto, além dos limites de Directions; a busca só ocorre por
+ação do usuário e a resposta é limitada a cinco candidatos. O endereço
+textual informado pode ser enviado ao provedor de geocodificação, nunca é
+registrado em logs, e não são enviados dados de paciente/documentos.
 
 ## Guardas do adaptador
 
@@ -67,6 +72,11 @@ EXAME_PERTO_ROUTE_ENDPOINT=https://api.heigit.org/openrouteservice/v2/directions
 EXAME_PERTO_ROUTE_TIMEOUT=PT3S
 EXAME_PERTO_ROUTE_MAX_RESPONSE_BYTES=65536
 EXAME_PERTO_ROUTE_MAX_RETRIES=1
+EXAME_PERTO_GEOCODE_ENABLED=false
+EXAME_PERTO_GEOCODE_API_KEY=
+EXAME_PERTO_GEOCODE_ENDPOINT=https://api.heigit.org/pelias/v1/search
+EXAME_PERTO_GEOCODE_TIMEOUT=PT3S
+EXAME_PERTO_GEOCODE_MAX_RESPONSE_BYTES=65536
 ```
 
 O padrão permanece indisponível até o responsável configurar a chave.

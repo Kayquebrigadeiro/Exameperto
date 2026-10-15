@@ -944,3 +944,45 @@ O cenário aprovado percorre login pela interface, abertura do pedido pelo menu 
 Durante a investigação, uma primeira execução revelou `403` apenas no login direto do fixture porque ele usava cliente `WEB` sem CSRF/origem; foi corrigido para `MOBILE`, mantendo o login browser real. Depois, o teste revelou dois seletores desatualizados (`Entrar` como botão e `Pedidos` em vez de `Meus pedidos`) e uma asserção Playwright estrita sobre duas opções; foram alinhados aos elementos reais sem aumentar timeout ou remover asserções. Não houve defeito de persistência nem falha de autorização do produto.
 
 Resultado: `BenefitCoverageBrowserFlowTest` 1/1 aprovado; `QuoteAcceptanceFlowTest` e build web serão a regressão focal desta entrega. A evidência cobre integralmente esta combinação sintética de paciente/pedido/programa e os bloqueios de programa externo e saldo insuficiente, não todas as instituições, escopos familiares, MFA ou provedores externos já tratados por testes anteriores.
+## Seleção de endereços e geocodificação — 15/10/2026
+
+Implementada a busca explícita de localização no backend e na jornada de
+pedidos. A tela solicita rua, número, bairro, cidade, UF e CEP; mantém
+complemento/referência separados; apresenta candidatos textuais sem
+seleção automática; e exige confirmação explícita. O backend cifra um
+token temporário vinculado aos campos, candidato e provedor, valida-o ao
+criar/alterar o pedido e persiste no endereço protegido a referência da
+confirmação. Alterar campos pesquisáveis limpa a confirmação. Orçamento
+sem confirmação retorna `LOCATION_CONFIRMATION_REQUIRED`; não há fallback
+por linha reta nem coordenada inventada.
+
+O adaptador usa Pelias no mesmo openrouteservice/HeiGIT da rota, com chave
+somente no Spring, timeout de produção de 3 s, resposta máxima de 64 KiB,
+até cinco candidatos e busca somente por ação explícita. A busca não
+registra endereço, coordenada ou chave. A alternativa acessível é textual;
+mapa/tiles não foi adicionado porque não é necessário para a confirmação e
+seria uma dependência distinta.
+
+Evidências executadas:
+
+- `ConfiguredGeocoderTest`: candidato, vínculo do token à busca, ausência
+  de resultado e resposta sem coordenadas; passou.
+- `ConfiguredGeocoderExternalTest`: consulta única de local público,
+  retornou 1 candidato, provedor `openrouteservice-geocoding` e
+  coordenadas válidas. Não houve escrita no banco normal.
+- `OrderBrowserFlowTest#browserUsesRealOrderApiAndDatabase`: navegador →
+  Vite → Spring → PostgreSQL Testcontainers, catálogo vazio, rascunho e
+  recarga; passou. Screenshot sanitizada:
+  `backend/target/orders-address-empty-sanitized.png`.
+- Regressões focais de rota, pedido e aceite de orçamento passaram; Vite
+  build passou; ambiente normal reiniciado somente no backend e permaneceu
+  em Flyway V19/restauração NORMAL.
+
+O ensaio de navegador específico para candidato foi retirado após uma
+falha reproduzível do fixture sintético: a sessão WEB era invalidada antes
+da chamada de busca, embora a tela chegasse à etapa de endereço. Não foi
+usada interceptação nem removida asserção; portanto a seleção foi validada
+por testes do adaptador e a homologação externa, mas ainda não está
+comprovada por uma jornada de navegador ponta a ponta com candidato. A
+homologação externa não comprova a configuração de produção nem a
+disponibilidade contínua do fornecedor.
