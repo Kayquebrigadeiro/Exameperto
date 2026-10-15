@@ -4,7 +4,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 record UnitCatalogView(UUID id, String name, String city, String state, String registrationStatus,
-                       PartnershipView partnership, java.util.List<ProtocolView> protocols, long version) {}
+                       PartnershipView partnership, java.util.List<ProtocolView> protocols,
+                       java.util.List<String> pendingRequirements, long version) {}
 record PartnershipView(String status, String evidenceReference, String note, Instant acceptedAt) {}
 record ProtocolView(UUID id, int number, String rules, boolean returnCoverageConfirmed,
                     Instant startsAt, Instant endsAt, String status) {}

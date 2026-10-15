@@ -10,7 +10,10 @@ record UnitCatalogInput(@NotBlank @Size(max=200) String name, @NotBlank @Size(ma
                         @NotBlank @Size(min=2,max=2) String state) {}
 record PartnershipInput(@NotBlank @Size(max=300) String evidenceReference,
                         @Size(max=1000) String note, @NotNull String status) {}
-record ProtocolInput(int number, @NotBlank @Size(max=4000) String rules,
-                     boolean returnCoverageConfirmed, @NotNull Instant startsAt, Instant endsAt) {
+record ProtocolInput(int number, @NotBlank @Size(max=1000) String pickupInstructions,
+                     @NotBlank @Size(max=200) String handoverEvidence,
+                     @NotBlank @Size(max=1000) String returnInstructions,
+                     boolean returnRequired, boolean returnCoverageConfirmed,
+                     @NotNull Instant startsAt, Instant endsAt) {
     @AssertTrue boolean validWindow() { return endsAt == null || endsAt.isAfter(startsAt); }
 }

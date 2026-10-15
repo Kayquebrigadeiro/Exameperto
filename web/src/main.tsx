@@ -151,6 +151,7 @@ type CatalogUnit = {
     acceptedAt: string | null;
   } | null;
   protocols: CatalogProtocol[];
+  pendingRequirements: string[];
   version: number;
 };
 type Quote = {
@@ -3593,7 +3594,10 @@ function UnitCatalogPanel({ session }: { session: Tokens }) {
   const [evidence, setEvidence] = useState("");
   const [partnershipNote, setPartnershipNote] = useState("");
   const [protocolNumber, setProtocolNumber] = useState("1");
-  const [protocolRules, setProtocolRules] = useState("{}");
+  const [pickupInstructions, setPickupInstructions] = useState("");
+  const [handoverEvidence, setHandoverEvidence] = useState("");
+  const [returnInstructions, setReturnInstructions] = useState("");
+  const [returnRequired, setReturnRequired] = useState(true);
   const [coverage, setCoverage] = useState(false);
   async function api(path: string, init: RequestInit = {}) {
     return parse(
@@ -3719,11 +3723,11 @@ function UnitCatalogPanel({ session }: { session: Tokens }) {
               onChange={(e) => setState(e.target.value)}
             />
           </label>
-          <button disabled={busy}>Cadastrar unidade</button>
+          <button disabled={busy}>{editingId ? "Salvar alterações" : "Cadastrar unidade"}</button>
         </form>
         <aside className="order-side-note">
           <span className="card-kicker">REGRA OPERACIONAL</span>
-          <h3>Três decisões diferentes.</h3>
+                  <h3>Quatro etapas verificáveis.</h3>
           <p>
             Cadastro identifica a unidade. A parceria guarda a referência da
             comprovação e o aceite explícito. O protocolo só pode ser habilitado
@@ -3740,7 +3744,7 @@ function UnitCatalogPanel({ session }: { session: Tokens }) {
       <section className="order-history">
         <div className="card-heading">
           <div>
-            <span className="card-kicker">CATÁLOGO</span>
+                  <span className="card-kicker">CATÁLOGO</span>
             <h3>Unidades cadastradas</h3>
           </div>
         </div>
@@ -3764,6 +3768,7 @@ function UnitCatalogPanel({ session }: { session: Tokens }) {
                   : "Parceria ainda não registrada"}{" "}
                 · {unit.protocols.length} protocolo(s)
               </p>
+              <div className="catalog-requirements"><strong>Requisitos para aparecer no seletor do paciente</strong>{unit.pendingRequirements.length ? <ul>{unit.pendingRequirements.map((requirement) => <li key={requirement}>{requirement}</li>)}</ul> : <p className="inline-status">Todos os requisitos operacionais estão atendidos.</p>}</div>
               <div className="catalog-actions">
                 <button
                   type="button"
@@ -3867,7 +3872,7 @@ function UnitCatalogPanel({ session }: { session: Tokens }) {
                     </div>
                   </div>
                   <div>
-                    <h4>Novo protocolo</h4>
+                      <h4>Configuração do protocolo</h4>
                     <label>
                       Número
                       <input
@@ -3877,13 +3882,11 @@ function UnitCatalogPanel({ session }: { session: Tokens }) {
                         onChange={(e) => setProtocolNumber(e.target.value)}
                       />
                     </label>
-                    <label>
-                      Regras JSON
-                      <textarea
-                        value={protocolRules}
-                        onChange={(e) => setProtocolRules(e.target.value)}
-                      />
-                    </label>
+                      <p className="field-help">Esses campos descrevem o procedimento que a unidade aceitou. O formato técnico é montado pelo servidor.</p>
+                      <label>Instruções para retirada<textarea required maxLength={1000} value={pickupInstructions} onChange={(e) => setPickupInstructions(e.target.value)} placeholder="O que a pessoa deve apresentar e como a retirada será conferida" /></label>
+                      <label>Evidência na entrega<textarea required maxLength={200} value={handoverEvidence} onChange={(e) => setHandoverEvidence(e.target.value)} placeholder="Ex.: assinatura ou comprovante definido pela unidade" /></label>
+                      <label>Instruções de retorno<textarea required maxLength={1000} value={returnInstructions} onChange={(e) => setReturnInstructions(e.target.value)} placeholder="Como o retorno será recebido e comprovado" /></label>
+                      <label className="checkbox-label"><input type="checkbox" checked={returnRequired} onChange={(e) => setReturnRequired(e.target.checked)} /> Retorno faz parte deste protocolo</label>
                     <label className="checkbox-label">
                       <input
                         type="checkbox"
@@ -3900,10 +3903,13 @@ function UnitCatalogPanel({ session }: { session: Tokens }) {
                           () =>
                             api(`/admin/units/${unit.id}/protocols`, {
                               method: "POST",
-                              body: JSON.stringify({
-                                number: Number(protocolNumber),
-                                rules: protocolRules,
-                                returnCoverageConfirmed: coverage,
+                            body: JSON.stringify({
+                              number: Number(protocolNumber),
+                              pickupInstructions,
+                              handoverEvidence,
+                              returnInstructions,
+                              returnRequired,
+                              returnCoverageConfirmed: coverage,
                                 startsAt: new Date().toISOString(),
                                 endsAt: null,
                               }),

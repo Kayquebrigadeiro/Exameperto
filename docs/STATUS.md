@@ -1,5 +1,27 @@
 # Status — atualizado em 14/10/2026
 
+## Finalização do catálogo e retomada de pedidos — 14/10/2026
+
+O formulário de protocolo em `/app/catalogo` não expõe mais `regras` JSON.
+Ele usa número, instruções de retirada, evidência de entrega, instruções de
+retorno, indicação de retorno obrigatório, vigência e confirmação de cobertura.
+O backend valida os campos e monta o JSON persistido em `protocolo_custodia`.
+Cada unidade mostra separadamente cadastro, parceria, ativação, protocolo e a
+lista de requisitos ainda pendentes para entrar no seletor do paciente.
+
+A retomada da jornada de pedidos **não é persistência de domínio**: o código
+atual salva o rascunho em `sessionStorage` do navegador (`exameperto-order-draft`).
+Ele sobrevive a reload e navegação na mesma sessão/origem do navegador, mas não
+é enviado ao backend, não aparece em `/orders`, não é compartilhado entre
+dispositivos e pode ser removido ao limpar os dados da sessão. Só há pedido
+quando a API de criação responde com sucesso; não há endpoint de rascunho
+persistentemente retomável nesta etapa.
+
+O teste isolado de navegador agora abre o catálogo via sessão sintética com
+papel operacional, verifica o formulário sem JSON e depois verifica o catálogo
+vazio e o bloqueio da jornada de pedidos no mesmo backend/PostgreSQL
+descartável. Nenhuma unidade sintética foi criada no banco normal.
+
 ## Catálogo administrativo de unidades e protocolos — 14/10/2026
 
 Partindo do commit `219da88`, foi implementado o catálogo operacional em
