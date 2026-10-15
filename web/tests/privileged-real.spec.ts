@@ -82,6 +82,7 @@ test('navegador → análise operacional, benefícios e privacidade com MFA e bl
   await elevate(benefits, process.env.BENEFIT_MFA_SECRET!);
   const benefitPanel = benefits.getByRole('region', { name: 'Análise de benefícios' });
   await expect(benefitPanel).toContainText('PENDENTE');
+  await benefitPanel.getByRole('button', { name: 'Abrir detalhe' }).first().click();
   await benefitPanel.getByRole('button', { name: 'Assumir análise' }).click();
   await expect(benefits.getByRole('alert').filter({ hasText: 'Etapa de análise persistida' })).toBeVisible();
   await benefitPanel.getByRole('button', { name: /Inspecionar/ }).click();
@@ -97,6 +98,7 @@ test('navegador → análise operacional, benefícios e privacidade com MFA e bl
   await elevate(privacy, process.env.PRIVACY_MFA_SECRET!);
   const privacyPanel = privacy.getByRole('region', { name: 'Operação de privacidade' });
   await expect(privacyPanel).toContainText('PENDENTE');
+  await privacyPanel.getByRole('button', { name: 'Abrir detalhe' }).first().click();
   await privacyPanel.getByLabel('Resposta ao titular').fill('Resposta preparada no ensaio sintético.');
   await privacyPanel.getByRole('button', { name: 'Registrar resposta' }).click();
   await expect(privacy.getByRole('alert').filter({ hasText: 'Estado atualizado pelo servidor' })).toBeVisible();

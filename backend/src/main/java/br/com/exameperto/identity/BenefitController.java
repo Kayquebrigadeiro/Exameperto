@@ -32,6 +32,7 @@ class BenefitController {
     @GetMapping("/analyst/benefit-reviews") List<BenefitReviewView> reviews(Authentication a){return service.queue(user(a));}
     @PostMapping("/analyst/benefit-reviews/{id}/assign") BenefitReviewView assign(Authentication a,HttpServletRequest r,@PathVariable UUID id){mutation(a,r);return service.assign(principal(a),id);}
     @PostMapping("/analyst/benefit-reviews/{id}/documents/{documentId}/inspection") BenefitReviewView inspect(Authentication a,HttpServletRequest r,@PathVariable UUID id,@PathVariable UUID documentId){mutation(a,r);return service.inspect(principal(a),id,documentId);}
+    @PostMapping("/analyst/benefit-reviews/{id}/complement") BenefitReviewView complement(Authentication a,HttpServletRequest r,@PathVariable UUID id,@Valid @RequestBody BenefitComplementInput input){mutation(a,r);return service.complement(principal(a),id,input);}
     @PostMapping("/analyst/benefit-reviews/{id}/decision") BenefitReviewView decision(Authentication a,HttpServletRequest r,@PathVariable UUID id,@Valid @RequestBody BenefitDecisionInput input){mutation(a,r);return service.decide(principal(a),id,input);}
     private UUID user(Authentication a){return principal(a).userId();}
     private AuthService.SessionPrincipal principal(Authentication a){return (AuthService.SessionPrincipal)a.getDetails();}

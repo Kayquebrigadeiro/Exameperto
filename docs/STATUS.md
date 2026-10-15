@@ -1,5 +1,32 @@
 # Status — atualizado em 14/10/2026
 
+## Análise de benefícios e operação de privacidade — 15/10/2026
+
+As telas de `/app/analise-beneficios` e `/app/operacao-privacidade` foram
+separadas em fila e detalhe, sem UUID digitado. A análise de benefícios agora
+mostra busca, filtro, paginação, dimensões independentes, evidências
+autorizadas, histórico, pendências, política/critério retornados pelo
+backend, solicitação de complemento, decisão e recurso. O complemento bloqueia
+a revisão atual com a justificativa informada e o upload autorizado do titular
+reabre uma revisão; nenhum percentual ou critério foi criado na interface.
+
+Privacidade exibe responsável, histórico e os marcos distintos de resposta,
+autorização, execução e verificação, além de conservação, pendências e
+bloqueios. Resposta não é apresentada como exclusão; transformação parcial
+não é apresentada como anonimização integral. As mutações continuam exigindo
+papel, MFA, escopo institucional e impedimento de autoanálise no backend.
+
+Verificações: build web e compilação Java passaram; `BenefitFlowTest` passou
+1/1 e `PrivacyFlowTest` passou 4/4, ambos com PostgreSQL 17.6 descartável.
+O Chromium/Spring/PostgreSQL foi iniciado sem interceptação, mas a jornada
+privilegiada expirou ao aguardar o botão de atribuição após abrir o detalhe;
+portanto não é declarada como aprovação. A primeira execução registrou que a
+fila carregava, mas a leitura do detalhe pendente era recusada antes da
+correção de autorização por instituição; a repetição ainda precisa ser
+investigada. Não houve escrita no banco normal nem deploy. Próxima ação:
+reproduzir a resposta do detalhe no navegador e só então capturar screenshots
+e fazer push da implementação validada.
+
 ## Experiência da área operacional — 14/10/2026
 
 `/app/operacao` foi separado em uma entrada operacional com abas de

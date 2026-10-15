@@ -295,7 +295,7 @@ class PrivacyService {
         catch (EmptyResultDataAccessException ex) { closure=Map.of("estado","NAO_APLICAVEL"); }
         String closureStatus=(String)closure.get("estado");
         String anonymizationStatus="NAO_APLICAVEL".equals(closureStatus)?"NAO_APLICAVEL":(closure.get("anonimizado_em")==null?"PENDENTE":"TRANSFORMADA_NAO_INTEGRAL");
-        return new PrivacyRequestView(id,(String)row.get("protocolo"),(String)row.get("tipo"),(String)row.get("estado"),instant(row.get("created_at")),response==null?null:protector.decrypt(response),execution==null?null:(String)execution.get("estado"),execution==null?null:instant(execution.get("executada_em")),execution==null?null:instant(execution.get("verificada_em")),pending,preserved,((Number)row.get("version")).longValue(),closureStatus,anonymizationStatus);
+        return new PrivacyRequestView(id,(String)row.get("protocolo"),(String)row.get("tipo"),(String)row.get("estado"),instant(row.get("created_at")),response==null?null:protector.decrypt(response),execution==null?null:(String)execution.get("estado"),execution==null?null:instant(execution.get("executada_em")),execution==null?null:instant(execution.get("verificada_em")),pending,preserved,((Number)row.get("version")).longValue(),closureStatus,anonymizationStatus,row.get("responsavel_id")!=null,instant(row.get("respondida_em")));
     }
     private static Instant instant(Object value) { return value==null?null:((Timestamp)value).toInstant(); }
     private static byte[] sha256(String value) { try { return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)); } catch (Exception ex) { throw new IllegalStateException(ex); } }

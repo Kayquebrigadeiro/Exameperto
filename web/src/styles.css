@@ -1526,5 +1526,10 @@ textarea:focus-visible {
 .review-detail-grid strong { color: #20453a; }
 .review-detail-grid span { font-weight: 700; }
 .review-detail-grid small { color: #6d8279; }
+.review-detail-grid pre { margin: 0; max-height: 12rem; overflow: auto; white-space: pre-wrap; font: .78rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: #3b5a4e; }
+.evidence-list, .timeline { display: grid; gap: .55rem; margin: .6rem 0 1rem; }
+.evidence-list p, .timeline p { display: flex; gap: .7rem; align-items: center; flex-wrap: wrap; margin: 0; padding: .7rem .8rem; border: 1px solid #d8e0d8; border-radius: .65rem; background: #fffef8; }
+.evidence-list span, .timeline span { color: #667d73; font-size: .85rem; }
+.timeline small { color: #71877e; margin-left: auto; }
 .pagination { display: flex; align-items: center; justify-content: center; gap: 1rem; margin: 1rem 0; color: #627a70; }
 @media (max-width: 700px) { .review-toolbar, .review-detail-grid { grid-template-columns: 1fr; } .review-toolbar span { padding-bottom: 0; } }

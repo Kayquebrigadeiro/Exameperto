@@ -41,6 +41,8 @@ type PrivacyRequest = {
   version: number;
   closureStatus: string;
   anonymizationStatus: string;
+  responsibleAssigned: boolean;
+  respondedAt: string | null;
 };
 type Patient = { id: string; identityStatus: string; version: number };
 type Invitation = {
@@ -108,6 +110,9 @@ type BenefitRequest = {
   version: number;
   evidence: BenefitEvidence[];
   reviews: BenefitReview[];
+  policyCriteria: Record<string, unknown>;
+  policyMaximumPercentage: number;
+  pendingDimensions: string[];
 };
 type Funding = {
   id: string;
@@ -319,6 +324,9 @@ type BenefitReview = {
   decision: string | null;
   percentage: number | null;
   reason: string | null;
+  createdAt: string;
+  assignedAt: string | null;
+  decidedAt: string | null;
 };
 type BenefitEvidence = {
   id: string;
@@ -4735,6 +4743,10 @@ function BenefitReviewPanel({ session }: { session: Tokens }) {
   const [requests, setRequests] = useState<
     Record<string, BenefitRequest & { evidence: BenefitEvidence[] }>
   >({});
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("TODAS");
+  const [page, setPage] = useState(0);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
   async function api(path: string, init: RequestInit = {}) {
@@ -4753,9 +4765,8 @@ function BenefitReviewPanel({ session }: { session: Tokens }) {
     const list = (await api("/analyst/benefit-reviews"))
       .result as BenefitReview[];
     setReviews(list);
-    const assigned = list.filter((item) => item.status === "ATRIBUIDA");
     const detail = await Promise.all(
-      assigned.map(
+      list.map(
         async (item) =>
           [
             item.requestId,
@@ -4765,6 +4776,17 @@ function BenefitReviewPanel({ session }: { session: Tokens }) {
     );
     setRequests(Object.fromEntries(detail));
   }
+  const filteredReviews = reviews.filter((item) => {
+    const request = requests[item.requestId];
+    const haystack = `${item.type} ${item.status} ${request?.dimensions.join(" ") ?? ""}`.toLowerCase();
+    return (statusFilter === "TODAS" || item.status === statusFilter) && haystack.includes(query.toLowerCase());
+  });
+  const visibleReviews = filteredReviews.slice(page * 5, page * 5 + 5);
+  const selected = reviews.find((item) => item.id === selectedId);
+  const selectedRequest = selected ? requests[selected.requestId] : undefined;
+  const selectedHasUninspected = selectedRequest?.evidence.some(
+    (document) => document.current && document.status !== "INSPECAO_APROVADA",
+  ) ?? false;
   useEffect(() => {
     void load().catch((e) =>
       setNotice({ tone: "error", text: (e as Error).message }),
@@ -4802,84 +4824,22 @@ function BenefitReviewPanel({ session }: { session: Tokens }) {
           revisão do próprio recurso são bloqueadas no servidor.
         </p>
       </div>
+      {!selected ? <>
+      <div className="review-toolbar">
+        <label>Buscar na fila<input value={query} onChange={(e) => { setQuery(e.target.value); setPage(0); }} placeholder="Dimensão ou situação" /></label>
+        <label>Situação<select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}><option>TODAS</option><option>PENDENTE</option><option>ATRIBUIDA</option></select></label>
+        <span>{filteredReviews.length} revisão(ões) no escopo institucional</span>
+      </div>
       <div className="registers">
         {reviews.length ? (
-          reviews.map((item) => (
+          visibleReviews.map((item) => (
             <article key={item.id}>
-              <h3>
-                {item.type} · <code>{item.requestId}</code>
-              </h3>
+              <h3>{item.type === "RECURSO" ? "Recurso de benefício" : "Análise inicial de benefício"}</h3>
               <p>
                 <strong>{item.status}</strong>
-                <span>snapshot v{item.requestVersion}</span>
+                <span>{requests[item.requestId]?.dimensions.join(" · ") || "Dimensões em carregamento"}</span>
               </p>
-              {item.status === "PENDENTE" && (
-                <button
-                  disabled={busy}
-                  onClick={() =>
-                    void action(`/analyst/benefit-reviews/${item.id}/assign`)
-                  }
-                >
-                  Assumir análise
-                </button>
-              )}
-              {item.status === "ATRIBUIDA" && (
-                <>
-                  {(requests[item.requestId]?.evidence ?? []).map(
-                    (document) => (
-                      <button
-                        key={document.id}
-                        disabled={busy || document.status !== "QUARENTENA"}
-                        onClick={() =>
-                          void action(
-                            `/analyst/benefit-reviews/${item.id}/documents/${document.id}/inspection`,
-                          )
-                        }
-                      >
-                        Inspecionar {document.purpose}
-                      </button>
-                    ),
-                  )}
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const data = new FormData(e.currentTarget);
-                      void action(
-                        `/analyst/benefit-reviews/${item.id}/decision`,
-                        {
-                          decision: data.get("decision"),
-                          percentage: Number(data.get("percentage")),
-                          reason: data.get("reason"),
-                        },
-                      );
-                    }}
-                  >
-                    <label>
-                      Decisão
-                      <select name="decision">
-                        <option>APROVADA</option>
-                        <option>REJEITADA</option>
-                      </select>
-                    </label>
-                    <label>
-                      Percentual
-                      <input
-                        name="percentage"
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        required
-                      />
-                    </label>
-                    <label>
-                      Motivo
-                      <input name="reason" required />
-                    </label>
-                    <button disabled={busy}>Registrar decisão</button>
-                  </form>
-                </>
-              )}
+              <button type="button" onClick={() => setSelectedId(item.id)}>Abrir detalhe</button>
             </article>
           ))
         ) : (
@@ -4890,6 +4850,25 @@ function BenefitReviewPanel({ session }: { session: Tokens }) {
           </article>
         )}
       </div>
+      {filteredReviews.length > 5 && <div className="pagination"><button type="button" disabled={!page} onClick={() => setPage((p) => p - 1)}>Anterior</button><span>Página {page + 1} de {Math.ceil(filteredReviews.length / 5)}</span><button type="button" disabled={(page + 1) * 5 >= filteredReviews.length} onClick={() => setPage((p) => p + 1)}>Próxima</button></div>}
+      </> : <article className="review-detail-card">{selectedRequest && selected && <>
+        <div className="card-heading"><div><span className="card-kicker">DETALHE DA REVISÃO</span><h3>{selected.type === "RECURSO" ? "Recurso de benefício" : "Solicitação de benefício"}</h3></div><button type="button" className="secondary" onClick={() => setSelectedId(null)}>Voltar à fila</button></div>
+        <div className="review-detail-grid">
+          <div><strong>Situação</strong><span>{selected.status}</span><small>Escopo institucional e autoanálise continuam decididos pelo backend.</small></div>
+          <div><strong>Dimensões de elegibilidade</strong><span>{selectedRequest.dimensions.join(" · ")}</span><small>Pendentes: {selectedRequest.pendingDimensions.length ? selectedRequest.pendingDimensions.join(" · ") : "nenhuma"}</small></div>
+          <div><strong>Política vigente</strong><span>Versão {selectedRequest.policyVersion}</span><small>Limite registrado: {selectedRequest.policyMaximumPercentage}% · não é uma aprovação.</small></div>
+          <div><strong>Critérios publicados</strong><pre>{JSON.stringify(selectedRequest.policyCriteria, null, 2)}</pre></div>
+        </div>
+        <h4>Evidências autorizadas</h4><div className="evidence-list">{selectedRequest.evidence.length ? selectedRequest.evidence.map((document) => <p key={document.id}><strong>{document.purpose}</strong><span>{document.status} · {document.mime} · {Math.ceil(document.size / 1024)} KB</span>{selected.status === "ATRIBUIDA" && document.current && document.status === "QUARENTENA" && <button disabled={busy} onClick={() => void action(`/analyst/benefit-reviews/${selected.id}/documents/${document.id}/inspection`)}>Inspecionar</button>}</p>) : <p className="empty">Nenhuma evidência autorizada vinculada.</p>}</div>
+        <h4>Histórico e pendências</h4><div className="timeline">{selectedRequest.reviews.map((review) => <p key={review.id}><strong>{review.type}</strong><span>{review.status} · {new Date(review.createdAt).toLocaleString("pt-BR")}</span><small>{review.reason ?? "Sem justificativa registrada."}</small></p>)}</div>
+        {selected.status === "PENDENTE" && <button disabled={busy} onClick={() => void action(`/analyst/benefit-reviews/${selected.id}/assign`)}>Assumir análise</button>}
+        {selected.status === "ATRIBUIDA" && <>
+          {selectedRequest.pendingDimensions.length > 0 && <p className="blocking-note">Complemento pendente para: {selectedRequest.pendingDimensions.join(" · ")}. A decisão permanece bloqueada.</p>}
+          {selectedHasUninspected && <p className="blocking-note">Há evidência sem inspeção aprovada. A inspeção técnica e a decisão humana são etapas distintas.</p>}
+          <form onSubmit={(e) => { e.preventDefault(); const data = new FormData(e.currentTarget); void action(`/analyst/benefit-reviews/${selected.id}/complement`, { reason: data.get("reason") }); }}><label>Solicitar complemento<textarea name="reason" required placeholder="Descreva a evidência ou esclarecimento previsto na política vigente." /></label><button className="secondary" disabled={busy}>Solicitar complemento</button></form>
+          {selectedRequest.pendingDimensions.length === 0 && <form onSubmit={(e) => { e.preventDefault(); const data = new FormData(e.currentTarget); void action(`/analyst/benefit-reviews/${selected.id}/decision`, { decision: data.get("decision"), percentage: Number(data.get("percentage")), reason: data.get("reason") }); }}><label>Decisão<select name="decision"><option>APROVADA</option><option>REJEITADA</option></select></label><label>Percentual conforme política<input name="percentage" type="number" min="0" max={selectedRequest.policyMaximumPercentage} step="0.01" required /><small>O servidor valida contra a política vigente; nenhum valor é pré-preenchido.</small></label><label>Justificativa<input name="reason" required /></label><button disabled={busy || selectedHasUninspected}>Registrar decisão</button></form>}
+        </>}
+      </>}</article>}
       {notice && (
         <p className={`feedback ${notice.tone}`} role="alert">
           {notice.text}
@@ -4901,6 +4880,10 @@ function BenefitReviewPanel({ session }: { session: Tokens }) {
 
 function PrivacyOperationsPanel({ session }: { session: Tokens }) {
   const [items, setItems] = useState<PrivacyRequest[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("TODOS");
+  const [page, setPage] = useState(0);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
   async function api(path: string, init: RequestInit = {}) {
@@ -4945,6 +4928,9 @@ function PrivacyOperationsPanel({ session }: { session: Tokens }) {
       setBusy(false);
     }
   }
+  const filteredItems = items.filter((item) => (statusFilter === "TODOS" || item.status === statusFilter) && `${item.protocol} ${item.type} ${item.status}`.toLowerCase().includes(query.toLowerCase()));
+  const visibleItems = filteredItems.slice(page * 5, page * 5 + 5);
+  const selected = items.find((item) => item.id === selectedId);
   return (
     <section
       className="family privacy-panel"
@@ -4958,67 +4944,20 @@ function PrivacyOperationsPanel({ session }: { session: Tokens }) {
           execução e verificação de expurgo são marcos separados e exigem MFA.
         </p>
       </div>
+      {!selected && <>
+      <div className="review-toolbar"><label>Buscar na fila<input value={query} onChange={(e) => { setQuery(e.target.value); setPage(0); }} placeholder="Protocolo ou etapa" /></label><label>Etapa<select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}><option>TODOS</option>{[...new Set(items.map((item) => item.status))].map((value) => <option key={value}>{value}</option>)}</select></label><span>{filteredItems.length} solicitação(ões) no escopo</span></div>
       <div className="registers">
         {items.length ? (
-          items.map((item) => (
+          visibleItems.map((item) => (
             <article key={item.id}>
-              <h3>{item.protocol}</h3>
+              <h3>{item.type === "EXCLUSAO" ? "Exclusão" : item.type === "CORRECAO" ? "Correção" : "Acesso"}</h3>
               <p>
                 <strong>{item.status}</strong>
                 <span>
-                  {item.type} · encerramento {item.closureStatus}
+                  {item.responsibleAssigned ? "Responsável atribuído" : "Aguardando responsável"}
                 </span>
               </p>
-              {["PENDENTE", "EM_ANALISE"].includes(item.status) && (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const response = String(
-                      new FormData(e.currentTarget).get("response"),
-                    );
-                    void action(`/privacy-requests/${item.id}/response`, {
-                      status: "RESPONDIDA",
-                      response,
-                    });
-                  }}
-                >
-                  <label>
-                    Resposta ao titular
-                    <textarea name="response" required />
-                  </label>
-                  <button disabled={busy}>Registrar resposta</button>
-                </form>
-              )}
-              {item.type === "EXCLUSAO" && item.status === "RESPONDIDA" && (
-                <button
-                  disabled={busy}
-                  onClick={() =>
-                    void action(`/privacy-requests/${item.id}/purge`)
-                  }
-                >
-                  Autorizar expurgo conforme política
-                </button>
-              )}
-              {item.status === "EXPURGO_SOLICITADO" && (
-                <button
-                  disabled={busy}
-                  onClick={() =>
-                    void action(`/privacy-requests/${item.id}/purge/execute`)
-                  }
-                >
-                  Executar alvos controlados
-                </button>
-              )}
-              {item.status === "EXPURGADA" && (
-                <button
-                  disabled={busy}
-                  onClick={() =>
-                    void action(`/privacy-requests/${item.id}/purge/verify`)
-                  }
-                >
-                  Verificar execução
-                </button>
-              )}
+              <button type="button" onClick={() => setSelectedId(item.id)}>Abrir detalhe</button>
             </article>
           ))
         ) : (
@@ -5027,6 +4966,9 @@ function PrivacyOperationsPanel({ session }: { session: Tokens }) {
           </article>
         )}
       </div>
+      {filteredItems.length > 5 && <div className="pagination"><button type="button" disabled={!page} onClick={() => setPage((p) => p - 1)}>Anterior</button><span>Página {page + 1} de {Math.ceil(filteredItems.length / 5)}</span><button type="button" disabled={(page + 1) * 5 >= filteredItems.length} onClick={() => setPage((p) => p + 1)}>Próxima</button></div>}
+      </>}
+      {selected && <article className="review-detail-card"><div className="card-heading"><div><span className="card-kicker">DETALHE DA SOLICITAÇÃO</span><h3>{selected.type === "EXCLUSAO" ? "Exclusão" : selected.type === "CORRECAO" ? "Correção" : "Acesso"}</h3></div><button type="button" className="secondary" onClick={() => setSelectedId(null)}>Voltar à fila</button></div><div className="review-detail-grid"><div><strong>Resposta</strong><span>{selected.status === "PENDENTE" || selected.status === "EM_ANALISE" ? "Pendente" : "Registrada"}</span><small>{selected.respondedAt ? new Date(selected.respondedAt).toLocaleString("pt-BR") : "Nenhuma resposta registrada."}</small></div><div><strong>Autorização</strong><span>{selected.purgeStatus ?? "Não aplicável"}</span><small>Resposta ao titular não equivale a exclusão executada.</small></div><div><strong>Execução</strong><span>{selected.status === "EXPURGADA" || selected.status === "VERIFICADA" ? "Executada" : "Pendente"}</span><small>Transformação parcial nunca é apresentada como anonimização integral.</small></div><div><strong>Verificação</strong><span>{selected.status === "VERIFICADA" ? "Verificada" : "Pendente"}</span><small>{selected.procedurePending} etapa(s) pendente(s) · {selected.preserved} registro(s) conservado(s).</small></div></div><h4>Histórico operacional</h4><div className="timeline"><p><strong>Solicitação</strong><span>{new Date(selected.createdAt).toLocaleString("pt-BR")}</span></p>{selected.response && <p><strong>Resposta ao titular</strong><span>Registrada sem declarar execução.</span></p>}{selected.purgeStatus && <p><strong>Expurgo</strong><span>{selected.purgeStatus}</span></p>}<p><strong>Conservação e bloqueios</strong><span>{selected.preserved ? `${selected.preserved} item(ns) preservado(s)` : "Nenhum registro de conservação retornado"}; {selected.procedurePending ? `${selected.procedurePending} procedimento(s) pendente(s)` : "sem procedimentos pendentes"}</span></p><p><strong>Encerramento/anonimização</strong><span>{selected.closureStatus} · {selected.anonymizationStatus}</span></p></div>{["PENDENTE", "EM_ANALISE"].includes(selected.status) && <form onSubmit={(e) => { e.preventDefault(); const response = String(new FormData(e.currentTarget).get("response")); void action(`/privacy-requests/${selected.id}/response`, { status: "RESPONDIDA", response }); }}><label>Resposta ao titular<textarea name="response" required /></label><button disabled={busy}>Registrar resposta</button></form>}{selected.type === "EXCLUSAO" && selected.status === "RESPONDIDA" && <button disabled={busy} onClick={() => void action(`/privacy-requests/${selected.id}/purge`)}>Autorizar expurgo conforme política vigente</button>}{selected.status === "EXPURGO_SOLICITADO" && <button disabled={busy} onClick={() => void action(`/privacy-requests/${selected.id}/purge/execute`)}>Executar alvos controlados</button>}{selected.status === "EXPURGADA" && <button disabled={busy} onClick={() => void action(`/privacy-requests/${selected.id}/purge/verify`)}>Verificar execução</button>}</article>}
       {notice && (
         <p className={`feedback ${notice.tone}`} role="alert">
           {notice.text}
