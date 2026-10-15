@@ -36,6 +36,9 @@ test('navegação integrada pública e autenticada por perfil e área', async ({
     await page.getByLabel('Selecionar área de atuação').selectOption({ label: area });
     await expect(page.locator('main.portfolio-content > header.portfolio-topbar')).toContainText(area);
     await expect(nav).toBeVisible();
+    if (area === 'Paciente') await page.screenshot({ path: 'test-results/reconstrucao-paciente-sanitizado.png', fullPage: true });
+    if (area === 'Familiar') await page.screenshot({ path: 'test-results/reconstrucao-familiar-sanitizado.png', fullPage: true });
+    if (area === 'Entregador') await page.screenshot({ path: 'test-results/reconstrucao-entregador-sanitizado.png', fullPage: true });
   }
 
   await page.getByLabel('Selecionar área de atuação').selectOption({ label: 'Paciente' });
