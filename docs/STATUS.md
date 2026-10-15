@@ -868,3 +868,17 @@ O SMTP Gmail em `smtp.gmail.com:587` com autenticação e STARTTLS foi aceito pe
 Evidências executadas sem registrar códigos, tokens, links ou credenciais: cadastro aceito pelo SMTP e confirmação recebida pelo autor; confirmação de e-mail concluída (`200 CONCLUIDA`); tentativa de reutilização rejeitada (`401 UNAUTHENTICATED`); login móvel aceito (`200`); recuperação aceita pelo SMTP (`202`), recebida e concluída (`200 CONCLUIDA`); a troca de senha revogou a sessão anterior (banco: uma sessão revogada e nenhuma ativa). Códigos expirados e entradas inválidas foram rejeitados conforme esperado. O recebimento foi confirmado pelo autor, sem copiar conteúdo sensível para este relatório.
 
 Limitações: o novo login após a recuperação não foi repetido automaticamente porque a nova senha foi digitada somente pelo autor; a aceitação SMTP e o recebimento foram mantidos como evidências distintas. Não houve envio a terceiros, cadastro público, contratação, cobrança, deploy ou habilitação logística. Próxima ação: preservar este registro, encerrar o backend e remover somente o PostgreSQL/volume descartável e demais artefatos temporários do ensaio; manter `.env.smtp.local` privado para configuração local futura.
+
+## Fechamento da reconstrução integrada — 15/10/2026
+
+Base: `41028cd`, branch `docs/planejamento-tecnico`. Home, acesso, painel e pedidos aprovados foram preservados. A validação reutilizou evidências recentes e cobriu a integração pendente.
+
+Correções demonstradas: seletor ambíguo de `Financeiro` restrito ao `h1` estrutural; barra lateral desktop tornou-se rolável para as onze áreas, mantendo o carrossel horizontal no mobile; contraste de `card-kicker` ajustado para AA; asserções antigas alinhadas aos textos aprovados `Solicitar cadastro` e `Olá, <nome>.`.
+
+`IntegratedAcceptanceBrowserFlowTest -DbrowserTest=true` passou na execução final, com Chromium → Vite → Spring Boot → PostgreSQL 17.6 descartável, sem interceptação. Verificou navegação pública/autenticada, áreas, rota direta, voltar/avançar, reload, logout, limpeza de cookies, responsividade 390/1280 px, overflow horizontal e Axe nos dois tamanhos. É uma jornada integrada 1/1, não cobertura completa de papéis, políticas ou combinações de dados.
+
+Build web e compilação Maven passaram. O ciclo `start → verify → stop → start` passou com backend 401 sem sessão, CSRF 403/FORBIDDEN, web 200, Flyway V19 e gate `NORMAL`; volume `exame_perto_postgres` e dados normais foram preservados. Não foram criadas contas, unidades, políticas ou saldos no banco normal.
+
+Screenshots sintéticas: `web/test-results/reconstrucao-financeiro-sanitizado.png` e `web/test-results/reconstrucao-operacao-privacidade-sanitizado.png`. As áreas novas ainda não têm aprovação visual pessoal registrada: Operação, Catálogo/unidades, Análise de benefícios, Financeiro, Operação de privacidade e fluxos de entregador. Evidência automatizada não substitui aprovação. Dependências externas não homologadas: SMTP/rota/provedor financeiro reais, critérios profissionais de elegibilidade e operação móvel em dispositivo.
+
+Comandos: `scripts/start-local.sh`, `scripts/verify-local-environment.sh`, `scripts/stop-local.sh`. Nenhum deploy foi realizado.

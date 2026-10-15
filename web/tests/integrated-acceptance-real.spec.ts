@@ -17,7 +17,7 @@ test('navegação integrada pública e autenticada por perfil e área', async ({
   await page.goBack();
   await expect(page.getByRole('heading', { name: 'Entrar', exact: true })).toBeVisible();
   await page.goForward();
-  await expect(page.getByRole('heading', { name: 'Criar conta', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Solicitar cadastro', exact: true })).toBeVisible();
   await page.goto('/endereco-inexistente');
   await expect(page.getByRole('heading', { name: 'Página não encontrada.' })).toBeVisible();
   await page.getByRole('button', { name: 'Voltar ao início' }).click();
@@ -38,8 +38,10 @@ test('navegação integrada pública e autenticada por perfil e área', async ({
   ];
   for (const area of areas) {
     await nav.getByRole('link', { name: area, exact: true }).click();
-    await expect(page.getByRole('heading', { name: area, exact: true })).toBeVisible();
+    await expect(page.locator('main.portfolio-content > header.portfolio-topbar').getByRole('heading', { name: area, exact: true })).toBeVisible();
     await expect(nav.getByRole('link', { name: area, exact: true })).toHaveAttribute('aria-current', 'page');
+    if (area === 'Financeiro') await page.screenshot({ path: 'test-results/reconstrucao-financeiro-sanitizado.png', fullPage: true });
+    if (area === 'Operação de privacidade') await page.screenshot({ path: 'test-results/reconstrucao-operacao-privacidade-sanitizado.png', fullPage: true });
   }
 
   await nav.getByRole('link', { name: 'Conta', exact: true }).click();
@@ -56,7 +58,7 @@ test('navegação integrada pública e autenticada por perfil e área', async ({
   await expect(page.getByRole('heading', { name: 'Operação', exact: true })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Segurança de ações privilegiadas' })).toBeVisible();
   await page.goto('/app/financeiro');
-  await expect(page.getByRole('heading', { name: 'Financeiro', exact: true })).toBeVisible();
+  await expect(page.locator('main.portfolio-content > header.portfolio-topbar').getByRole('heading', { name: 'Financeiro', exact: true })).toBeVisible();
   await expect(page.getByText(/Nenhum|indisponível|MFA|required/i).first()).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -74,7 +76,7 @@ test('navegação integrada pública e autenticada por perfil e área', async ({
   await page.getByLabel('E-mail', { exact: true }).fill(email);
   await page.getByLabel('Senha', { exact: true }).fill(password);
   await page.locator('button[type=submit]').click();
-  await expect(page.getByRole('heading', { name: 'Olá. O que precisa avançar hoje?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Olá,/ })).toBeVisible();
   await context.clearCookies();
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Entrar', exact: true })).toBeVisible();

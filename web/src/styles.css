@@ -345,7 +345,7 @@ button:disabled {
 .dashboard-primary h3 { margin: .75rem 0 .4rem; font-size: 1.45rem; letter-spacing: -.04em; }
 .dashboard-primary p { max-width: 420px; margin: 0; color: #b6cdc0; font-size: .82rem; line-height: 1.55; }
 .dashboard-primary button { margin-top: 1.3rem; padding: .75rem 1rem; background: #d9f16b; color: #193b36; font-size: .75rem; }
-.card-kicker { color: #79a78d; font: .64rem 'DM Mono', monospace; letter-spacing: .08em; }
+.card-kicker { color: #476f5d; font: .64rem 'DM Mono', monospace; letter-spacing: .08em; }
 .primary-mark { position: relative; display: grid; place-items: center; width: 180px; height: 180px; margin-right: 5%; border: 1px solid #46695c; border-radius: 50%; }
 .primary-mark span { display: grid; place-items: center; width: 4rem; height: 4rem; border-radius: 50%; background: #d9f16b; color: #193b36; font-size: 1.4rem; }
 .primary-mark i { position: absolute; inset: 18px; border: 1px solid #46695c; border-radius: 50%; }.primary-mark i:nth-child(3) { inset: -18px; opacity: .5; }.primary-mark i:nth-child(4) { inset: 45px; opacity: .5; }
@@ -977,11 +977,14 @@ textarea:focus-visible {
   font-size: 0.72rem;
 }
 .portfolio-sidebar nav {
+  flex: 1 1 auto;
   min-width: 0;
   max-width: 100%;
   display: grid;
   gap: 0.15rem;
   margin: 0.35rem 0;
+  min-height: 0;
+  overflow-y: auto;
 }
 .portfolio-sidebar nav a {
   display: block;
@@ -1483,10 +1486,12 @@ textarea:focus-visible {
     display: none;
   }
   .portfolio-sidebar nav {
+    flex: 0 1 auto;
     width: 100%;
     min-width: 0;
     display: flex;
     overflow-x: auto;
+    overflow-y: hidden;
     flex-wrap: nowrap;
     margin: 0;
     padding-bottom: 0.35rem;
