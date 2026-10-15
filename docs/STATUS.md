@@ -1,5 +1,39 @@
 # Status — atualizado em 14/10/2026
 
+## Experiência da área operacional — 14/10/2026
+
+`/app/operacao` foi separado em uma entrada operacional com abas de
+`Entregadores` e `Veículos`, MFA em uma única área de segurança, fila com
+filtro de situação, busca, paginação e detalhe independente. O detalhe não
+expõe UUIDs: mostra a situação, evidência autorizada, estado do documento,
+pendência e histórico; as ações de atribuição, inspeção e decisão continuam
+chamando as APIs existentes, com permissões, quarentena, autoanálise e
+política profissional decididas pelo backend.
+
+O retorno de revisão passou a incluir somente metadados necessários à tela
+(categoria, MIME, tamanho, estado do documento e data de criação). Não houve
+alteração de regra de aprovação, criação de parceiro, habilitação automática
+ou escrita no banco normal. A decisão profissional segue bloqueada quando a
+política aplicável está indefinida; a interface informa que inspeção técnica
+não equivale à aprovação.
+
+Também foi corrigido o aviso React no `OrderPanel`: cada resumo de pedido
+agora usa `order.id` como chave estável. O segredo TOTP deixa de permanecer
+visível depois que a sessão é elevada.
+
+Validação final pelo navegador, sem interceptação, com Spring e PostgreSQL
+17.6 em Testcontainers descartável: MFA e atribuição nominal, inspeção de
+evidência, recusa de autoanálise, recusa sem MFA, benefícios e privacidade.
+Resultado: 1 teste aprovado em 15,0 s; o log não registrou o aviso de `key`.
+O primeiro ensaio falhou apenas porque o fixture compartilhado selecionava o
+primeiro registro (já atribuído por outro analista); o seletor foi corrigido
+para o registro sintético correspondente e a repetição passou.
+
+Capturas sintéticas, sem dados pessoais: `/tmp/exameperto-operacao-entregador.png`
+e `/tmp/exameperto-operacao-veiculos.png`. Elas representam uma sessão de
+teste elevada, não login exercitado da conta real. URLs: `/app/operacao`, com
+as abas `Entregadores` e `Veículos`.
+
 ## Validação final da jornada do entregador — 14/10/2026
 
 Partindo de `83e8ab5`, os testes de designação e custódia foram atualizados

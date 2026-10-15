@@ -122,7 +122,7 @@ class DelivererService {
         return safe;
     }
 
-    List<ReviewView> queue(UUID userId) { requireAnalyst(userId); return jdbc.query("SELECT id,entregador_id,documento_id,analista_id,estado,decisao,motivo_codigo FROM revisao_entregador WHERE estado IN ('PENDENTE','ATRIBUIDA') ORDER BY criado_em,id", (rs,n)->new ReviewView(rs.getObject(1,UUID.class),rs.getObject(2,UUID.class),rs.getObject(3,UUID.class),rs.getObject(4,UUID.class),rs.getString(5),rs.getString(6),rs.getString(7))); }
+    List<ReviewView> queue(UUID userId) { requireAnalyst(userId); return jdbc.query("SELECT r.id,r.entregador_id,r.documento_id,r.analista_id,r.estado,r.decisao,r.motivo_codigo,d.categoria,d.mime,d.tamanho,d.estado,r.criado_em FROM revisao_entregador r LEFT JOIN documento d ON d.id=r.documento_id WHERE r.estado IN ('PENDENTE','ATRIBUIDA') ORDER BY r.criado_em,r.id", (rs,n)->reviewView(rs)); }
 
     @Transactional
     ReviewView assign(AuthService.SessionPrincipal principal, UUID reviewId) {
@@ -167,7 +167,8 @@ class DelivererService {
     void requireAnalyst(UUID id) { active(id); if (jdbc.queryForObject("SELECT count(*) FROM papel_global WHERE usuario_id=? AND papel='ANALISTA_OPERACIONAL' AND revogado_em IS NULL",Long.class,id)==0) throw error(HttpStatus.FORBIDDEN,"FORBIDDEN","Analista atribuído não encontrado."); }
     private Map<String,Object> reviewForUpdate(UUID id){try{return jdbc.queryForMap("SELECT id,entregador_id,documento_id,analista_id,estado FROM revisao_entregador WHERE id=? FOR UPDATE",id);}catch(EmptyResultDataAccessException ex){throw error(HttpStatus.NOT_FOUND,"NOT_FOUND","Revisão não encontrada.");}}
     private Map<String,Object> assignedReview(UUID id,UUID analyst){Map<String,Object> row=reviewForUpdate(id);if(!analyst.equals(row.get("analista_id")) || !"ATRIBUIDA".equals(row.get("estado")))throw error(HttpStatus.NOT_FOUND,"NOT_FOUND","Revisão atribuída não encontrada.");return row;}
-    private ReviewView review(UUID id){return jdbc.queryForObject("SELECT id,entregador_id,documento_id,analista_id,estado,decisao,motivo_codigo FROM revisao_entregador WHERE id=?",(rs,n)->new ReviewView(rs.getObject(1,UUID.class),rs.getObject(2,UUID.class),rs.getObject(3,UUID.class),rs.getObject(4,UUID.class),rs.getString(5),rs.getString(6),rs.getString(7)),id);}
+    private ReviewView review(UUID id){return jdbc.queryForObject("SELECT r.id,r.entregador_id,r.documento_id,r.analista_id,r.estado,r.decisao,r.motivo_codigo,d.categoria,d.mime,d.tamanho,d.estado,r.criado_em FROM revisao_entregador r LEFT JOIN documento d ON d.id=r.documento_id WHERE r.id=?",(rs,n)->reviewView(rs),id);}
+    private ReviewView reviewView(java.sql.ResultSet rs) throws java.sql.SQLException {return new ReviewView(rs.getObject(1,UUID.class),rs.getObject(2,UUID.class),rs.getObject(3,UUID.class),rs.getObject(4,UUID.class),rs.getString(5),rs.getString(6),rs.getString(7),rs.getString(8),rs.getString(9),rs.getLong(10),rs.getString(11),rs.getTimestamp(12).toInstant());}
     private boolean safeStructure(byte[] bytes,String mime){
         if(bytes.length==0||bytes.length>MAX)return false;
         if("application/pdf".equals(mime)){String value=new String(bytes,StandardCharsets.ISO_8859_1);return value.startsWith("%PDF-")&&value.stripTrailing().endsWith("%%EOF")&&!List.of("/JavaScript","/JS","/Launch","/EmbeddedFile","/OpenAction","/RichMedia").stream().anyMatch(value::contains);}

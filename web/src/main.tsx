@@ -303,6 +303,11 @@ type DelivererReview = {
   status: string;
   decision: string | null;
   reason: string | null;
+  category: string | null;
+  mime: string | null;
+  size: number;
+  documentStatus: string | null;
+  createdAt: string;
 };
 type BenefitReview = {
   id: string;
@@ -2417,8 +2422,8 @@ function VehicleReviewPanel({ session }: { session: Tokens }) {
   const [reviews, setReviews] = useState<VehicleReview[]>([]);
   const [available, setAvailable] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
-  const [secret, setSecret] = useState("");
   const [busy, setBusy] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   async function call(path: string, init: RequestInit = {}) {
     const r = await fetch(`/api/v1${path}`, {
       ...init,
@@ -2462,27 +2467,6 @@ function VehicleReviewPanel({ session }: { session: Tokens }) {
       setBusy(false);
     }
   }
-  async function enroll(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const password = new FormData(e.currentTarget).get("password");
-    await run(async () => {
-      const b = await call("/me/mfa/totp/enrollment", {
-        method: "POST",
-        body: JSON.stringify({ password }),
-      });
-      setSecret(b.secret);
-    }, "Segredo emitido. Confirme o código atual para elevar esta sessão.");
-  }
-  async function confirm(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const code = new FormData(e.currentTarget).get("code");
-    await run(async () => {
-      await call("/me/mfa/totp/confirmation", {
-        method: "POST",
-        body: JSON.stringify({ code }),
-      });
-    }, "MFA confirmado temporariamente nesta sessão.");
-  }
   async function action(review: VehicleReview, path: string, message: string) {
     await run(async () => {
       await call(`/analyst/vehicle-reviews/${review.id}${path}`, {
@@ -2524,6 +2508,7 @@ function VehicleReviewPanel({ session }: { session: Tokens }) {
     }
   }
   if (!available) return null;
+  const selected = reviews.find((review) => review.id === selectedId) ?? null;
   return (
     <section
       className="family review-panel"
@@ -2538,106 +2523,14 @@ function VehicleReviewPanel({ session }: { session: Tokens }) {
           continuam independentes.
         </p>
       </div>
-      <div className="work-grid">
-        <form className="work-card" onSubmit={enroll}>
-          <h3>Configurar MFA</h3>
-          <label>Senha atual</label>
-          <input
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-          />
-          <button disabled={busy}>Emitir segredo TOTP</button>
-          {secret && (
-            <small>
-              Segredo temporário: <code>{secret}</code>
-            </small>
-          )}
-        </form>
-        <form className="work-card" onSubmit={confirm}>
-          <h3>Elevar esta sessão</h3>
-          <label>Código de seis dígitos</label>
-          <input name="code" inputMode="numeric" pattern="[0-9]{6}" required />
-          <button disabled={busy}>Confirmar MFA</button>
-        </form>
-      </div>
-      <div className="registers vehicle-registers">
-        {reviews.length ? (
-          reviews.map((review) => (
-            <article key={review.id}>
-              <h3>
-                Vínculo <code>{review.linkId}</code>
-              </h3>
-              <p>
-                <code>{review.id}</code>
-                <strong>{review.status}</strong>
-                <span>snapshot da versão {review.linkVersion}</span>
-                {review.status === "PENDENTE" && (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() =>
-                      void action(review, "/assign", "Revisão atribuída.")
-                    }
-                  >
-                    Assumir revisão
-                  </button>
-                )}
-              </p>
-              {review.documents.map((document) => (
-                <p key={document.id}>
-                  <code>{document.id}</code>
-                  <strong>{document.status}</strong>
-                  <span>{document.purpose}</span>
-                  {review.status === "ATRIBUIDA" && (
-                    <>
-                      <button
-                        type="button"
-                        disabled={busy || document.status !== "QUARENTENA"}
-                        onClick={() =>
-                          void action(
-                            review,
-                            `/documents/${document.id}/inspection`,
-                            "Inspeção estrutural registrada.",
-                          )
-                        }
-                      >
-                        Inspecionar estrutura
-                      </button>
-                      <button
-                        type="button"
-                        disabled={
-                          busy || document.status !== "INSPECAO_APROVADA"
-                        }
-                        onClick={() => void download(review, document)}
-                      >
-                        Download autorizado
-                      </button>
-                    </>
-                  )}
-                </p>
-              ))}
-              {review.status === "ATRIBUIDA" && (
-                <button
-                  type="button"
-                  className="review-decision"
-                  disabled={busy}
-                  onClick={() =>
-                    void action(review, "/decision", "Decisão registrada.")
-                  }
-                >
-                  Solicitar decisão
-                </button>
-              )}
-            </article>
-          ))
-        ) : (
-          <article>
-            <p className="empty">Nenhuma revisão de veículo na fila.</p>
-          </article>
-        )}
-      </div>
+      {selected ? (
+        <article className="review-detail-card">
+          <div className="card-heading"><div><span className="card-kicker">DETALHE DA REVISÃO</span><h3>Vínculo de veículo</h3></div><button type="button" className="secondary" onClick={() => setSelectedId(null)}>Voltar à fila</button></div>
+          <div className="review-detail-grid"><div><strong>Situação</strong><span>{selected.status}</span><small>Snapshot da versão {selected.linkVersion}.</small></div><div><strong>Documentos autorizados</strong><span>{selected.documents.length ? `${selected.documents.length} documento(s)` : "Nenhum documento"}</span><small>Quarentena, inspeção e decisão permanecem separados.</small></div></div>
+          {selected.documents.map((document) => <div className="review-evidence-row" key={document.id}><strong>{document.status}</strong><span>{document.purpose}</span>{selected.status === "ATRIBUIDA" && <><button type="button" disabled={busy || document.status !== "QUARENTENA"} onClick={() => void action(selected, `/documents/${document.id}/inspection`, "Inspeção estrutural registrada.")}>Inspecionar estrutura</button><button type="button" disabled={busy || document.status !== "INSPECAO_APROVADA"} onClick={() => void download(selected, document)}>Download autorizado</button></>}</div>)}
+          <div className="journey-actions">{selected.status === "PENDENTE" && <button type="button" disabled={busy} onClick={() => void action(selected, "/assign", "Revisão atribuída.")}>Assumir revisão</button>}{selected.status === "ATRIBUIDA" && <button type="button" disabled={busy} onClick={() => void action(selected, "/decision", "Decisão registrada.")}>Solicitar decisão</button>}</div>
+        </article>
+      ) : <div className="registers vehicle-registers">{reviews.length ? reviews.map((review) => <article key={review.id}><h3>Vínculo de veículo</h3><p><strong>{review.status}</strong><span>snapshot da versão {review.linkVersion}</span></p><button type="button" onClick={() => setSelectedId(review.id)}>Abrir detalhe</button></article>) : <article><p className="empty">Nenhuma revisão de veículo na fila.</p></article>}</div>}
       {notice && (
         <p className={`feedback ${notice.tone}`} role="alert">
           {notice.text}
@@ -3252,6 +3145,7 @@ function OrderPanel({ session }: { session: Tokens }) {
     : "Ainda não há uma unidade de retirada disponível para seleção. O catálogo só mostra unidades ativas com parceria aceita, protocolo de custódia habilitado e cobertura de retorno vigente; nenhum identificador foi inventado.";
   const renderOrderSummary = (order: Order) => (
     <button
+      key={order.id}
       className="order-list-item"
       type="button"
       onClick={() => setSelectedOrderId(order.id)}
@@ -4354,7 +4248,7 @@ function MfaAccess({ session }: { session: Tokens }) {
           <button disabled={busy}>Validar sessão</button>
         </form>
       )}
-      {secret && (
+      {secret && !status?.verifiedForSession && (
         <p className="secret-once">
           Segredo exibido uma vez: <code>{secret}</code>
         </p>
@@ -4695,10 +4589,35 @@ function DeliveryWorkPanel({ session }: { session: Tokens }) {
   );
 }
 
+function OperationalWorkspace({ session }: { session: Tokens }) {
+  const [queue, setQueue] = useState<"deliverers" | "vehicles">("deliverers");
+  return (
+    <>
+      <section className="family operational-workspace" aria-label="Área operacional">
+        <div className="section-heading">
+          <span className="eyebrow dark">OPERAÇÃO</span>
+          <h2>Decisões com rastreabilidade</h2>
+          <p>Escolha uma fila, consulte o detalhe autorizado e execute apenas a próxima ação permitida.</p>
+        </div>
+        <div className="tabs" role="tablist" aria-label="Filas operacionais">
+          <button type="button" className="tab" role="tab" aria-selected={queue === "deliverers"} onClick={() => setQueue("deliverers")}>Entregadores</button>
+          <button type="button" className="tab" role="tab" aria-selected={queue === "vehicles"} onClick={() => setQueue("vehicles")}>Veículos</button>
+        </div>
+      </section>
+      <MfaAccess session={session} />
+      {queue === "deliverers" ? <OperationalReviewPanel session={session} /> : <VehicleReviewPanel session={session} />}
+    </>
+  );
+}
+
 function OperationalReviewPanel({ session }: { session: Tokens }) {
   const [reviews, setReviews] = useState<DelivererReview[]>([]);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("TODAS");
+  const [page, setPage] = useState(0);
   async function api(path: string, init: RequestInit = {}) {
     return parse(
       await fetch(`/api/v1${path}`, {
@@ -4744,6 +4663,12 @@ function OperationalReviewPanel({ session }: { session: Tokens }) {
       setBusy(false);
     }
   }
+  const filteredReviews = reviews.filter((item) =>
+    (statusFilter === "TODAS" || item.status === statusFilter) &&
+    (!query.trim() || `${item.category ?? ""} ${item.documentStatus ?? ""} ${item.status}`.toLowerCase().includes(query.trim().toLowerCase())),
+  );
+  const visibleReviews = filteredReviews.slice(page * 5, page * 5 + 5);
+  const selected = reviews.find((item) => item.id === selectedId) ?? null;
   return (
     <section
       className="family review-panel"
@@ -4757,54 +4682,45 @@ function OperationalReviewPanel({ session }: { session: Tokens }) {
           pelo backend. Inspeção técnica não equivale à aprovação profissional.
         </p>
       </div>
-      <div className="registers">
-        {reviews.length ? (
-          reviews.map((item) => (
-            <article key={item.id}>
-              <h3>
-                Entregador <code>{item.delivererId}</code>
-              </h3>
-              <p>
-                <strong>{item.status}</strong>
-                <span>documento {item.documentId}</span>
-              </p>
-              {item.status === "PENDENTE" && (
-                <button
-                  disabled={busy}
-                  onClick={() => void action(item, "assign")}
-                >
-                  Assumir análise
-                </button>
-              )}
-              {item.status === "ATRIBUIDA" && (
-                <>
-                  <button
-                    disabled={busy}
-                    onClick={() => void action(item, "inspection")}
-                  >
-                    Inspecionar arquivo
-                  </button>
-                  <button
-                    disabled={busy}
-                    onClick={() =>
-                      void action(item, "decision", {
-                        decision: "APROVAR",
-                        reason: "ANALISE_NOMINAL",
-                      })
-                    }
-                  >
-                    Submeter decisão à política
-                  </button>
-                </>
-              )}
-            </article>
-          ))
-        ) : (
-          <article>
-            <p className="empty">Fila operacional vazia.</p>
-          </article>
-        )}
-      </div>
+      {selected ? (
+        <article className="review-detail-card">
+          <div className="card-heading">
+            <div><span className="card-kicker">DETALHE DA REVISÃO</span><h3>Cadastro de entregador</h3></div>
+            <button type="button" className="secondary" onClick={() => setSelectedId(null)}>Voltar à fila</button>
+          </div>
+          <div className="review-detail-grid">
+            <div><strong>Situação</strong><span>{selected.status}</span><small>O backend mantém a decisão e a permissão.</small></div>
+            <div><strong>Documento autorizado</strong><span>{selected.category ?? "Evidência vinculada"}</span><small>{selected.documentStatus ?? "Status indisponível"} · {selected.mime ?? "formato protegido"} · {selected.size ? `${Math.ceil(selected.size / 1024)} KB` : "tamanho não informado"}</small></div>
+            <div><strong>Pendência</strong><span>{selected.reason ?? "Nenhum motivo informado pelo servidor."}</span><small>Inspeção estrutural não equivale à aprovação profissional.</small></div>
+            <div><strong>Histórico</strong><span>Revisão criada em {new Date(selected.createdAt).toLocaleString("pt-BR")}</span><small>Próxima ação depende de MFA, atribuição nominal e política vigente.</small></div>
+          </div>
+          <div className="journey-actions">
+            {selected.status === "PENDENTE" && <button disabled={busy} onClick={() => void action(selected, "assign")}>Assumir análise</button>}
+            {selected.status === "ATRIBUIDA" && <>
+              <button disabled={busy} onClick={() => void action(selected, "inspection")}>Inspecionar evidência</button>
+              <button disabled={busy} onClick={() => void action(selected, "decision", { decision: "APROVAR", reason: "ANALISE_NOMINAL" })}>Solicitar decisão</button>
+            </>}
+          </div>
+        </article>
+      ) : (
+        <>
+          <div className="review-toolbar">
+            <label>Buscar situação ou evidência<input value={query} onChange={(e) => { setQuery(e.target.value); setPage(0); }} placeholder="Ex.: quarentena" /></label>
+            <label>Situação<select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}><option>TODAS</option><option>PENDENTE</option><option>ATRIBUIDA</option></select></label>
+            <span>{filteredReviews.length} item(ns) na fila</span>
+          </div>
+          <div className="registers">
+            {visibleReviews.length ? visibleReviews.map((item) => (
+              <article key={item.id}>
+                <h3>Cadastro de entregador</h3>
+                <p><strong>{item.status}</strong><span>{item.category ?? "Evidência vinculada"} · {item.documentStatus ?? "status não informado"}</span></p>
+                <button type="button" onClick={() => setSelectedId(item.id)}>Abrir detalhe</button>
+              </article>
+            )) : <article><p className="empty">Nenhuma revisão corresponde aos filtros.</p></article>}
+          </div>
+          {filteredReviews.length > 5 && <div className="pagination"><button type="button" disabled={page === 0} onClick={() => setPage((value) => value - 1)}>Anterior</button><span>Página {page + 1} de {Math.ceil(filteredReviews.length / 5)}</span><button type="button" disabled={(page + 1) * 5 >= filteredReviews.length} onClick={() => setPage((value) => value + 1)}>Próxima</button></div>}
+        </>
+      )}
       {notice && (
         <p className={`feedback ${notice.tone}`} role="alert">
           {notice.text}
@@ -5408,13 +5324,7 @@ function PortfolioApp({
       case "entregas":
         return <DeliveryWorkPanel session={session} />;
       case "operacao":
-        return (
-          <>
-            <MfaAccess session={session} />
-            <OperationalReviewPanel session={session} />
-            <VehicleReviewPanel session={session} />
-          </>
-        );
+        return <OperationalWorkspace session={session} />;
       case "catalogo":
         return <UnitCatalogPanel session={session} />;
       case "analise-beneficios":

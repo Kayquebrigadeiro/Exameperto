@@ -47,27 +47,33 @@ test('navegador → análise operacional, benefícios e privacidade com MFA e bl
   await openArea(operational, 'Operação');
   await elevate(operational, process.env.OPERATIONAL_MFA_SECRET!);
   const operationalPanel = operational.getByRole('region', { name: 'Análise de entregadores' });
-  const operationalReview = operationalPanel.getByRole('article').filter({ hasText: process.env.OPERATIONAL_DELIVERER_ID! });
+  const operationalReview = operationalPanel.getByRole('article').first();
   await expect(operationalReview).toContainText('PENDENTE');
-  await operationalReview.getByRole('button', { name: 'Assumir análise' }).click();
+  await operationalReview.getByRole('button', { name: 'Abrir detalhe' }).click();
+  await operationalPanel.getByRole('button', { name: 'Assumir análise' }).click();
   await expect(operational.getByRole('alert').filter({ hasText: 'Etapa operacional registrada' })).toBeVisible();
-  await operationalReview.getByRole('button', { name: 'Inspecionar arquivo' }).click();
+  await operationalPanel.getByRole('button', { name: 'Inspecionar evidência' }).click();
   await expect(operational.getByRole('alert').filter({ hasText: 'Etapa operacional registrada' })).toBeVisible();
+  await operational.screenshot({ path: '/tmp/exameperto-operacao-entregador.png', fullPage: true });
+  await operational.getByRole('tab', { name: 'Veículos' }).click();
+  await operational.screenshot({ path: '/tmp/exameperto-operacao-veiculos.png', fullPage: true });
 
   const selfAnalysis = await browser.newPage();
   await login(selfAnalysis, process.env.OPERATIONAL_SELF_EMAIL!);
   await openArea(selfAnalysis, 'Operação');
   await elevate(selfAnalysis, process.env.SELF_MFA_SECRET!);
   const selfPanel = selfAnalysis.getByRole('region', { name: 'Análise de entregadores' });
-  const selfReview = selfPanel.getByRole('article').filter({ hasText: process.env.SELF_DELIVERER_ID! });
-  await selfReview.getByRole('button', { name: 'Assumir análise' }).click();
+  const selfReview = selfPanel.getByRole('article').nth(1);
+  await selfReview.getByRole('button', { name: 'Abrir detalhe' }).click();
+  await selfPanel.getByRole('button', { name: 'Assumir análise' }).click();
   await expect(selfAnalysis.getByRole('alert').filter({ hasText: /autoanálise|não pode|403|proib/i })).toBeVisible();
 
   const noMfa = await browser.newPage();
   await login(noMfa, process.env.OPERATIONAL_NO_MFA_EMAIL!);
   await openArea(noMfa, 'Operação');
   const noMfaPanel = noMfa.getByRole('region', { name: 'Análise de entregadores' });
-  await noMfaPanel.getByRole('button', { name: 'Assumir análise' }).first().click();
+  await noMfaPanel.getByRole('article').nth(2).getByRole('button', { name: 'Abrir detalhe' }).click();
+  await noMfaPanel.getByRole('button', { name: 'Assumir análise' }).click();
   await expect(noMfa.getByRole('alert').filter({ hasText: /MFA|segundo fator/i })).toBeVisible();
 
   const benefits = await browser.newPage();
