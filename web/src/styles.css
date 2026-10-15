@@ -370,6 +370,10 @@ button.tab[aria-pressed="true"] {
   background: #275f50;
   color: #f4f7ee;
 }
+button.tab[aria-selected="true"] {
+  background: #275f50;
+  color: #f4f7ee;
+}
 button.tab:hover:not(:disabled) {
   background: #dceee3;
   color: #20322e;
@@ -456,6 +460,29 @@ button:focus-visible {
   margin-top: 0.9rem;
   color: #65756f;
   overflow-wrap: anywhere;
+}
+.deliverer-status-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-top: 1rem;
+  padding: 1.5rem;
+  border-radius: 0.7rem;
+  background: #203f38;
+  color: #f4f7ee;
+}
+.deliverer-status-card h3 { margin: .5rem 0; font-size: 1.35rem; text-transform: capitalize; }
+.deliverer-status-card p { max-width: 38rem; margin: 0; color: #bfd1c5; font-size: .8rem; line-height: 1.5; }
+.deliverer-status-card > strong { align-self: center; white-space: nowrap; font: .7rem 'DM Mono', monospace; }
+.status-ok { color: #d9f16b; }
+.status-pending { color: #f0c28e; }
+.progress-track { display: grid; grid-template-columns: repeat(4, 1fr); gap: .6rem; margin: 1rem 0; }
+.progress-track > div { display: grid; gap: .45rem; padding: .8rem; border: 1px solid #cad5ca; border-radius: .5rem; color: #7b8d85; font-size: .7rem; }
+.progress-track > div.is-done { border-color: #79a78d; color: #275f50; background: #eef5e9; }
+.progress-track span { font-size: 1.1rem; }
+@media (max-width: 760px) {
+  .deliverer-status-card { display: grid; }
+  .progress-track { grid-template-columns: repeat(2, 1fr); }
 }
 fieldset {
   margin: 1rem 0 0;

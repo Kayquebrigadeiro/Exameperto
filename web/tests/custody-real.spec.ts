@@ -40,8 +40,9 @@ test('navegador → API real → PostgreSQL ensaia custódia e segredo do destin
   await loginUi(driverPage, process.env.CUSTODY_DRIVER_EMAIL!);
   await driverPage.getByRole('navigation', { name: 'Áreas do produto' }).getByRole('link', { name: 'Minhas entregas', exact: true }).click();
   const deliveryPanel = driverPage.getByRole('region', { name: 'Ofertas e entregas' });
-  const deliveryTask = deliveryPanel.locator('.task-record').filter({ hasText: delivered });
-  const incidentTask = deliveryPanel.locator('.task-record').filter({ hasText: incident });
+  await deliveryPanel.getByRole('tab', { name: 'Entrega atribuída', exact: true }).click();
+  const deliveryTask = deliveryPanel.locator('.task-record').nth(0);
+  const incidentTask = deliveryPanel.locator('.task-record').nth(1);
   await deliveryTask.getByRole('button', { name: 'Registrar retirada' }).click();
   await expect(driverPage.getByRole('alert')).toContainText('Retirada e custódia registradas');
   await expect(deliveryTask).toContainText('Custódia ATIVA');
@@ -50,7 +51,9 @@ test('navegador → API real → PostgreSQL ensaia custódia e segredo do destin
   await incidentTask.getByRole('button', { name: 'Registrar retirada' }).click();
   await expect(driverPage.getByRole('alert')).toContainText('Retirada e custódia registradas');
   await driverPage.goto('/app/entregas');
-  const refreshedIncidentTask = driverPage.getByRole('region', { name: 'Ofertas e entregas' }).locator('.task-record').filter({ hasText: incident });
+  const refreshedPanel = driverPage.getByRole('region', { name: 'Ofertas e entregas' });
+  await refreshedPanel.getByRole('tab', { name: 'Entrega atribuída', exact: true }).click();
+  const refreshedIncidentTask = refreshedPanel.locator('.task-record').nth(1);
   await refreshedIncidentTask.getByLabel('Descrição').fill('ensaio sintético isolado');
   await refreshedIncidentTask.getByRole('button', { name: 'Registrar ocorrência' }).click();
   await expect(driverPage.getByRole('alert')).toContainText('Ocorrência registrada');

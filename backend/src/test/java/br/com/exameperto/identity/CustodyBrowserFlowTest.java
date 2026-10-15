@@ -35,6 +35,7 @@ class CustodyBrowserFlowTest {
         jdbc.update("INSERT INTO tarifa(id,numero,formula_codigo,parametros,inicio,estado) VALUES (?,101,'BASE_KM_MINUTO','{}',clock_timestamp(),'ATIVA')",tariff);
         jdbc.update("INSERT INTO politica_cancelamento(id,numero,criterios,inicio,estado) VALUES (?,102,'{}',clock_timestamp(),'ATIVA')",cancel);
         jdbc.update("INSERT INTO politica_designacao(id,numero,limite_tarefas_simultaneas,inicio,estado) VALUES (?,103,3,clock_timestamp(),'ATIVA')",assignmentPolicy);
+        jdbc.update("INSERT INTO unidade_retirada(id,nome,cidade,estado,estado_cadastro,criado_por,atualizado_por) VALUES (?,'Unidade sintética','Cidade','SP','ATIVA',?,?)",unit,recipient.id,recipient.id);
         jdbc.update("INSERT INTO protocolo_custodia(id,unidade_id,numero,regras,cobertura_retorno_confirmada,inicio,estado) VALUES (?,?,1,'{}',true,clock_timestamp(),'HABILITADO')",protocol,unit);
         UUID delivery=order(patient,recipient.id,driver,link,tariff,cancel,assignmentPolicy,unit,protocol);
         UUID incident=order(patient,recipient.id,driver,link,tariff,cancel,assignmentPolicy,unit,protocol);

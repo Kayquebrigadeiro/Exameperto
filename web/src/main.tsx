@@ -68,6 +68,7 @@ type Evidence = {
   size: number;
   status: string;
   version: number;
+  reason?: string | null;
 };
 type VehicleEvidence = Evidence & { purpose: string; current: boolean };
 type VehicleLink = {
@@ -1911,11 +1912,15 @@ function DelivererPanel({ session }: { session: Tokens }) {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [section, setSection] = useState<"overview" | "documents" | "vehicles">("overview");
+  const [documentSection, setDocumentSection] = useState<"profile" | "upload" | "history">("profile");
+  const [offerAccess, setOfferAccess] = useState<"loading" | "allowed" | string>("loading");
   async function load() {
     const h = { Authorization: `Bearer ${session.accessToken}` };
     const p = await fetch("/api/v1/me/deliverer", { headers: h });
     if (p.ok) {
-      setProfile(await p.json());
+      const current = (await p.json()) as Deliverer;
+      setProfile(current);
       const d = await fetch("/api/v1/me/deliverer/documents", { headers: h });
       if (d.ok) setDocs(await d.json());
       const v = await fetch("/api/v1/me/vehicle-links", { headers: h });
@@ -1927,7 +1932,16 @@ function DelivererPanel({ session }: { session: Tokens }) {
             links.find((item) => item.id === selectedVehicle.id) ?? null,
           );
       }
-    } else if (p.status !== 404)
+      const offers = await fetch("/api/v1/offers", { headers: h });
+      if (offers.ok) setOfferAccess("allowed");
+      else {
+        const body = await offers.json().catch(() => ({}));
+        setOfferAccess(body.message ?? "A habilitação para receber ofertas ainda não foi confirmada.");
+      }
+    } else if (p.status === 404) {
+      setProfile(null);
+      setOfferAccess("Crie o cadastro para consultar a habilitação de ofertas.");
+    } else
       throw new Error("Não foi possível consultar o cadastro.");
   }
   useEffect(() => {
@@ -2093,8 +2107,50 @@ function DelivererPanel({ session }: { session: Tokens }) {
           distintas. Nenhum upload habilita entregas.
         </p>
       </div>
+      <div className="tabs" role="tablist" aria-label="Área do entregador">
+        {([
+          ["overview", "Visão geral"],
+          ["documents", "Cadastro e documentos"],
+          ["vehicles", "Veículos e vínculos"],
+        ] as const).map(([value, label]) => (
+          <button type="button" className="tab" role="tab" aria-selected={section === value} key={value} onClick={() => setSection(value)}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {section === "overview" && (
+        <>
+          <div className="deliverer-status-card">
+            <div>
+              <span className="card-kicker">SITUAÇÃO DO CADASTRO</span>
+              <h3>{profile ? profile.status.replaceAll("_", " ") : "Ainda não iniciado"}</h3>
+              <p>{profile ? "Acesso à área, cadastro enviado, análise documental e habilitação para ofertas são estados diferentes." : "Sua conta tem acesso à área. Comece o cadastro quando quiser; nenhum documento ou oferta foi presumido."}</p>
+            </div>
+            <strong className={offerAccess === "allowed" ? "status-ok" : "status-pending"}>
+              {offerAccess === "loading" ? "Consultando habilitação…" : offerAccess === "allowed" ? "Habilitado para receber ofertas" : "Ofertas ainda bloqueadas"}
+            </strong>
+          </div>
+          <div className="progress-track" aria-label="Progresso do cadastro">
+            {[["Acesso à área", true], ["Cadastro enviado", Boolean(profile)], ["Documentos analisados", docs.some((item) => item.status === "INSPECAO_APROVADA")], ["Ofertas liberadas", offerAccess === "allowed"]].map(([label, done]) => (
+              <div className={done ? "is-done" : ""} key={String(label)}><span>{done ? "✓" : "○"}</span><strong>{label}</strong></div>
+            ))}
+          </div>
+          <div className="empty-state">
+            <strong>Próximas ações</strong>
+            <p>{!profile ? "Informe sua data de nascimento para enviar o cadastro." : !docs.length ? "Envie documentos e aguarde a análise profissional." : !vehicles.length ? "Cadastre um veículo e seu vínculo." : offerAccess === "allowed" ? "Nenhuma pendência de habilitação foi informada pelo servidor." : "A habilitação para ofertas continua bloqueada por requisitos do backend."}</p>
+            <button type="button" onClick={() => setSection("documents")}>{profile ? "Ver cadastro e documentos" : "Começar cadastro"}</button>
+          </div>
+        </>
+      )}
+      {section === "documents" && (
+        <>
+          <div className="tabs" role="tablist" aria-label="Cadastro e documentos">
+            {([["profile", "Cadastro"], ["upload", "Enviar documento"], ["history", "Situação dos documentos"]] as const).map(([value, label]) => (
+              <button type="button" className="tab" role="tab" aria-selected={documentSection === value} key={value} onClick={() => setDocumentSection(value)}>{label}</button>
+            ))}
+          </div>
       <div className="work-grid">
-        <form className="work-card" onSubmit={save}>
+        <form className="work-card" hidden={documentSection !== "profile"} onSubmit={save}>
           <h3>{profile ? "Atualizar cadastro" : "Criar cadastro"}</h3>
           <label htmlFor="delivererBirthDate">Data de nascimento</label>
           <input
@@ -2113,7 +2169,7 @@ function DelivererPanel({ session }: { session: Tokens }) {
             </small>
           )}
         </form>
-        <form className="work-card" onSubmit={upload}>
+        <form className="work-card" hidden={documentSection !== "upload"} onSubmit={upload}>
           <h3>Enviar documento privado</h3>
           <label htmlFor="documentCategory">Categoria</label>
           <select
@@ -2148,22 +2204,29 @@ function DelivererPanel({ session }: { session: Tokens }) {
           <strong>{uploadProgress}%</strong>
         </div>
       )}
-      <article className="registers">
+      <article className="registers" hidden={documentSection !== "history"}>
         <h3>Histórico mínimo</h3>
         {docs.length ? (
           docs.map((d) => (
             <p key={d.id}>
-              <code>{d.id}</code>
               <strong>{d.status}</strong>
               <span>
                 {d.category} · {d.mime} · {Math.round(d.size / 1024)} KiB
               </span>
+              {d.reason && <small>Motivo informado: {d.reason}</small>}
+              {d.status === "REJEITADO" && (
+                <small>Envie um novo arquivo da mesma categoria para substituir este documento.</small>
+              )}
             </p>
           ))
         ) : (
           <p className="empty">Nenhum arquivo enviado.</p>
         )}
       </article>
+        </>
+      )}
+      {section === "vehicles" && (
+        <>
       <div className="section-heading vehicle-heading">
         <span className="eyebrow dark">VEÍCULO PRIVADO</span>
         <h2>Vínculo comprovável</h2>
@@ -2310,7 +2373,6 @@ function DelivererPanel({ session }: { session: Tokens }) {
                 {vehicle.plate} · {vehicle.model}
               </h3>
               <p>
-                <code>{vehicle.id}</code>
                 <strong>{vehicle.status}</strong>
                 <span>
                   {vehicle.linkType} · versão {vehicle.version} · evidências{" "}
@@ -2325,7 +2387,6 @@ function DelivererPanel({ session }: { session: Tokens }) {
               </p>
               {vehicle.documents.map((document) => (
                 <p key={`${document.id}-${document.purpose}`}>
-                  <code>{document.id}</code>
                   <strong>{document.status}</strong>
                   <span>
                     {document.purpose}
@@ -2341,6 +2402,8 @@ function DelivererPanel({ session }: { session: Tokens }) {
           </article>
         )}
       </div>
+        </>
+      )}
       {notice && (
         <p className={`feedback ${notice.tone}`} role="alert">
           {notice.text}
@@ -4317,6 +4380,8 @@ function DeliveryWorkPanel({ session }: { session: Tokens }) {
   const [payouts, setPayouts] = useState<Record<string, Payout>>({});
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
+  const [deliverySection, setDeliverySection] = useState<"offers" | "active" | "history">("offers");
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   async function api(path: string, init: RequestInit = {}) {
     return parse(
       await fetch(`/api/v1${path}`, {
@@ -4331,10 +4396,13 @@ function DeliveryWorkPanel({ session }: { session: Tokens }) {
   }
   async function load() {
     const [o, a, v, d] = await Promise.all([
-      api("/offers"),
-      api("/me/assignments"),
-      api("/me/vehicle-links"),
-      api("/me/deliverer/documents"),
+      api("/offers").catch((error) => {
+        setNotice({ tone: "error", text: error.message });
+        return { result: { items: [] as Offer[] } };
+      }),
+      api("/me/assignments").catch(() => ({ result: [] as TaskAssignment[] })),
+      api("/me/vehicle-links").catch(() => ({ result: [] as VehicleLink[] })),
+      api("/me/deliverer/documents").catch(() => ({ result: [] as Evidence[] })),
     ]);
     setOffers((o.result as { items: Offer[] }).items);
     const tasks = a.result as TaskAssignment[];
@@ -4477,8 +4545,15 @@ function DeliveryWorkPanel({ session }: { session: Tokens }) {
           {notice.text}
         </p>
       )}
+      <div className="tabs" role="tablist" aria-label="Ofertas e entregas">
+        {([["offers", "Ofertas"], ["active", "Entrega atribuída"], ["history", "Histórico"]] as const).map(([value, label]) => (
+          <button type="button" className="tab" role="tab" aria-selected={deliverySection === value} key={value} onClick={() => { setDeliverySection(value); setSelectedTaskId(null); }}>
+            {label}
+          </button>
+        ))}
+      </div>
       <div className="registers">
-        <article>
+        <article hidden={deliverySection !== "offers"}>
           <h3>Ofertas elegíveis</h3>
           {offers.length ? (
             offers.map((offer) => (
@@ -4502,10 +4577,16 @@ function DeliveryWorkPanel({ session }: { session: Tokens }) {
             </p>
           )}
         </article>
-        <article>
-          <h3>Designações, valores e repasses</h3>
-          {assignments.length ? (
-            assignments.map((task) => {
+        <article hidden={deliverySection === "offers"}>
+          <div className="card-heading">
+            <div>
+              <span className="card-kicker">{deliverySection === "active" ? "ENTREGA ATRIBUÍDA" : "HISTÓRICO"}</span>
+              <h3>{selectedTaskId ? "Detalhe da entrega" : deliverySection === "active" ? "Próximas ações" : "Entregas anteriores"}</h3>
+            </div>
+            {selectedTaskId && <button type="button" className="secondary" onClick={() => setSelectedTaskId(null)}>Voltar à lista</button>}
+          </div>
+          {assignments.filter((task) => (deliverySection === "active" ? task.status === "ATIVA" : task.status !== "ATIVA") && (!selectedTaskId || task.id === selectedTaskId)).length ? (
+            assignments.filter((task) => (deliverySection === "active" ? task.status === "ATIVA" : task.status !== "ATIVA") && (!selectedTaskId || task.id === selectedTaskId)).map((task) => {
               const state = custody[task.orderId];
               const payout = payouts[task.orderId];
               const proof = documents.find(
@@ -4516,7 +4597,7 @@ function DeliveryWorkPanel({ session }: { session: Tokens }) {
               return (
                 <div className="task-record" key={task.id}>
                   <strong>{task.status}</strong>
-                  <code>{task.orderId}</code>
+                  <span>Entrega protegida · situação operacional</span>
                   <span>
                     {state
                       ? `Custódia ${state.status}`
@@ -4528,8 +4609,9 @@ function DeliveryWorkPanel({ session }: { session: Tokens }) {
                       : "Valor de repasse ainda não apurado; nenhum zero foi presumido."}
                   </span>
                   <button disabled={busy} onClick={() => void open(task)}>
-                    Consultar endereços
+                    Abrir detalhe e endereços autorizados
                   </button>
+                  {!selectedTaskId && <button type="button" className="secondary" onClick={() => setSelectedTaskId(task.id)}>Ver detalhe</button>}
                   {task.status === "ATIVA" && !state && (
                     <button
                       disabled={busy || !proof}
@@ -5277,9 +5359,7 @@ function PortfolioApp({
   const routes = (Object.keys(routeLabels) as AppRoute[]).filter(allowed);
   const workspaces = [
     { label: "Minha conta", route: "inicio" as AppRoute },
-    ...(capabilities?.delivererProfile
-      ? [{ label: "Trabalho de entrega", route: "entregador" as AppRoute }]
-      : []),
+    { label: "Área do entregador", route: "entregador" as AppRoute },
     ...(capabilities?.areas.includes("OPERACAO")
       ? [
           { label: "Operação", route: "operacao" as AppRoute },

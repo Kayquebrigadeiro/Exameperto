@@ -1,5 +1,33 @@
 # Status — atualizado em 14/10/2026
 
+## Experiência do entregador — 14/10/2026
+
+`/app/entregador` foi reorganizado em visão geral, cadastro/documentos e
+veículos/vínculos. A visão geral mostra separadamente acesso à área, cadastro
+enviado, documentos analisados e habilitação para ofertas, além dos próximos
+passos. O envio e a substituição continuam entrando em quarentena/análise; a
+interface não aprova documentos nem libera ofertas automaticamente. A API de
+documentos passou a devolver o motivo da última revisão quando existente, e a
+interface orienta a substituição de um documento rejeitado.
+
+`/app/entregas` separa ofertas, entrega atribuída e histórico. O detalhe mantém
+as transições existentes de retirada, custódia, ocorrências e recebimento, com
+versão, idempotência e permissões decididas pelo backend. Falha/bloqueio de
+`/offers` não impede carregar atribuições, histórico, veículos e documentos
+permitidos; não há UUID digitado nem oferta fictícia.
+
+Validação: `DelivererBrowserFlowTest` em Chromium → Spring → PostgreSQL 17.6
+descartável cobriu cadastro, upload, substituição e navegação; `DelivererEvidenceFlowTest`
+e `VehicleLinkFlowTest` cobriram persistência, análise e migração V19; o build
+web passou. Evidências visuais isoladas: `/tmp/exameperto-entregador.png` e
+`/tmp/exameperto-entregas.png`, sem dados pessoais. O ambiente normal não
+recebeu registros sintéticos.
+
+Limitação operacional: ofertas permanecem bloqueadas até o backend confirmar
+entregador aprovado, veículo vigente/aprovado, política ativa e demais
+requisitos de cobertura/evidência. Conta autenticada sem cadastro pode acessar
+a área, mas precisa completar as etapas; isso não equivale a estar habilitada.
+
 ## Finalização do catálogo e retomada de pedidos — 14/10/2026
 
 O formulário de protocolo em `/app/catalogo` não expõe mais `regras` JSON.

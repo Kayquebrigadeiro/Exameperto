@@ -67,8 +67,8 @@ class DelivererService {
 
     List<DocumentView> documents(UUID userId) {
         own(userId);
-        return jdbc.query("SELECT d.id,d.categoria,d.mime,d.tamanho,d.estado,d.version FROM documento d WHERE d.proprietario_id=? ORDER BY d.created_at DESC,d.id DESC",
-            (rs,n)->new DocumentView(rs.getObject(1,UUID.class),rs.getString(2),rs.getString(3),rs.getLong(4),rs.getString(5),rs.getLong(6)),userId);
+        return jdbc.query("SELECT d.id,d.categoria,d.mime,d.tamanho,d.estado,d.version,(SELECT r.motivo_codigo FROM revisao_entregador r WHERE r.documento_id=d.id ORDER BY r.criado_em DESC,r.id DESC LIMIT 1) FROM documento d WHERE d.proprietario_id=? ORDER BY d.created_at DESC,d.id DESC",
+            (rs,n)->new DocumentView(rs.getObject(1,UUID.class),rs.getString(2),rs.getString(3),rs.getLong(4),rs.getString(5),rs.getLong(6),rs.getString(7)),userId);
     }
 
     Download authorizedDownload(UUID userId, UUID documentId) {
@@ -176,7 +176,7 @@ class DelivererService {
         return false;
     }
     private DelivererView deliverer(UUID id) { return jdbc.queryForObject("SELECT id,estado,version FROM entregador WHERE id=?",(rs,n)->new DelivererView(rs.getObject(1,UUID.class),rs.getString(2),rs.getLong(3)),id); }
-    DocumentView document(UUID id) { return jdbc.queryForObject("SELECT id,categoria,mime,tamanho,estado,version FROM documento WHERE id=?",(rs,n)->new DocumentView(rs.getObject(1,UUID.class),rs.getString(2),rs.getString(3),rs.getLong(4),rs.getString(5),rs.getLong(6)),id); }
+    DocumentView document(UUID id) { return jdbc.queryForObject("SELECT d.id,d.categoria,d.mime,d.tamanho,d.estado,d.version,(SELECT r.motivo_codigo FROM revisao_entregador r WHERE r.documento_id=d.id ORDER BY r.criado_em DESC,r.id DESC LIMIT 1) FROM documento d WHERE d.id=?",(rs,n)->new DocumentView(rs.getObject(1,UUID.class),rs.getString(2),rs.getString(3),rs.getLong(4),rs.getString(5),rs.getLong(6),rs.getString(7)),id); }
     record Download(String key,String mime,long size) {}
     record StoredEvidence(UUID id,String key) {}
     static DelivererException error(HttpStatus s,String c,String m) { return new DelivererException(s,c,m); }

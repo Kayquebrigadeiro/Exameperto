@@ -13,17 +13,21 @@ test('entregador acompanha cadastro, documentos, veículo e bloqueio de ofertas'
   await navigation.getByRole('link', { name: 'Cadastro de entrega', exact: true }).click();
   await expect(page).toHaveURL(/\/app\/entregador$/);
   const panel = page.getByRole('region', { name: 'Cadastro e comprovações' });
+  await panel.getByRole('tab', { name: 'Cadastro e documentos' }).click();
   await panel.getByLabel('Data de nascimento').fill('1990-01-15');
   await panel.getByRole('button', { name: 'Salvar cadastro' }).click();
   await expect(panel.getByRole('alert')).toContainText('Isto não aprova');
 
   const pdf = { name: 'habilitacao.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%%EOF') };
+  await panel.getByRole('tab', { name: 'Enviar documento' }).click();
   await panel.getByLabel('Categoria').selectOption('HABILITACAO');
   await panel.getByLabel(/Arquivo PDF/).setInputFiles(pdf);
   await panel.getByRole('button', { name: 'Enviar para quarentena' }).first().click();
   await expect(panel.getByRole('alert')).toContainText('quarentena');
+  await panel.getByRole('tab', { name: 'Situação dos documentos' }).click();
   await expect(panel.locator('.registers').getByText('HABILITACAO', { exact: false })).toBeVisible();
 
+  await panel.getByRole('tab', { name: 'Veículos e vínculos' }).click();
   await panel.getByLabel('Placa').fill('TST1A23');
   await panel.getByLabel('Marca').fill('Marca de teste');
   await panel.getByLabel('Modelo', { exact: true }).fill('Modelo de teste');
@@ -44,10 +48,13 @@ test('entregador acompanha cadastro, documentos, veículo e bloqueio de ofertas'
   await panel.getByRole('button', { name: 'Enviar para quarentena' }).last().click();
   await expect(panel.getByText('substituído', { exact: false })).toBeVisible();
 
+  await page.screenshot({ path: '/tmp/exameperto-entregador.png', fullPage: true });
+
   await navigation.getByRole('link', { name: 'Minhas entregas', exact: true }).click();
   await expect(page).toHaveURL(/\/app\/entregas$/);
   const work = page.getByRole('region', { name: 'Ofertas e entregas' });
   await expect(work).toContainText('Nenhuma oferta elegível');
   await expect(work).toContainText('Aprovação profissional');
   await expect(work).toContainText('Nenhuma designação ativa ou histórica');
+  await page.screenshot({ path: '/tmp/exameperto-entregas.png', fullPage: true });
 });
