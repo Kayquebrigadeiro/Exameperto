@@ -17,6 +17,7 @@ class PayoutController {
     private final PayoutService service;private final PayoutDispatcher dispatcher;private final String origin;
     PayoutController(PayoutService service,PayoutDispatcher dispatcher,@Value("${registration.allowed-origin:http://127.0.0.1:5173}")String origin){this.service=service;this.dispatcher=dispatcher;this.origin=origin;}
     @GetMapping("/financial/payouts") PayoutPage panel(Authentication a){return service.panel(principal(a));}
+    @GetMapping("/payouts/{id}/history") java.util.List<FinancialHistoryView> history(Authentication a,@PathVariable UUID id){return service.history(principal(a),id);}
     @GetMapping("/payouts/{id}") PayoutView get(Authentication a,@PathVariable UUID id){return service.get(principal(a),id);}
     @GetMapping("/orders/{orderId}/payout") PayoutView order(Authentication a,@PathVariable UUID orderId){return service.forOrder(principal(a).userId(),orderId);}
     @GetMapping("/orders/{orderId}/financial-operations") java.util.List<FinancialOperationView> operations(Authentication a,@PathVariable UUID orderId){return service.financialForOrder(principal(a).userId(),orderId);}

@@ -53,6 +53,17 @@ class FundingService {
 
     List<FundingView> list(AuthService.SessionPrincipal principal, UUID programId) { UUID actor=principal.userId(); evidence.active(actor); mfa.requireVerified(principal); UUID institution=institutionForProgram(programId); requireManager(actor,institution); return jdbc.query("SELECT id FROM aporte WHERE programa_id=? ORDER BY created_at,id",(rs,n)->funding(rs.getObject(1,UUID.class)),programId); }
 
+    List<FinancialProgramView> programs(AuthService.SessionPrincipal principal) {
+        UUID actor=principal.userId(); evidence.active(actor); mfa.requireVerified(principal);
+        return jdbc.query("SELECT p.id,p.instituicao_id,i.nome,p.codigo,p.nome,p.estado FROM programa p JOIN instituicao i ON i.id=p.instituicao_id JOIN membro_instituicao mi ON mi.instituicao_id=p.instituicao_id AND mi.usuario_id=? AND mi.papel='GESTOR_FINANCEIRO' AND mi.revogado_em IS NULL JOIN papel_global pg ON pg.usuario_id=? AND pg.papel='GESTOR_FINANCEIRO' AND pg.revogado_em IS NULL WHERE p.estado<>'SUSPENSO' ORDER BY i.nome,p.nome,p.id",(rs,n)->new FinancialProgramView(rs.getObject(1,UUID.class),rs.getObject(2,UUID.class),rs.getString(3),rs.getString(4),rs.getString(5),rs.getString(6)),actor,actor);
+    }
+
+    List<FinancialHistoryView> history(AuthService.SessionPrincipal principal, UUID fundingId) {
+        UUID actor=principal.userId(); evidence.active(actor); mfa.requireVerified(principal);
+        Map<String,Object> row=fundingForUpdate(fundingId); requireManager(actor,institutionForProgram((UUID)row.get("programa_id")));
+        return jdbc.query("SELECT acao,COALESCE(acao,'') status,COALESCE(motivo_codigo,'') detail,created_at FROM auditoria_financeira WHERE aporte_id=? ORDER BY created_at,id",(rs,n)->new FinancialHistoryView(rs.getString(1),rs.getString(2),rs.getString(3),rs.getTimestamp(4).toInstant()),fundingId);
+    }
+
     BalanceView balance(AuthService.SessionPrincipal principal, UUID programId) {
         UUID actor=principal.userId(); evidence.active(actor); mfa.requireVerified(principal);
         UUID institution=institutionForProgram(programId); requireManager(actor,institution);

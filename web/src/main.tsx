@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
-import type { FormEvent } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { parseApiResponse as parse, uploadWithProgress } from "./api";
 import {
@@ -262,6 +262,15 @@ type PayoutPage = {
   divergences: number;
   uncertain: number;
 };
+type FinancialProgram = {
+  id: string;
+  institutionId: string;
+  institutionName: string;
+  code: string;
+  name: string;
+  status: string;
+};
+type FinancialHistory = { event: string; status: string; detail: string; occurredAt: string };
 type Capabilities = {
   globalRoles: string[];
   institutions: {
@@ -1911,6 +1920,86 @@ function FundingPanel({ session }: { session: Tokens }) {
     </section>
   );
 }
+
+function FinancialWorkspace({ session, capabilities }: { session: Tokens; capabilities: Capabilities }) {
+  const [tab, setTab] = useState("overview");
+  const [programs, setPrograms] = useState<FinancialProgram[]>([]);
+  const [programId, setProgramId] = useState("");
+  const [funding, setFunding] = useState<Funding[]>([]);
+  const [balance, setBalance] = useState<{ available: number; reserved: number; settled: number } | null>(null);
+  const [payouts, setPayouts] = useState<PayoutPage | null>(null);
+  const [selectedFunding, setSelectedFunding] = useState<Funding | null>(null);
+  const [selectedPayout, setSelectedPayout] = useState<Payout | null>(null);
+  const [history, setHistory] = useState<FinancialHistory[]>([]);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("TODOS");
+  const [page, setPage] = useState(0);
+  const [amount, setAmount] = useState("");
+  const [sourceReference, setSourceReference] = useState("");
+  const [evidenceId, setEvidenceId] = useState("");
+  const [reconciliationId, setReconciliationId] = useState("");
+  const [reason, setReason] = useState("");
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const [busy, setBusy] = useState(false);
+  const institutionNames = capabilities.institutions.filter((item) => item.role === "GESTOR_FINANCEIRO").map((item) => item.institutionName);
+  const institutionLabel = institutionNames.length === 1 ? institutionNames[0] : institutionNames.join(" · ");
+  async function api(path: string, init: RequestInit = {}) { return parse(await fetch(`/api/v1${path}`, { ...init, headers: { Authorization: `Bearer ${session.accessToken}`, "Content-Type": "application/json", ...(init.headers ?? {}) } })); }
+  async function loadPrograms() { try { const result = await api("/financial/programs"); setPrograms(result.result as FinancialProgram[]); } catch (error) { setNotice({ tone: "error", text: error instanceof Error ? error.message : "Não foi possível carregar os programas autorizados." }); } }
+  async function loadProgram() { if (!programId) return; try { const [f, b] = await Promise.all([api(`/programs/${programId}/funding`), api(`/programs/${programId}/balance`)]); setFunding(f.result as Funding[]); setBalance(b.result as typeof balance); } catch (error) { setNotice({ tone: "error", text: error instanceof Error ? error.message : "Não foi possível carregar o programa." }); } }
+  async function loadPayouts() { try { const result = await api("/financial/payouts"); setPayouts(result.result as PayoutPage); } catch (error) { setNotice({ tone: "error", text: error instanceof Error ? error.message : "Não foi possível carregar as obrigações autorizadas." }); } }
+  useEffect(() => {
+    void loadPrograms(); void loadPayouts();
+    const refreshAfterMfa = () => { void loadPrograms(); void loadPayouts(); if (programId) void loadProgram(); };
+    addEventListener("mfa-elevated", refreshAfterMfa);
+    return () => removeEventListener("mfa-elevated", refreshAfterMfa);
+  }, [session.accessToken]);
+  useEffect(() => { void loadProgram(); setSelectedFunding(null); setHistory([]); }, [programId]);
+  useEffect(() => { setPage(0); }, [query, statusFilter, tab]);
+  async function upload(event: ChangeEvent<HTMLInputElement>, reconciliation = false) { const file = event.currentTarget.files?.[0]; if (!file) return; const data = new FormData(); data.append("file", file); try { const result = await parse(await fetch("/api/v1/me/financial-documents", { method: "POST", headers: { Authorization: `Bearer ${session.accessToken}` }, body: data })); if (reconciliation) setReconciliationId(result.result.id); else setEvidenceId(result.result.id); setNotice({ tone: "info", text: reconciliation ? "Evidência de conciliação anexada. A decisão continua pendente de inspeção." : "Comprovante anexado. O aporte ainda não está confirmado." }); } catch (error) { setNotice({ tone: "error", text: error instanceof Error ? error.message : "A evidência não pôde ser anexada." }); } }
+  async function record(event: FormEvent) { event.preventDefault(); setBusy(true); try { await api(`/programs/${programId}/funding`, { method: "POST", headers: { "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify({ amount, currency: "BRL", evidenceDocumentId: evidenceId, sourceReference }) }); setNotice({ tone: "info", text: "Aporte registrado como pendente. Outro gestor deverá revisar." }); setAmount(""); setSourceReference(""); setEvidenceId(""); await loadProgram(); } catch (error) { setNotice({ tone: "error", text: error instanceof Error ? error.message : "O aporte não pôde ser registrado." }); } finally { setBusy(false); } }
+  async function openFunding(item: Funding) { setSelectedFunding(item); setSelectedPayout(null); try { const result = await api(`/funding/${item.id}/history`); setHistory(result.result as FinancialHistory[]); } catch (error) { setNotice({ tone: "error", text: error instanceof Error ? error.message : "Histórico indisponível." }); } }
+  async function openPayout(item: Payout) { setSelectedPayout(item); setSelectedFunding(null); try { const result = await api(`/payouts/${item.id}/history`); setHistory(result.result as FinancialHistory[]); } catch (error) { setNotice({ tone: "error", text: error instanceof Error ? error.message : "Histórico indisponível." }); } }
+  async function review(decision: "CONFIRMADO" | "REJEITADO") { if (!selectedFunding || !reconciliationId) return; setBusy(true); try { await api(`/funding/${selectedFunding.id}/review/evidence/${reconciliationId}/inspection`, { method: "POST" }); await api(`/funding/${selectedFunding.id}/review`, { method: "POST", headers: { "If-Match": String(selectedFunding.version), "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify({ decision, reconciliationEvidenceId: reconciliationId, reasonCode: reason || (decision === "CONFIRMADO" ? "CONCILIADO" : "REJEITADO") }) }); setNotice({ tone: "info", text: decision === "CONFIRMADO" ? "Evidência inspecionada e aporte confirmado; saldo disponível atualizado pelo servidor." : "Evidência inspecionada e aporte rejeitado; saldo não foi alterado." }); await loadProgram(); setSelectedFunding(null); setHistory([]); } catch (error) { setNotice({ tone: "error", text: error instanceof Error ? error.message : "A decisão foi recusada." }); } finally { setBusy(false); } }
+  async function payoutAction(action: "request" | "reconcile") { if (!selectedPayout) return; setBusy(true); try { await api(`/payouts/${selectedPayout.id}/${action}`, { method: "POST", headers: { "Idempotency-Key": `${action}-${selectedPayout.id}` } }); setNotice({ tone: "info", text: action === "request" ? "Obrigação enviada ao provedor; confirmação ainda depende da conciliação." : "Referência reenviada para conciliação. Isso não presume pagamento." }); await loadPayouts(); const current = (await api(`/payouts/${selectedPayout.id}`)).result as Payout; await openPayout(current); } catch (error) { setNotice({ tone: "error", text: error instanceof Error ? error.message : "A ação foi recusada." }); } finally { setBusy(false); } }
+  const selectedProgram = programs.find((item) => item.id === programId);
+  const visibleFunding = funding.filter((item) => (statusFilter === "TODOS" || item.status === statusFilter) && `${item.status} ${formatMoney(item.amount)}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())).slice(page * 5, page * 5 + 5);
+  const visiblePayouts = (payouts?.items ?? []).filter((item) => (statusFilter === "TODOS" || item.status === statusFilter) && `${item.status} ${item.orderId}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())).slice(page * 5, page * 5 + 5);
+  const tabs = [{ id: "overview", label: "Visão geral" }, { id: "programs", label: "Programas e aportes" }, { id: "balance", label: "Saldos e movimentações" }, { id: "obligations", label: "Obrigações e repasses" }, { id: "reconciliation", label: "Conciliação e divergências" }];
+  return <section className="family financial-workspace" aria-label="Operação financeira">
+    <div className="section-heading"><span className="eyebrow dark">OPERAÇÃO FINANCEIRA</span><h2>Recursos com rastreabilidade</h2><p>Somente registros autorizados para a instituição vinculada à sua conta aparecem nesta área.</p><strong className="institution-context">Instituição em atuação: {institutionLabel || "nenhuma instituição financeira autorizada"}</strong></div>
+    <nav className="financial-tabs" aria-label="Navegação financeira">{tabs.map((item) => <button type="button" className={tab === item.id ? "active" : "secondary"} onClick={() => setTab(item.id)} key={item.id}>{item.label}</button>)}</nav>
+    {notice && <p className={`feedback ${notice.tone}`} role="alert">{notice.text}</p>}
+    {tab === "overview" && <div className="financial-overview"><article className="work-card"><span className="card-kicker">ESCOPO</span><h3>{programs.length} programa(s) autorizado(s)</h3><p>O backend filtra por vínculo institucional, papel financeiro e MFA. Nenhum saldo é criado para preencher esta visão.</p></article><article className="work-card"><span className="card-kicker">REPASSES</span><h3>{payouts?.items.length ?? 0} obrigação(ões) visível(is)</h3><p>{payouts?.uncertain ?? 0} incerta(s) · {payouts?.divergences ?? 0} divergência(s). Solicitação e confirmação são eventos separados.</p></article></div>}
+    {(tab === "programs" || tab === "balance") && <><div className="work-card financial-selector"><label>Programa autorizado<select aria-label="Programa financeiro" value={programId} onChange={(event) => setProgramId(event.target.value)}><option value="">Selecione um programa</option>{programs.map((item) => <option value={item.id} key={item.id}>{item.institutionName} · {item.name} ({item.code})</option>)}</select></label>{selectedProgram && <p>Estado: <strong>{selectedProgram.status}</strong>. Os critérios e valores exibidos vêm do registro vigente.</p>}</div>{tab === "balance" && balance && <div className="ledger-summary" aria-label="Saldos do programa"><article><strong>{formatMoney(balance.available)}</strong><span>disponível</span></article><article><strong>{formatMoney(balance.reserved)}</strong><span>reservado</span></article><article><strong>{formatMoney(balance.settled)}</strong><span>liquidado</span></article></div>}{tab === "programs" && <form className="work-card" onSubmit={record}><h3>Registrar aporte</h3><p>O comprovante não confirma o aporte. A revisão exige outro gestor, MFA e evidência de conciliação inspecionada.</p><label>Valor em BRL<input required inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} /></label><label>Referência de origem<input required value={sourceReference} onChange={(event) => setSourceReference(event.target.value)} /></label><label>Comprovante privado<input required type="file" accept="application/pdf,image/png,image/jpeg" onChange={(event) => void upload(event)} /></label><button disabled={busy || !programId || !evidenceId}>Registrar como pendente</button></form>}{tab === "programs" && <FinancialList title="Aportes registrados" query={query} setQuery={setQuery} statusFilter={statusFilter} setStatusFilter={setStatusFilter} items={visibleFunding} statuses={["PENDENTE", "CONFIRMADO", "REJEITADO"]} empty="Selecione um programa para consultar os aportes." render={(item) => <button type="button" className="financial-record" onClick={() => void openFunding(item as Funding)}><strong>{formatMoney((item as Funding).amount)}</strong><span>{item.status === "PENDENTE" ? "Pendente de revisão" : item.status === "CONFIRMADO" ? "Confirmado" : "Rejeitado"}</span><small>Detalhar · versão {item.version}</small></button>} count={visibleFunding.length} page={page} setPage={setPage} />}</>}
+    {(tab === "obligations" || tab === "reconciliation") && (
+      <FinancialList
+        title={tab === "obligations" ? "Obrigações e repasses" : "Conciliação e divergências"}
+        query={query}
+        setQuery={setQuery}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+        items={visiblePayouts}
+        statuses={["OBRIGACAO_REGISTRADA", "SOLICITADO", "CONFIRMADO", "FALHOU", "INCERTO", "DIVERGENTE"]}
+        empty="Nenhuma obrigação autorizada foi registrada."
+        render={(item) => <button type="button" className="financial-record" onClick={() => void openPayout(item as Payout)}><strong>{formatMoney((item as Payout).amount)}</strong><span>{item.status.replaceAll("_", " ")}</span><small>Pedido {(item as Payout).orderId.slice(0, 8)} · abrir detalhe</small></button>}
+        count={visiblePayouts.length}
+        page={page}
+        setPage={setPage}
+      />
+    )}
+    {selectedFunding && <aside className="financial-detail" aria-label="Detalhe do aporte"><button type="button" className="secondary" onClick={() => setSelectedFunding(null)}>Fechar detalhe</button><span className="card-kicker">DETALHE DO APORTE</span><h3>{formatMoney(selectedFunding.amount)} · {selectedFunding.status}</h3><p>Comprovante: anexado e autorizado. Saldo só muda em CONFIRMADO.</p>{selectedFunding.status === "PENDENTE" && <><label>Evidência de conciliação<input type="file" accept="application/pdf,image/png,image/jpeg" onChange={(event) => void upload(event, true)} /></label><label>Motivo da revisão<input value={reason} onChange={(event) => setReason(event.target.value)} /></label><div className="financial-actions"><button type="button" disabled={busy || !reconciliationId} onClick={() => void review("CONFIRMADO")}>Confirmar aporte</button><button type="button" className="secondary" disabled={busy || !reconciliationId} onClick={() => void review("REJEITADO")}>Rejeitar aporte</button></div></>}<HistoryList history={history} /></aside>}
+    {selectedPayout && <aside className="financial-detail" aria-label="Detalhe da obrigação"><button type="button" className="secondary" onClick={() => setSelectedPayout(null)}>Fechar detalhe</button><span className="card-kicker">DETALHE DA OBRIGAÇÃO</span><h3>{formatMoney(selectedPayout.amount)} · {selectedPayout.status.replaceAll("_", " ")}</h3><p>Obrigação registrada não é pagamento confirmado. Resultado incerto exige conciliação da mesma referência.</p><div className="financial-actions">{selectedPayout.status === "OBRIGACAO_REGISTRADA" && <button type="button" disabled={busy || selectedPayout.availability === "INDISPONIVEL"} onClick={() => void payoutAction("request")}>{selectedPayout.availability === "INDISPONIVEL" ? "Integração indisponível" : "Solicitar repasse"}</button>}{["INCERTO", "DIVERGENTE", "SOLICITADO"].includes(selectedPayout.status) && <button type="button" disabled={busy} onClick={() => void payoutAction("reconcile")}>Conciliar mesma referência</button>}</div>{selectedPayout.divergenceCode && <p className="ledger-alert">Divergência: {selectedPayout.divergenceCode}</p>}<HistoryList history={history} /></aside>}
+  </section>;
+}
+
+function FinancialList({ title, query, setQuery, statusFilter, setStatusFilter, statuses, items, render, empty, count, page, setPage }: { title: string; query: string; setQuery: (v: string) => void; statusFilter: string; setStatusFilter: (v: string) => void; statuses: string[]; items: Array<Funding | Payout>; render: (item: Funding | Payout) => ReactNode; empty: string; count: number; page: number; setPage: (v: number) => void }) {
+  return <section className="financial-list"><div className="card-heading"><div><span className="card-kicker">LISTAGEM</span><h3>{title}</h3></div><span>{items.length} nesta página</span></div><div className="review-toolbar"><label>Buscar<input aria-label={`Buscar em ${title}`} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Status ou referência" /></label><label>Status<select aria-label={`Filtrar ${title}`} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="TODOS">Todos</option>{statuses.map((status) => <option key={status}>{status}</option>)}</select></label></div>{items.length ? <div className="financial-records">{items.map((item) => <article key={item.id}>{render(item)}</article>)}</div> : <div className="empty-state"><strong>{empty}</strong><p>Escolha um registro autorizado para ver detalhes e o próximo passo permitido.</p></div>}<div className="pagination"><button type="button" className="secondary" disabled={page === 0} onClick={() => setPage(Math.max(0, page - 1))}>Anterior</button><span>Página {page + 1}</span><button type="button" className="secondary" disabled={count < 5} onClick={() => setPage(page + 1)}>Próxima</button></div></section>;
+}
+
+function HistoryList({ history }: { history: FinancialHistory[] }) { return <section className="financial-history"><span className="card-kicker">HISTÓRICO AUDITÁVEL</span>{history.length ? history.map((item, index) => <div key={`${item.occurredAt}-${index}`}><strong>{item.event.replaceAll("_", " ")}</strong><span>{item.status.replaceAll("_", " ")}</span><small>{item.detail || "Sem motivo adicional"} · {new Date(item.occurredAt).toLocaleString("pt-BR")}</small></div>) : <p className="empty-state">Nenhum marco registrado para este item.</p>}</section>; }
+
+void PayoutPanel;
+void FundingPanel;
 
 function DelivererPanel({ session }: { session: Tokens }) {
   const [profile, setProfile] = useState<Deliverer | null>(null);
@@ -4189,6 +4278,7 @@ function MfaAccess({ session }: { session: Tokens }) {
       if (kind === "enroll")
         setSecret((response.result as { secret: string }).secret);
       await load();
+      if (kind !== "enroll") window.dispatchEvent(new Event("mfa-elevated"));
       setNotice({
         tone: "info",
         text:
@@ -5280,8 +5370,7 @@ function PortfolioApp({
         return (
           <>
             <MfaAccess session={session} />
-            <FundingPanel session={session} />
-            <PayoutPanel session={session} />
+            {capabilities && <FinancialWorkspace session={session} capabilities={capabilities} />}
           </>
         );
       case "operacao-privacidade":

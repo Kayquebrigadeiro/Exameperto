@@ -461,6 +461,39 @@ button:focus-visible {
   color: #65756f;
   overflow-wrap: anywhere;
 }
+.financial-workspace { position: relative; }
+.institution-context { display: block; margin-top: 1rem; color: #275f50; font: 500 .72rem 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .04em; }
+.financial-tabs { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1.25rem 0; }
+.financial-tabs button { margin: 0; font-size: .7rem; }
+.financial-tabs button.active { background: #203f38; color: #f4f7ee; }
+.financial-overview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.financial-selector { margin-bottom: 1rem; }
+.financial-selector select, .financial-selector label { width: 100%; }
+.financial-list { margin-top: 1rem; padding: 1.5rem; background: #f7f7ef; border: 1px solid #cad2c9; border-radius: .7rem; }
+.financial-list .card-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: end; }
+.financial-list .card-heading h3 { margin: .25rem 0 0; }
+.financial-list .card-heading > span { color: #65756f; font: .7rem 'DM Mono', monospace; }
+.financial-records { display: grid; gap: .6rem; margin-top: 1rem; }
+.financial-records article { border: 1px solid #cad2c9; background: #fffef7; }
+.financial-record { display: grid; grid-template-columns: 1fr 1fr auto; width: 100%; margin: 0; padding: 1rem; text-align: left; background: transparent; color: #20322e; border: 0; }
+.financial-record strong { font: 500 1rem 'DM Mono', monospace; }
+.financial-record span { color: #275f50; text-transform: uppercase; font: .65rem 'DM Mono', monospace; }
+.financial-record small { color: #65756f; }
+.financial-detail { margin-top: 1rem; padding: 1.5rem; background: #203f38; color: #f4f7ee; border-radius: .7rem; }
+.financial-detail h3 { margin: .5rem 0; font-size: 1.35rem; }
+.financial-detail p { color: #c8d7cf; line-height: 1.5; }
+.financial-detail label { color: #f4f7ee; }
+.financial-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin: 1rem 0; }
+.financial-actions button { margin: 0; }
+.financial-history { margin-top: 1.5rem; border-top: 1px solid #668074; }
+.financial-history > div { display: grid; grid-template-columns: 1fr 1fr; gap: .3rem 1rem; padding: .8rem 0; border-bottom: 1px solid #668074; }
+.financial-history span { color: #d5a16f; font: .68rem 'DM Mono', monospace; text-transform: uppercase; }
+.financial-history small { grid-column: 1 / -1; color: #c8d7cf; }
+@media (max-width: 760px) {
+  .financial-overview { grid-template-columns: 1fr; }
+  .financial-record { grid-template-columns: 1fr; gap: .35rem; }
+  .financial-list .card-heading { align-items: start; flex-direction: column; }
+}
 .deliverer-status-card {
   display: flex;
   justify-content: space-between;

@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayOutputStream;
+import java.math.BigDecimal;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -20,9 +21,11 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -38,7 +41,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @Testcontainers
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT, properties={
     "registration.privacy-approved=true", "security.data-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
-    "security.search-key=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=",
+    "security.search-key=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=", "registration.allowed-origin=http://127.0.0.1:5187",
     "security.signing-key=AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=", "registration.attempts-per-minute=1000", "registration.global-attempts-per-minute=5000"})
 class FundingFlowTest {
     @Container static final PostgreSQLContainer<?> POSTGRES=new PostgreSQLContainer<>("postgres:17.6");
@@ -76,6 +79,21 @@ class FundingFlowTest {
         assertThat(request(outsider,"GET","/programs/"+program+"/balance",null,null,null).statusCode()).isEqualTo(403); assertThat(request(registrar,"POST","/programs/"+program+"/funding",json.writeValueAsString(Map.of("amount","-1","currency","BRL","evidenceDocumentId",original,"sourceReference","bad")),"idem-bad",null).statusCode()).isEqualTo(400); assertThat(request(reviewer,"POST","/funding/"+funding+"/review",confirm,"review-stale","0").statusCode()).isEqualTo(412);
     }
 
+    @Test @EnabledIfSystemProperty(named="browserTest",matches="true") void browserRegistersAndReviewsFundingWithDistinctActors() throws Exception {
+        Account registrar=active("browser-funding-registrar"), reviewer=active("browser-funding-reviewer");
+        UUID institution=UUID.randomUUID(), program=UUID.randomUUID();
+        jdbc.update("INSERT INTO instituicao(id,nome,estado) VALUES (?,?,'HABILITADA')",institution,"Instituição financeira sintética");
+        jdbc.update("INSERT INTO programa(id,instituicao_id,codigo,nome,estado) VALUES (?,?,?,'Programa sintético','HABILITADO')",program,institution,"BROWSER-FUND");
+        grant(institution,registrar,"GESTOR_FINANCEIRO"); grant(institution,reviewer,"GESTOR_FINANCEIRO"); global(registrar); global(reviewer);
+        String registrarSecret=mfaSecret(registrar), reviewerSecret=mfaSecret(reviewer);
+        ProcessBuilder process=new ProcessBuilder("npm","run","test","--","tests/funding-real.spec.ts");
+        process.directory(Path.of("..","web").toFile()); process.redirectErrorStream(true); process.redirectOutput(Path.of("target","funding-browser-playwright.log").toFile());
+        process.environment().put("API_TARGET","http://127.0.0.1:"+port); process.environment().put("VITE_ENABLE_OPERATIONAL_TEST_PANELS","true"); process.environment().put("FUNDING_PROGRAM_CODE","BROWSER-FUND"); process.environment().put("FUNDING_REGISTRAR_EMAIL",registrar.email); process.environment().put("FUNDING_REVIEWER_EMAIL",reviewer.email); process.environment().put("FUNDING_MFA_SECRET",registrarSecret); process.environment().put("FUNDING_REVIEWER_MFA_SECRET",reviewerSecret);
+        Process child=process.start(); assertThat(child.waitFor(120,TimeUnit.SECONDS)).isTrue(); assertThat(child.exitValue()).isZero();
+        assertThat(jdbc.queryForObject("SELECT estado FROM aporte WHERE programa_id=?",String.class,program)).isEqualTo("CONFIRMADO");
+        assertThat(jdbc.queryForObject("SELECT disponivel FROM conta_programa WHERE programa_id=?",BigDecimal.class,program)).isEqualByComparingTo("75.00");
+    }
+
     private void global(Account a){jdbc.update("INSERT INTO papel_global(usuario_id,papel) VALUES ((SELECT id FROM usuario WHERE email_busca=?),'GESTOR_FINANCEIRO')",lookup(a.email));}
     private void grant(UUID institution,Account a,String role){jdbc.update("INSERT INTO membro_instituicao(instituicao_id,usuario_id,papel) VALUES (?,?,?)",institution,userId(a.email),role);}
     private UUID userId(String email){return jdbc.queryForObject("SELECT id FROM usuario WHERE email_busca=?",UUID.class,lookup(email));}
@@ -85,6 +103,7 @@ class FundingFlowTest {
     private HttpResponse<String> uploadEvidence(Account a,byte[] bytes)throws Exception{String boundary="----fund"+UUID.randomUUID();ByteArrayOutputStream out=new ByteArrayOutputStream();out.write(("--"+boundary+"\r\nContent-Disposition: form-data; name=\"file\"; filename=\"proof.pdf\"\r\nContent-Type: application/pdf\r\n\r\n").getBytes());out.write(bytes);out.write(("\r\n--"+boundary+"--\r\n").getBytes());var response=requestBytes(a,"POST","/me/financial-documents",out.toByteArray(),"multipart/form-data; boundary="+boundary,null,null);assertThat(response.statusCode()).as(response.body()).isEqualTo(201);return response;}
     private Account active(String prefix)throws Exception{String e=prefix+UUID.randomUUID()+"@example.test";var reg=request(null,"POST","/auth/register",json.writeValueAsString(Map.of("name","Sintético","email",e,"password",PASS)),null,null);assertThat(reg.statusCode()).isEqualTo(202);String sent=mail.get(e);String token=sent.substring(sent.lastIndexOf(':')+2).trim();assertThat(request(null,"POST","/auth/verification",json.writeValueAsString(Map.of("token",token)),null,null).statusCode()).isEqualTo(200);var login=request(null,"POST","/auth/login",json.writeValueAsString(Map.of("email",e,"password",PASS,"client","MOBILE")),null,null);return new Account(e,body(login).get("accessToken").toString());}
     private void mfa(Account a)throws Exception{var e=request(a,"POST","/me/mfa/totp/enrollment",json.writeValueAsString(Map.of("password",PASS)),null,null);String secret=body(e).get("secret").toString();String code=MfaService.totp(MfaService.decodeBase32(secret),Instant.now().getEpochSecond()/30);assertThat(request(a,"POST","/me/mfa/totp/confirmation",json.writeValueAsString(Map.of("code",code)),null,null).statusCode()).isEqualTo(200);}
+    private String mfaSecret(Account a)throws Exception{var e=request(a,"POST","/me/mfa/totp/enrollment",json.writeValueAsString(Map.of("password",PASS)),null,null);return body(e).get("secret").toString();}
     private HttpResponse<String> request(Account a,String method,String path,String body,String idem,String etag)throws Exception{return requestBytes(a,method,path,body==null?null:body.getBytes(),"application/json",idem,etag);}
     private HttpResponse<String> requestUnchecked(Account a,String method,String path,String body,String idem,String etag){try{return request(a,method,path,body,idem,etag);}catch(Exception ex){throw new RuntimeException(ex);}}
     private HttpResponse<String> requestBytes(Account a,String method,String path,byte[] body,String contentType,String idem,String etag)throws Exception{var b=HttpRequest.newBuilder(URI.create("http://127.0.0.1:"+port+"/api/v1"+path)).header("Content-Type",contentType);if(a!=null)b.header("Authorization","Bearer "+a.access);if(idem!=null)b.header("Idempotency-Key",idem);if(etag!=null)b.header("If-Match",etag);return client.send(b.method(method,body==null?HttpRequest.BodyPublishers.noBody():HttpRequest.BodyPublishers.ofByteArray(body)).build(),HttpResponse.BodyHandlers.ofString());}

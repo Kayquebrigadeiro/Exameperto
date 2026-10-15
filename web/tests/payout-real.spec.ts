@@ -12,8 +12,7 @@ function totp(secret: string) {
 }
 
 test('navegador → API real → PostgreSQL exibe painel de conciliação', async ({ page }) => {
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Entrar', exact: true }).first().click();
+  await page.goto('/acesso');
   await page.getByLabel('E-mail', { exact: true }).fill(process.env.PAYOUT_MANAGER_EMAIL!);
   await page.getByLabel('Senha', { exact: true }).fill('Senha-sintetica-123');
   await page.locator('button[type=submit]').click();
@@ -29,11 +28,16 @@ test('navegador → API real → PostgreSQL exibe painel de conciliação', asyn
   await mfa.getByLabel('Código TOTP').fill(totp(secret));
   await mfa.getByRole('button', { name: 'Validar sessão' }).click();
   await expect(mfa).toContainText('Sessão elevada');
-  await expect(page.getByRole('heading', { name: 'Livro de obrigações' })).toBeVisible();
-  await page.getByRole('button', { name: 'Atualizar livro' }).click();
-  const ledger = page.getByRole('table', { name: 'Obrigações e repasses' });
+  await expect(page.getByRole('heading', { name: 'Recursos com rastreabilidade' })).toBeVisible();
+  await page.getByRole('button', { name: 'Obrigações e repasses', exact: true }).click();
+  const ledger = page.getByRole('region', { name: 'Operação financeira' });
   await expect(ledger).toContainText(process.env.PAYOUT_ORDER_ID!.slice(0, 8));
-  await ledger.getByRole('button', { name: 'Solicitar repasse' }).click();
-  await expect(page.getByRole('alert').filter({ hasText: 'Solicitação processada' })).toBeVisible();
-  await expect(ledger).toContainText('CONFIRMADO');
+  await ledger.getByRole('button', { name: /Pedido .*abrir detalhe/ }).click();
+  await page.getByRole('button', { name: 'Solicitar repasse' }).click();
+  await expect(page.getByRole('alert').filter({ hasText: 'Obrigação enviada ao provedor' })).toBeVisible();
+  await expect(page.getByRole('complementary', { name: 'Detalhe da obrigação' })).toContainText('CONFIRMADO');
+  await expect(page.getByText('HISTÓRICO AUDITÁVEL')).toBeVisible();
+  await page.screenshot({ path: 'test-results/financeiro-obrigacoes-sanitizado.png', fullPage: true });
+  await page.getByRole('button', { name: 'Programas e aportes', exact: true }).click();
+  await page.screenshot({ path: 'test-results/financeiro-programas-sanitizado.png', fullPage: true });
 });
