@@ -27,6 +27,7 @@ class OrderController {
     OrderController(OrderService service,CustodyService custody,@Value("${registration.allowed-origin:http://127.0.0.1:5173}") String origin){this.service=service;this.custody=custody;this.origin=origin;}
     @PostMapping("/orders") ResponseEntity<OrderView> create(Authentication a,HttpServletRequest r,@RequestHeader(value="Idempotency-Key",required=false) String key,@Valid @RequestBody OrderInput input){mutation(a,r);return ResponseEntity.status(HttpStatus.CREATED).body(service.create(user(a),input,key));}
     @GetMapping("/orders") List<OrderView> list(Authentication a){return service.list(user(a));}
+    @GetMapping("/order-options/benefit-programs") List<BenefitProgramOptionView> benefitPrograms(Authentication a,@RequestParam UUID patientId){return service.benefitPrograms(user(a),patientId);}
     @PostMapping(value="/order-documents/pickup-authorization",consumes=MediaType.MULTIPART_FORM_DATA_VALUE) ResponseEntity<DocumentView> uploadAuthorization(Authentication a,HttpServletRequest r,@RequestParam MultipartFile file){mutation(a,r);return ResponseEntity.status(HttpStatus.CREATED).body(service.uploadAuthorizationDocument(user(a),file));}
     @GetMapping("/orders/{id}") OrderView get(Authentication a,@PathVariable UUID id){return service.get(user(a),id);}
     @GetMapping("/orders/{id}/addresses") OrderAddressesView addresses(Authentication a,@PathVariable UUID id){return service.addresses(user(a),id);}

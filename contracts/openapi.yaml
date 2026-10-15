@@ -1689,6 +1689,27 @@ paths:
           $ref: '#/components/responses/Error403'
         '413':
           $ref: '#/components/responses/Error413'
+  /order-options/benefit-programs:
+    get:
+      operationId: listEligibleBenefitProgramsForOrder
+      summary: Consultar programas de benefício elegíveis para um paciente representado
+      tags: [orders]
+      security: [{bearerAuth: []}]
+      parameters:
+      - name: patientId
+        in: query
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Programas habilitados vinculados a benefício aprovado e vigente
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/BenefitProgramOptionV8'}
+        '401': {$ref: '#/components/responses/Error401'}
+        '404': {$ref: '#/components/responses/Error404'}
   /orders:
     post:
       operationId: createOrder
@@ -4464,6 +4485,17 @@ components:
         version: {type: integer, minimum: 1}
         criteria: {type: string}
         maximumPercentage: {type: number, minimum: 0, maximum: 100}
+    BenefitProgramOptionV8:
+      type: object
+      required: [id, institutionId, institutionName, code, name, benefitRequestId, percentage]
+      properties:
+        id: {type: string, format: uuid}
+        institutionId: {type: string, format: uuid}
+        institutionName: {type: string}
+        code: {type: string}
+        name: {type: string}
+        benefitRequestId: {type: string, format: uuid}
+        percentage: {type: number, minimum: 0, maximum: 100}
     BenefitRequestInputV7:
       type: object
       required: [patientId, policyId, dimensions]

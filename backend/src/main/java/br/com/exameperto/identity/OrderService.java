@@ -40,6 +40,10 @@ class OrderService {
     DocumentView uploadAuthorizationDocument(UUID actor, org.springframework.web.multipart.MultipartFile file){return evidence.storeDocument(actor,"AUTORIZACAO_RETIRADA",file);}
 
     List<OrderView> list(UUID actor){return jdbc.query("SELECT p.id FROM pedido p LEFT JOIN autorizacao_paciente a ON a.paciente_id=p.paciente_id AND a.familiar_id=? AND a.revogada_em IS NULL AND a.expira_em>clock_timestamp() JOIN paciente patient ON patient.id=p.paciente_id WHERE patient.usuario_id=? OR (a.id IS NOT NULL AND EXISTS (SELECT 1 FROM autorizacao_escopo e WHERE e.autorizacao_id=a.id AND e.escopo='PEDIDOS')) GROUP BY p.id,p.created_at ORDER BY p.created_at DESC,p.id",(rs,n)->order(rs.getObject(1,UUID.class)),actor,actor);}
+    List<BenefitProgramOptionView> benefitPrograms(UUID actor, UUID patient){
+        authorizePedidos(actor, patient);
+        return jdbc.query("SELECT DISTINCT ON (p.id) p.id,p.instituicao_id,i.nome,p.codigo,p.nome,s.id,s.percentual FROM solicitacao_beneficio s JOIN programa p ON p.instituicao_id=s.instituicao_id JOIN instituicao i ON i.id=p.instituicao_id JOIN politica_beneficio pb ON pb.id=s.politica_id WHERE s.paciente_id=? AND s.estado='DECIDIDA' AND s.decisao='APROVADA' AND s.percentual>0 AND s.decisao_revogada_em IS NULL AND s.decisao_valida_ate>clock_timestamp() AND pb.estado='ATIVA' AND pb.vigencia_inicio<=clock_timestamp() AND (pb.vigencia_fim IS NULL OR pb.vigencia_fim>clock_timestamp()) AND p.estado='HABILITADO' ORDER BY p.id,s.updated_at DESC",(rs,n)->new BenefitProgramOptionView(rs.getObject(1,UUID.class),rs.getObject(2,UUID.class),rs.getString(3),rs.getString(4),rs.getString(5),rs.getObject(6,UUID.class),rs.getBigDecimal(7)),patient);
+    }
     OrderView get(UUID actor,UUID id){authorizeRead(actor,id);return order(id);}
     OrderAddressesView addresses(UUID actor,UUID id){authorizeAddresses(actor,id);Map<String,Object> r=row(id);return new OrderAddressesView(read((byte[])r.get("origem_cifrada")),read((byte[])r.get("destino_cifrada")));}
 

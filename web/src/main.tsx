@@ -124,6 +124,15 @@ type BenefitPolicyOption = {
   criteria: string;
   maximumPercentage: number;
 };
+type BenefitProgramOption = {
+  id: string;
+  institutionId: string;
+  institutionName: string;
+  code: string;
+  name: string;
+  benefitRequestId: string;
+  percentage: number;
+};
 type Funding = {
   id: string;
   programId: string;
@@ -2747,6 +2756,8 @@ function OrderPanel({ session }: { session: Tokens }) {
   const [documentId, setDocumentId] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
   const [quotes, setQuotes] = useState<Record<string, Quote[]>>({});
+  const [benefitPrograms, setBenefitPrograms] = useState<BenefitProgramOption[]>([]);
+  const [coverageProgramId, setCoverageProgramId] = useState("");
   const [assignments, setAssignments] = useState<Record<string, Assignment>>(
     {},
   );
@@ -3029,6 +3040,14 @@ function OrderPanel({ session }: { session: Tokens }) {
         setDetailOrigin(null);
         setDetailDestination(null);
       });
+    const selected = orders.find((item) => item.id === selectedOrderId);
+    setCoverageProgramId("");
+    setBenefitPrograms([]);
+    if (selected) {
+      api(`/order-options/benefit-programs?patientId=${encodeURIComponent(selected.patientId)}`)
+        .then((response) => setBenefitPrograms((response.result ?? []) as BenefitProgramOption[]))
+        .catch(() => setBenefitPrograms([]));
+    }
   }, [selectedOrderId]);
   async function upload(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -3103,7 +3122,7 @@ function OrderPanel({ session }: { session: Tokens }) {
           "If-Match": String(order.version),
           "Idempotency-Key": crypto.randomUUID(),
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ programId: coverageProgramId || null }),
       });
       setQuotes((current) => ({
         ...current,
@@ -3534,6 +3553,18 @@ function OrderPanel({ session }: { session: Tokens }) {
                   : "Calcular orçamento"}
               </button>
             </div>
+            <label>
+              Programa de benefício elegível (opcional)
+              <select aria-label="Programa de benefício para cobertura" value={coverageProgramId} onChange={(event) => setCoverageProgramId(event.target.value)}>
+                <option value="">Sem benefício confirmado</option>
+                {benefitPrograms.map((program) => (
+                  <option value={program.id} key={`${program.id}-${program.benefitRequestId}`}>
+                    {program.institutionName} · {program.name} ({program.code}) · até {program.percentage}%
+                  </option>
+                ))}
+              </select>
+            </label>
+            {!benefitPrograms.length && <p className="dependency-note">Nenhum programa de benefício elegível foi confirmado para este paciente. O orçamento será calculado sem subsídio.</p>}
             {(quotes[selectedOrder.id] ?? []).length ? (
               (quotes[selectedOrder.id] ?? []).map((q) => (
                 <div className="quote-row" key={q.id}>
