@@ -1231,6 +1231,129 @@ textarea:focus-visible {
   border-left: 0.25rem solid #ad683c;
   color: #70533e !important;
 }
+
+.patient-orders {
+  max-width: 78rem;
+  margin: 0 auto 2rem;
+  padding: clamp(1.2rem, 4vw, 3rem);
+  background: #f7f7ef;
+  border: 1px solid #cbd2c9;
+}
+.orders-heading,
+.order-detail-head,
+.card-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+  align-items: start;
+}
+.orders-heading h2,
+.order-detail-head h3 {
+  margin: .4rem 0;
+  color: #20322e;
+  font-size: clamp(1.8rem, 4vw, 3.2rem);
+  letter-spacing: -.05em;
+}
+.orders-heading p,
+.order-detail-head p,
+.journey-step > p,
+.order-side-note p,
+.order-detail-card p {
+  color: #60716a;
+  line-height: 1.65;
+}
+.orders-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(15rem, .7fr);
+  gap: 1rem;
+  margin-top: 2rem;
+}
+.order-journey,
+.order-side-note,
+.order-history,
+.order-detail-card {
+  padding: clamp(1rem, 3vw, 1.6rem);
+  background: #fffdf6;
+  border: 1px solid #ccd4cc;
+}
+.order-stepper {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: .3rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid #d8ded6;
+}
+.order-stepper button {
+  display: grid;
+  gap: .45rem;
+  justify-items: start;
+  padding: .35rem;
+  color: #7a8981;
+  background: transparent;
+  border: 0;
+  font-size: .65rem;
+  text-align: left;
+}
+.order-stepper button span {
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border: 1px solid #b9c7bd;
+  border-radius: 50%;
+  font-family: "DM Mono", monospace;
+}
+.order-stepper button.is-current { color: #275f50; font-weight: 700; }
+.order-stepper button.is-current span,
+.order-stepper button.is-done span { background: #275f50; color: #fff; border-color: #275f50; }
+.journey-step { display: grid; gap: 1rem; padding-top: 1.7rem; }
+.journey-step h3,
+.order-side-note h3,
+.order-history h3,
+.quote-area h3 { margin: 0; color: #20322e; font-size: 1.4rem; }
+.journey-step label { display: grid; gap: .4rem; color: #52645d; font-weight: 700; }
+.journey-step select { width: 100%; }
+.journey-actions { display: flex; gap: .6rem; justify-content: space-between; margin-top: .6rem; }
+.journey-actions button:first-child { margin-right: auto; }
+.order-side-note { background: #20322e; color: #e9efe9; }
+.order-side-note h3 { color: #f1f4ed; }
+.order-side-note p { color: #b8c8c2; }
+.order-side-note > div { display: grid; gap: .4rem; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #40534c; }
+.order-side-note strong { color: #91d1b6; }
+.order-side-note small { color: #b8c8c2; line-height: 1.5; }
+.order-history { margin-top: 1rem; }
+.order-list-item { width: 100%; display: grid; grid-template-columns: 2rem minmax(0, 1fr) auto; gap: .8rem; align-items: center; margin-top: .6rem; padding: .85rem; background: #f7f7ef; color: #20322e; border: 1px solid #d7ddd5; text-align: left; }
+.order-list-item:hover { background: #e8f2eb; transform: translateY(-1px); }
+.order-list-item > span:nth-child(2) { display: grid; gap: .2rem; }
+.order-list-item small { color: #60716a; }
+.order-list-icon { display: grid; place-items: center; width: 1.7rem; height: 1.7rem; background: #dceee3; color: #275f50; border-radius: 50%; }
+.order-status-pill { display: inline-flex; padding: .35rem .55rem; background: #dceee3; color: #275f50; font: 500 .62rem "DM Mono", monospace; }
+.order-detail-card { margin-top: 2rem; }
+.order-detail-head { padding-bottom: 1.2rem; border-bottom: 1px solid #d8ded6; }
+.order-detail-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin: 1.2rem 0; }
+.order-detail-grid > div,
+.tracking-card { display: grid; gap: .45rem; padding: 1rem; background: #e8f2eb; }
+.order-detail-grid strong,
+.tracking-card strong { color: #20322e; }
+.tracking-card { background: #20322e; color: #e9efe9; }
+.tracking-card strong { color: #f1f4ed; }
+.tracking-card p { color: #b8c8c2; }
+.inline-status { padding: .7rem 1rem; background: #fff7e9; border-left: .25rem solid #ad683c; }
+.quote-area { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #d8ded6; }
+.quote-row { display: grid; gap: .45rem; margin-top: 1rem; padding: 1rem; border: 1px solid #ccd4cc; }
+.quote-row span, .quote-row small { color: #60716a; }
+.review-grid { display: grid; grid-template-columns: 1fr 2fr; gap: .65rem 1rem; padding: 1rem; background: #e8f2eb; }
+.review-grid span { color: #60716a; }
+.review-grid strong { color: #20322e; }
+.upload-confirmed { color: #275f50 !important; font-weight: 700; }
+
+@media (max-width: 760px) {
+  .orders-layout, .order-detail-grid { grid-template-columns: 1fr; }
+  .order-stepper { grid-template-columns: repeat(3, 1fr); row-gap: .6rem; }
+  .orders-heading, .order-detail-head { display: grid; }
+  .order-list-item { grid-template-columns: 2rem minmax(0, 1fr); }
+  .order-list-item .order-status-pill { grid-column: 2; justify-self: start; }
+}
 .review-summary {
   display: grid;
   gap: 0.3rem;

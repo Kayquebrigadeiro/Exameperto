@@ -1,5 +1,40 @@
 # Status — atualizado em 14/10/2026
 
+## Painel do paciente e jornada de entrega — 14/10/2026
+
+`/app` mantém o painel autenticado separado da home e de `/acesso`, com
+saudação, próximo passo, pedidos recentes, estados vazios reais e acessos a
+perfil, família e benefícios. `/app/pedidos` foi reconstruído como jornada em
+seis etapas (paciente, unidade/retirada, destinatário, endereço, documento e
+revisão), com seletores para paciente/destinatário autorizados, detalhe de
+pedido, estados compreensíveis, orçamento/cobertura e acompanhamento ligados
+às APIs existentes. UUIDs não são mais digitados ou exibidos na interface.
+
+O rascunho da jornada fica em `sessionStorage` para retomada neste navegador;
+isso não é tratado como persistência do domínio. O pedido só é declarado
+criado após resposta de criação e recarga da lista.
+
+Bloqueio confirmado no ambiente normal: não há endpoint/catálogo de unidades
+de retirada, e não existe unidade/protocolo configurado que possa ser
+selecionado. O backend exige `pickupUnitId` real; depois da criação exige
+autorização da unidade, provedor de rota, tarifa, política e cobertura válidos
+para orçamento. A UI mostra o requisito exato, preserva o preenchimento e
+mantém o envio desabilitado; não inventa parceiro, preço ou aprovação.
+
+Evidências: `npm run build` em `web` passou; `tests/registration.spec.ts`
+passou 6/6; `git diff --check` passou; o marcador servido por
+`127.0.0.1:5173` contém a versão nova. A regressão
+`OrderBrowserFlowTest` passou com navegador, Spring e PostgreSQL descartável
+(Flyway V18), confirmando que o paciente vem da API, a unidade fica sem opção
+e o banco não recebe pedido nem autorização. A tela foi fotografada sem dados
+pessoais em `/tmp/exameperto-app.png` e `/tmp/exameperto-pedidos.png`, usando
+sessão preparada e APIs mockadas; não são prova de login real. O endpoint
+normal `/api/v1/orders` sem sessão respondeu 401 com `correlationId` sanitizado.
+
+URLs para avaliação local: `http://127.0.0.1:5173/app` e
+`http://127.0.0.1:5173/app/pedidos` após login real. A conta existente, home,
+acesso, banco e arquivos pessoais foram preservados; não houve deploy.
+
 ## Reenvio/cadastro duplicado no ambiente normal — 14/10/2026
 
 A conta local cadastrada para login é `gregoriokayque352@gmail.com`; a senha

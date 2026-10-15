@@ -183,6 +183,25 @@ type Incident = {
   description?: string;
   createdAt: string;
 };
+
+const orderStatusLabels: Record<string, string> = {
+  EM_VERIFICACAO: "Em verificação",
+  AGUARDANDO_ACEITE: "Aguardando sua decisão",
+  DISPONIVEL: "Pronto para seguir",
+  ACEITA: "Aceito",
+  RETIRADA: "Retirado",
+  EM_ENTREGA: "Em entrega",
+  OCORRENCIA: "Atenção necessária",
+  CANCELADA: "Cancelado",
+};
+
+function orderStatusLabel(value: string) {
+  return orderStatusLabels[value] ?? value.replaceAll("_", " ").toLocaleLowerCase("pt-BR");
+}
+
+function formatMoney(value: number) {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
 type OperationalIdentity = {
   displayName: string;
   plate: string;
@@ -2448,6 +2467,7 @@ function VehicleReviewPanel({ session }: { session: Tokens }) {
 }
 
 function OrderPanel({ session }: { session: Tokens }) {
+  const draftKey = "exameperto-order-draft";
   const [patientId, setPatientId] = useState("");
   const [recipientId, setRecipientId] = useState("");
   const [unitId, setUnitId] = useState("");
@@ -2493,6 +2513,8 @@ function OrderPanel({ session }: { session: Tokens }) {
   >({});
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
+  const [step, setStep] = useState(1);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [locations, setLocations] = useState<
     Record<string, LiveLocation | null>
   >({});
@@ -2500,6 +2522,27 @@ function OrderPanel({ session }: { session: Tokens }) {
   const reconnect = useRef<number | undefined>(undefined);
   const activeOrders = useRef<string[]>([]);
   const activeOrderObjects = useRef<Order[]>([]);
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(draftKey) ?? "null") as {
+        patientId?: string; recipientId?: string; unitId?: string; documentId?: string;
+        origin?: typeof origin; destination?: typeof destination; step?: number;
+      } | null;
+      if (!saved) return;
+      if (saved.patientId) setPatientId(saved.patientId);
+      if (saved.recipientId) setRecipientId(saved.recipientId);
+      if (saved.unitId) setUnitId(saved.unitId);
+      if (saved.documentId) setDocumentId(saved.documentId);
+      if (saved.origin) setOrigin(saved.origin);
+      if (saved.destination) setDestination(saved.destination);
+      if (saved.step) setStep(saved.step);
+    } catch {
+      sessionStorage.removeItem(draftKey);
+    }
+  }, []);
+  useEffect(() => {
+    sessionStorage.setItem(draftKey, JSON.stringify({ patientId, recipientId, unitId, documentId, origin, destination, step }));
+  }, [patientId, recipientId, unitId, documentId, origin, destination, step]);
   async function api(path: string, init: RequestInit = {}) {
     return parse(
       await fetch(`/api/v1${path}`, {
@@ -2727,8 +2770,10 @@ function OrderPanel({ session }: { session: Tokens }) {
       });
       setNotice({
         tone: "info",
-        text: "Pedido criado para verificação; nenhuma unidade foi presumida como aceita.",
+        text: "Pedido registrado e enviado para verificação. A unidade ainda não foi considerada aceita.",
       });
+      sessionStorage.removeItem(draftKey);
+      setStep(1);
       await load();
     } catch (err) {
       setNotice({
@@ -2849,9 +2894,11 @@ function OrderPanel({ session }: { session: Tokens }) {
         ] as const
       ).map((key) => (
         <label key={key}>
-          {key}
+          {({ street: "Rua", number: "Número", district: "Bairro", city: "Cidade", state: "Estado", postalCode: "CEP", latitude: "Latitude", longitude: "Longitude" } as Record<string, string>)[key]}
           <input
+            aria-label={key}
             required
+            inputMode={key === "latitude" || key === "longitude" ? "decimal" : undefined}
             value={value[key]}
             onChange={(e) => setter({ ...value, [key]: e.target.value })}
           />
@@ -2859,221 +2906,54 @@ function OrderPanel({ session }: { session: Tokens }) {
       ))}
     </fieldset>
   );
+  const selectedOrder = orders.find((order) => order.id === selectedOrderId) ?? null;
+  const canSubmit = Boolean(documentId && patientId && recipientId && unitId);
+  const stepNames = ["Paciente", "Unidade e retirada", "Destinatário", "Endereço", "Documentos", "Revisão"];
+  const nextStep = () => setStep((value) => Math.min(6, value + 1));
+  const previousStep = () => setStep((value) => Math.max(1, value - 1));
+  const dependencyMessage = "Ainda não há uma unidade de retirada disponível para seleção. O backend exige uma unidade real com protocolo de custódia habilitado; nenhum identificador foi inventado.";
+  const renderOrderSummary = (order: Order) => (
+    <button className="order-list-item" type="button" onClick={() => setSelectedOrderId(order.id)}>
+      <span className="order-list-icon" aria-hidden="true">↗</span>
+      <span><strong>Pedido de entrega</strong><small>{new Date(order.createdAt).toLocaleDateString("pt-BR")} · {orderStatusLabel(order.status)}</small></span>
+      <span className="order-status-pill">{orderStatusLabel(order.status)}</span>
+    </button>
+  );
   return (
-    <section className="family order-panel" aria-label="Pedidos e orçamentos">
-      <div className="section-heading">
-        <span className="eyebrow dark">PEDIDOS</span>
-        <h2>Retirada e cobertura</h2>
-        <p>
-          Endereços ficam privados. Particular e subsidiado têm dependências
-          próprias; aceite não confirma pagamento.
-        </p>
+    <section className="patient-orders" aria-label="Pedidos">
+      <div className="orders-heading">
+        <div><span className="eyebrow dark">PEDIDOS</span><h2>{selectedOrder ? "Detalhes do pedido" : "Solicitar entrega"}</h2><p>{selectedOrder ? "Acompanhe o que já foi confirmado e o próximo passo." : "Organize uma retirada autorizada em uma jornada simples."}</p></div>
+        {selectedOrder && <button className="text-button" type="button" onClick={() => setSelectedOrderId(null)}>← Voltar aos pedidos</button>}
       </div>
-      <form className="work-card staged-form" onSubmit={create}>
-        <span className="form-step">ETAPA 1 · PARTICIPANTES</span>
-        <label>
-          Paciente representado
-          <select
-            required
-            value={patientId}
-            onChange={(e) => setPatientId(e.target.value)}
-          >
-            <option value="" disabled>Selecione um perfil autorizado</option>
-            {patientOptions.map((option) => <option value={option.id} key={option.id}>{option.label}</option>)}
-          </select>
-        </label>
-        <p className="acting-context">
-          Você está preparando o pedido em nome do paciente indicado. O backend
-          exige titularidade ou concessão PEDIDOS vigente.
-        </p>
-        <label>
-          Destinatário autorizado
-          <select
-            required
-            value={recipientId}
-            onChange={(e) => setRecipientId(e.target.value)}
-          >
-            <option value="" disabled>Selecione uma pessoa autorizada</option>
-            {recipientOptions.map((option) => <option value={option.id} key={option.id}>{option.label}</option>)}
-          </select>
-        </label>
-        <span className="form-step">ETAPA 2 · RETIRADA</span>
-        <label>
-          Unidade de retirada{" "}
-          <input
-            required
-            value={unitId}
-            onChange={(e) => setUnitId(e.target.value)}
-          />
-        </label>
-        <p className="dependency-note">
-          O catálogo de unidades ainda não possui endpoint de consulta. A
-          unidade real precisa fornecer este identificador e manter protocolo de
-          custódia habilitado; sem isso, não envie o pedido.
-        </p>
-        <label>
-          Evidência de autorização de retirada
-          <input
-            type="file"
-            accept="application/pdf,image/png,image/jpeg"
-            onChange={upload}
-            required={!documentId}
-          />
-        </label>
-        <p>
-          <code>{documentId || "Nenhuma evidência anexada"}</code>
-        </p>
-        <span className="form-step">ETAPA 3 · ENDEREÇOS</span>
-        {fields("Origem", origin, setOrigin)}
-        {fields("Destino", destination, setDestination)}
-        <div className="review-summary">
-          <strong>Revisão</strong>
-          <span>
-            Participantes selecionados; unidade informada; evidência {documentId ? "anexada" : "pendente"}. Rota, tarifa e cobertura serão verificadas depois.
-          </span>
-        </div>
-        <button disabled={busy || !documentId || !patientId || !recipientId || !unitId}>Solicitar retirada</button>
-      </form>
-      <div className="registers">
-        {orders.length ? (
-          orders.map((order) => (
-            <article key={order.id}>
-              <h3>
-                Pedido <code>{order.id}</code>
-              </h3>
-              <p>
-                <strong>{order.status}</strong>
-                <span>cobertura {order.coverageStatus}</span>
-                <span>versão {order.version}</span>
-                <span>autorização {order.pickupAuthorizationId}</span>
-              </p>
-              {activeOrders.current.includes(order.id) && (
-                <p role="status">
-                  {locations[order.id] ? (
-                    <>
-                      Última posição:{" "}
-                      {new Date(locations[order.id]!.capturedAt).toLocaleString(
-                        "pt-BR",
-                      )}{" "}
-                      · precisão {locations[order.id]!.accuracyMeters} m
-                      {locations[order.id]!.stale ? " · desatualizada" : ""}
-                      {locations[order.id]!.lowAccuracy
-                        ? " · precisão baixa"
-                        : ""}{" "}
-                      · {locations[order.id]!.latitude},{" "}
-                      {locations[order.id]!.longitude}
-                    </>
-                  ) : (
-                    "Localização indisponível; nenhum marcador é exibido."
-                  )}
-                </p>
-              )}
-              {custodies[order.id] && (
-                <p>
-                  Custódia:{" "}
-                  {custodies[order.id]?.status?.toLocaleLowerCase("pt-BR")}
-                  {custodies[order.id]?.destinationType
-                    ? ` · destino ${custodies[order.id]?.destinationType?.toLocaleLowerCase("pt-BR")}`
-                    : ""}
-                </p>
-              )}
-              {(incidents[order.id] ?? []).map((i) => (
-                <p key={i.id} role="status">
-                  Ocorrência: {i.type.toLocaleLowerCase("pt-BR")} ·{" "}
-                  {i.status.toLocaleLowerCase("pt-BR")}
-                </p>
-              ))}
-              {["RETIRADA", "EM_ENTREGA"].includes(order.status) && (
-                <div>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void issueReceiptCode(order)}
-                  >
-                    Emitir código de recebimento
-                  </button>
-                  {receiptCodes[order.id] && (
-                    <p role="status">
-                      Código temporário:{" "}
-                      <code>{receiptCodes[order.id].code}</code> · expira em{" "}
-                      {new Date(
-                        receiptCodes[order.id].expiresAt,
-                      ).toLocaleString("pt-BR")}
-                    </p>
-                  )}
-                </div>
-              )}
-              {assignments[order.id] && (
-                <div className="assignment-status">
-                  <p>
-                    <strong>Entregador designado</strong>
-                    <span>{drivers[order.id]?.displayName}</span>
-                    <span>
-                      {drivers[order.id]?.model} · {drivers[order.id]?.color} ·
-                      placa {drivers[order.id]?.plate}
-                    </span>
-                    <small>
-                      Designação{" "}
-                      {assignments[order.id]?.status.toLocaleLowerCase("pt-BR")}{" "}
-                      em{" "}
-                      {new Date(
-                        assignments[order.id]?.acceptedAt,
-                      ).toLocaleString("pt-BR")}
-                    </small>
-                  </p>
-                  <p>
-                    Somente a identidade operacional necessária é exibida;
-                    documentos profissionais e dados de saúde, renda ou
-                    benefício permanecem restritos.
-                  </p>
-                </div>
-              )}
-              <button
-                type="button"
-                disabled={busy || order.status !== "EM_VERIFICACAO"}
-                onClick={() => void quote(order)}
-              >
-                Calcular orçamento
-              </button>
-              {(quotes[order.id] ?? []).map((q) => (
-                <div key={q.id}>
-                  <p>
-                    <strong>{q.status}</strong>
-                    <span>
-                      R$ {q.grossAmount} · paciente R$ {q.patientAmount} ·
-                      subsídio R$ {q.subsidyAmount}
-                    </span>
-                    <span>
-                      {q.distanceMeters} m · {q.durationSeconds}s ·{" "}
-                      {q.routeProvider}
-                    </span>
-                    <small>
-                      válido até {new Date(q.expiresAt).toLocaleString("pt-BR")}
-                    </small>
-                  </p>
-                  {q.status === "PROPOSTO" && (
-                    <button
-                      type="button"
-                      disabled={busy || !q.cancellationPolicyId}
-                      onClick={() => void accept(order, q)}
-                    >
-                      Aceitar condições
-                    </button>
-                  )}
-                </div>
-              ))}
-            </article>
-          ))
-        ) : (
-          <article>
-            <p className="empty">Nenhum pedido visível.</p>
-          </article>
-        )}
-      </div>
-      {notice && (
-        <p className={`feedback ${notice.tone}`} role="alert">
-          {notice.text}
-        </p>
+      {notice && <p className={`feedback ${notice.tone}`} role="alert">{notice.text}</p>}
+      {selectedOrder ? (
+        <article className="order-detail-card">
+          <div className="order-detail-head"><div><span className="card-kicker">PEDIDO DE ENTREGA</span><h3>{orderStatusLabel(selectedOrder.status)}</h3><p>Solicitado em {new Date(selectedOrder.createdAt).toLocaleDateString("pt-BR")}</p></div><span className="order-status-pill">{orderStatusLabel(selectedOrder.coverageStatus)}</span></div>
+          <div className="order-detail-grid"><div><span className="card-kicker">PRÓXIMO PASSO</span><strong>{selectedOrder.status === "EM_VERIFICACAO" ? "A unidade precisa verificar a retirada" : "Acompanhe as atualizações do pedido"}</strong><p>Valores, cobertura e rota só aparecem depois das verificações correspondentes.</p></div><div><span className="card-kicker">COBERTURA</span><strong>{selectedOrder.coverageStatus === "NAO_CONTRATADA" ? "Ainda não contratada" : orderStatusLabel(selectedOrder.coverageStatus)}</strong><p>Nenhuma aprovação ou preço é presumido.</p></div></div>
+          {activeOrders.current.includes(selectedOrder.id) && <div className="tracking-card"><span className="card-kicker">ACOMPANHAMENTO</span><strong>{locations[selectedOrder.id] ? `Última atualização em ${new Date(locations[selectedOrder.id]!.capturedAt).toLocaleString("pt-BR")}` : "A localização ainda não está disponível"}</strong><p>{locations[selectedOrder.id] ? `${locations[selectedOrder.id]!.stale ? "Atualização desatualizada. " : ""}Precisão aproximada de ${locations[selectedOrder.id]!.accuracyMeters} m.` : "Nenhum marcador será exibido sem posição válida."}</p></div>}
+          {custodies[selectedOrder.id] && <p className="inline-status">Custódia: {orderStatusLabel(custodies[selectedOrder.id]!.status)}.</p>}
+          {(incidents[selectedOrder.id] ?? []).map((incident) => <p className="inline-status" role="status" key={incident.id}>Atenção: {orderStatusLabel(incident.status)}.</p>)}
+          {assignments[selectedOrder.id] && <div className="assignment-status"><strong>Entrega designada</strong><span>{drivers[selectedOrder.id]?.displayName} · {drivers[selectedOrder.id]?.model}</span><small>Identidade operacional necessária para o acompanhamento.</small></div>}
+          {(["RETIRADA", "EM_ENTREGA"] as string[]).includes(selectedOrder.status) && <button type="button" disabled={busy} onClick={() => void issueReceiptCode(selectedOrder)}>Emitir código de recebimento</button>}
+          {receiptCodes[selectedOrder.id] && <p role="status">Código emitido para esta sessão; expira em {new Date(receiptCodes[selectedOrder.id].expiresAt).toLocaleString("pt-BR")}.</p>}
+          <div className="quote-area"><div className="card-heading"><div><span className="card-kicker">ORÇAMENTO E COBERTURA</span><h3>Condições verificadas</h3></div><button type="button" disabled={busy || selectedOrder.status !== "EM_VERIFICACAO"} onClick={() => void quote(selectedOrder)}>Calcular orçamento</button></div>{(quotes[selectedOrder.id] ?? []).length ? (quotes[selectedOrder.id] ?? []).map((q) => <div className="quote-row" key={q.id}><strong>{q.status === "PROPOSTO" ? "Orçamento disponível" : orderStatusLabel(q.status)}</strong><span>{formatMoney(q.grossAmount)} · sua parte {formatMoney(q.patientAmount)}</span><small>Rota calculada por provedor configurado · válido até {new Date(q.expiresAt).toLocaleString("pt-BR")}</small>{q.status === "PROPOSTO" && <button type="button" disabled={busy || !q.cancellationPolicyId} onClick={() => void accept(selectedOrder, q)}>Aceitar condições</button>}</div>) : <p className="empty-state">Nenhum orçamento foi calculado para este pedido.</p>}</div>
+        </article>
+      ) : (
+        <>
+          <div className="orders-layout">
+            <form className="order-journey" onSubmit={create}>
+              <div className="order-stepper" aria-label="Etapas da solicitação">{stepNames.map((name, index) => <button type="button" className={step === index + 1 ? "is-current" : step > index + 1 ? "is-done" : ""} key={name} onClick={() => setStep(index + 1)}><span>{index + 1}</span>{name}</button>)}</div>
+              {step === 1 && <div className="journey-step"><span className="card-kicker">ETAPA 1 DE 6</span><h3>Quem vai receber o cuidado?</h3><p>Escolha apenas perfis que sua conta pode representar.</p><label>Paciente<select aria-label="Paciente representado" required value={patientId} onChange={(e) => setPatientId(e.target.value)}><option value="" disabled>Selecione um paciente autorizado</option>{patientOptions.map((option) => <option value={option.id} key={option.id}>{option.label}</option>)}</select></label>{!patientOptions.length && <p className="empty-state">Nenhum perfil de paciente autorizado está disponível para esta conta.</p>}<button type="button" onClick={nextStep} disabled={!patientId}>Continuar</button></div>}
+              {step === 2 && <div className="journey-step"><span className="card-kicker">ETAPA 2 DE 6</span><h3>De onde será a retirada?</h3><p>O pedido só pode seguir com uma unidade real e um protocolo de custódia habilitado.</p><label>Unidade de retirada<select aria-label="Unidade de retirada" required value={unitId} onChange={(e) => setUnitId(e.target.value)} disabled><option value="">Nenhuma unidade disponível</option></select></label><p className="dependency-note">{dependencyMessage} Seus dados preenchidos ficam salvos neste navegador e você pode retomar quando uma unidade estiver configurada.</p><div className="journey-actions"><button type="button" className="secondary" onClick={previousStep}>Voltar</button><button type="button" onClick={nextStep} disabled={!unitId}>Continuar</button></div></div>}
+              {step === 3 && <div className="journey-step"><span className="card-kicker">ETAPA 3 DE 6</span><h3>Quem vai receber?</h3><p>O destinatário precisa ter autorização vigente para recebimento.</p><label>Destinatário autorizado<select aria-label="Destinatário autorizado" required value={recipientId} onChange={(e) => setRecipientId(e.target.value)}><option value="" disabled>Selecione uma pessoa autorizada</option>{recipientOptions.map((option) => <option value={option.id} key={option.id}>{option.label}</option>)}</select></label>{!recipientOptions.length && <p className="empty-state">Nenhum destinatário com autorização vigente foi encontrado.</p>}<div className="journey-actions"><button type="button" className="secondary" onClick={previousStep}>Voltar</button><button type="button" onClick={nextStep} disabled={!recipientId}>Continuar</button></div></div>}
+              {step === 4 && <div className="journey-step"><span className="card-kicker">ETAPA 4 DE 6</span><h3>Informe os endereços</h3><p>Esses dados ficam protegidos e são usados somente para calcular a rota autorizada.</p>{fields("Origem", origin, setOrigin)}{fields("Destino", destination, setDestination)}<div className="journey-actions"><button type="button" className="secondary" onClick={previousStep}>Voltar</button><button type="button" onClick={nextStep}>Continuar</button></div></div>}
+              {step === 5 && <div className="journey-step"><span className="card-kicker">ETAPA 5 DE 6</span><h3>Anexe a autorização</h3><p>O arquivo é privado e permanece pendente até a verificação da unidade.</p><label>Evidência de autorização de retirada<input aria-label="Evidência de autorização de retirada" type="file" accept="application/pdf,image/png,image/jpeg" onChange={upload} required={!documentId} /></label><p className={documentId ? "upload-confirmed" : "empty-state"}>{documentId ? "Documento anexado nesta sessão." : "Nenhum documento anexado ainda."}</p><div className="journey-actions"><button type="button" className="secondary" onClick={previousStep}>Voltar</button><button type="button" onClick={nextStep} disabled={!documentId}>Continuar</button></div></div>}
+              {step === 6 && <div className="journey-step"><span className="card-kicker">ETAPA 6 DE 6</span><h3>Revise antes de solicitar</h3><div className="review-grid"><span>Paciente</span><strong>{patientOptions.find((option) => option.id === patientId)?.label ?? "Não selecionado"}</strong><span>Destinatário</span><strong>{recipientOptions.find((option) => option.id === recipientId)?.label ?? "Não selecionado"}</strong><span>Retirada</span><strong>{unitId ? "Unidade selecionada" : "Aguardando unidade"}</strong><span>Documento</span><strong>{documentId ? "Anexado" : "Pendente"}</strong></div><p className="dependency-note">A solicitação só será considerada concluída depois que o backend confirmar a persistência. Rota, cobertura, tarifa e política não são presumidas.</p><div className="journey-actions"><button type="button" className="secondary" onClick={previousStep}>Voltar</button><button type="submit" disabled={busy || !canSubmit}>{busy ? "Enviando…" : "Solicitar entrega"}</button></div></div>}
+            </form>
+            <aside className="order-side-note"><span className="card-kicker">COMO FUNCIONA</span><h3>Você decide em cada etapa.</h3><p>O pedido é criado somente após a revisão. Enquanto isso, o preenchimento fica disponível para retomada neste navegador.</p><div><strong>Sem dados fictícios</strong><small>Unidades, valores e aprovações aparecem apenas quando vierem das APIs reais.</small></div></aside>
+          </div>
+          <section className="order-history" aria-labelledby="order-history-title"><div className="card-heading"><div><span className="card-kicker">HISTÓRICO</span><h3 id="order-history-title">Pedidos recentes</h3></div></div>{orders.length ? orders.map(renderOrderSummary) : <div className="empty-state"><span className="empty-icon" aria-hidden="true">○</span><strong>Você ainda não tem pedidos.</strong><p>Quando uma solicitação for persistida, ela aparecerá aqui com o próximo passo.</p></div>}</section>
+        </>
       )}
     </section>
   );
