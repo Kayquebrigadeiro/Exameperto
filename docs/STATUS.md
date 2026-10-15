@@ -986,3 +986,39 @@ por testes do adaptador e a homologação externa, mas ainda não está
 comprovada por uma jornada de navegador ponta a ponta com candidato. A
 homologação externa não comprova a configuração de produção nem a
 disponibilidade contínua do fornecedor.
+
+### Fechamento da jornada de endereço pelo navegador — 15/10/2026
+
+Partindo de `a45fe48`, a investigação do suposto timeout de sessão mostrou
+que login, Bearer, cookie de refresh, origem e CSRF estavam válidos. As
+respostas 401 vinham de dois matchers ausentes no Spring Security:
+`/api/v1/order-options/units` e `/api/v1/order-options/geocode`. A interface
+tratava a recusa como catálogo vazio. Isso era defeito do produto, não perda
+de sessão do fixture; os matchers foram incluídos sem relaxar autorização.
+
+Depois da correção, o fluxo browser passou 1/1 no teste específico e 2/2 na
+regressão `OrderBrowserFlowTest`, com Chromium → Vite → Spring → PostgreSQL
+17.6 descartável e sem interceptação da API: login, seleção de paciente e
+unidade, preenchimento, candidatos sintéticos controlados no teste,
+confirmação explícita, criação, reload, leitura persistida, alteração que
+invalida a confirmação anterior, nova busca e nova confirmação. O banco
+confirmou `EM_VERIFICACAO`, provedor `openrouteservice-geocoding`,
+`locationConfirmedAt` preenchido e token temporário não persistido; portanto
+a expiração do token não invalida endereço já aceito, enquanto novas
+alterações exigem confirmação novamente.
+
+O defeito adicional encontrado na jornada de alteração era de estado da UI:
+busca e confirmação usavam o estado do rascunho inicial, não o setter do
+endereço em edição. `searchLocation` e `confirmLocation` agora recebem o
+valor/setter do contexto ativo. A asserção de candidato removido e a de
+confirmação permaneceram.
+
+Cobertura complementar: `ConfiguredGeocoderTest` passou cobrindo candidato,
+ausência de resultado, indisponibilidade, token expirado e token incompatível;
+`npm run build` passou. Screenshots sanitizadas da mesma execução isolada:
+`backend/target/address-selection-candidates-sanitized.png` mostra os
+candidatos antes da escolha e `backend/target/address-selection-confirmed-sanitized.png`
+mostra os dois endereços explicitamente confirmados. A evidência é 1/1 para
+esta combinação sintética; não representa cobertura completa de provedores,
+instituições ou endereços reais. A consulta externa pública anterior foi
+reutilizada, sem nova chamada desnecessária.

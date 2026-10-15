@@ -3084,8 +3084,8 @@ function OrderPanel({ session }: { session: Tokens }) {
       longitude: value.longitude ? Number(value.longitude) : null,
     };
   }
-  async function searchLocation(kind: "origin" | "destination") {
-    const value = kind === "origin" ? origin : destination;
+  async function searchLocation(kind: "origin" | "destination", valueOverride?: typeof origin) {
+    const value = valueOverride ?? (kind === "origin" ? origin : destination);
     setSearchingLocation(kind);
     try {
       const response = await api("/order-options/geocode", { method: "POST", body: JSON.stringify({ address: { ...address(value), latitude: null, longitude: null, locationConfirmationToken: null } }) });
@@ -3095,9 +3095,9 @@ function OrderPanel({ session }: { session: Tokens }) {
     } catch (err) { setNotice({ tone: "error", text: err instanceof Error ? err.message : "Não foi possível buscar a localização." }); }
     finally { setSearchingLocation(null); }
   }
-  function confirmLocation(kind: "origin" | "destination", candidate: GeocodeCandidate) {
-    const setter = kind === "origin" ? setOrigin : setDestination;
-    const value = kind === "origin" ? origin : destination;
+  function confirmLocation(kind: "origin" | "destination", candidate: GeocodeCandidate, valueOverride?: typeof origin, setterOverride?: (value: typeof origin) => void) {
+    const setter = setterOverride ?? (kind === "origin" ? setOrigin : setDestination);
+    const value = valueOverride ?? (kind === "origin" ? origin : destination);
     setter({ ...value, latitude: String(candidate.latitude), longitude: String(candidate.longitude), locationConfirmationToken: candidate.confirmationToken });
     (kind === "origin" ? setOriginCandidates : setDestinationCandidates)([]);
     setNotice({ tone: "info", text: `Local confirmado: ${candidate.label}. A estimativa de rota ainda não é comprovação de residência.` });
@@ -3297,7 +3297,7 @@ function OrderPanel({ session }: { session: Tokens }) {
         </label>
       ))}
       <div className="journey-actions">
-        <button type="button" className="secondary" disabled={searchingLocation !== null} onClick={() => void searchLocation(kind)}>
+        <button type="button" className="secondary" disabled={searchingLocation !== null} onClick={() => void searchLocation(kind, value)}>
           {searchingLocation === kind ? "Buscando localização…" : "Buscar localização"}
         </button>
         {value.locationConfirmationToken && <span role="status">Local confirmado para cotação.</span>}
@@ -3306,7 +3306,7 @@ function OrderPanel({ session }: { session: Tokens }) {
         <div className="candidate-card" key={candidate.confirmationToken}>
           <strong>{candidate.label}</strong>
           <small>Estimativa de localização pelo {candidate.provider}.</small>
-          <button type="button" onClick={() => confirmLocation(kind, candidate)}>Confirmar este local</button>
+          <button type="button" onClick={() => confirmLocation(kind, candidate, value, setter)}>Confirmar este local</button>
         </div>
       ))}
     </fieldset>
