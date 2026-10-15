@@ -915,6 +915,14 @@ Validação: `ConfiguredRouteProviderTest` passou 5/5 com servidor HTTP local co
 
 O script `verify-local-environment.sh` agora distingue adaptador configurado de provedor consultado; não faz consulta externa automática. A variável `EXAME_PERTO_ROUTE_API_KEY` não estava presente nesta máquina, portanto nenhuma consulta real ao HeiGIT foi realizada. Homologação externa depende de o responsável criar/configurar privadamente uma chave openrouteservice Standard, respeitar 2.000 Directions/dia e 40/min e executar um ensaio separado com coordenadas públicas. O ambiente normal permanece com orçamento dependente de rota bloqueado até essa configuração.
 
+### Homologação limitada do provedor — 15/10/2026
+
+A chave foi inserida em `.env.smtp.local` por `scripts/configure-local-route.sh`, com leitura sem eco, modo `600`, preservando as variáveis existentes. Nenhum valor da chave foi impresso, versionado ou gravado em evidência. Somente o grupo do backend foi reiniciado; PostgreSQL e Vite permaneceram ativos.
+
+Verificações separadas: configuração estrutural passou (`EXAME_PERTO_ROUTE_ENABLED=true`, chave presente, endpoint esperado); a consulta real também passou pelo adaptador Java com coordenadas públicas de marcos em São Paulo e Rio de Janeiro, sem Spring/HTTP do usuário, sem persistência e sem endereços pessoais. Resultado: provedor `openrouteservice`, distância `449009 m`, duração `20308 s`, `traffic_included=false`, referência hash válida. O teste externo foi 1/1 e não homologa disponibilidade contínua, trânsito ao vivo ou uso de endereços pessoais.
+
+Lacuna de interface confirmada: em `OrderPanel`, os campos `Latitude` e `Longitude` são obrigatórios e precisam ser digitados manualmente. Não existe ainda busca de endereço, lista de candidatos ou confirmação visual da coordenada escolhida. O orçamento só aceita coordenadas já confirmadas pelo contrato; esta UX deve ser tratada antes de apresentar a capacidade como adequada para usuários finais.
+
 ## Fechamento de integrações entre jornadas — 15/10/2026
 
 Base: `1050e2e`. A comparação do escopo com o código e as evidências encontrou uma lacuna de interface na ligação benefício + financiamento: o backend já aceitava `programId` e executava a validação de benefício vigente, reserva concorrente e liberação, mas a tela de pedidos sempre enviava `null`. Foi implementado `GET /api/v1/order-options/benefit-programs?patientId=...`, com autorização de pedidos, instituição, política vigente, benefício aprovado e programa habilitado; a tela passou a selecionar o registro autorizado e enviá-lo ao orçamento. O contrato OpenAPI foi atualizado; não houve migração.
