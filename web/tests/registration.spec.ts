@@ -31,7 +31,48 @@ test('cadastro repetido mantém resposta neutra e oferece login ou recuperação
   await expect(page.getByRole('alert')).toContainText('Se você já possui uma conta');
   await expect(page.getByRole('link', { name: 'Entrar', exact: true }).last()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Recuperar acesso', exact: true }).last()).toBeVisible();
-  await expect(page).toHaveURL(/\/cadastro$/);
+  await expect(page).toHaveURL(/\/confirmacao$/);
+});
+
+test('preserva a intenção de entregador até o dashboard de cadastro após confirmação e login', async ({ page }) => {
+  await page.route('**/api/v1/auth/register', route => route.fulfill({
+    status: 202, contentType: 'application/json', body: JSON.stringify({ id: 'accepted', status: 'PENDENTE' }),
+  }));
+  await page.route('**/api/v1/auth/verification', route => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'verified', status: 'CONCLUIDA' }),
+  }));
+  await page.route('**/api/v1/auth/login', route => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ accessToken: 'deliverer-access', expiresIn: 900 }),
+  }));
+  await page.route('**/api/v1/me/capabilities', route => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ globalRoles: [], institutions: [], areas: ['ENTREGADOR'], patientProfile: false, delivererProfile: false, activeFamilyAuthorization: false }),
+  }));
+  await page.route('**/api/v1/me/deliverer', route => route.fulfill({
+    status: 404, contentType: 'application/json', body: JSON.stringify({ code: 'NOT_FOUND', message: 'Perfil ainda não cadastrado.' }),
+  }));
+  await page.route('**/api/v1/me/deliverer/documents', route => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ result: [] }),
+  }));
+  await page.route('**/api/v1/me/vehicle-links', route => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ result: [] }),
+  }));
+
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Sou entregador', exact: true }).click();
+  await page.getByLabel('Nome completo').fill('Entregador de Teste');
+  await page.getByLabel('E-mail').fill('entregador@example.test');
+  await page.getByLabel('Senha').fill('Senha-sintetica-123');
+  await page.getByRole('button', { name: /Criar conta/ }).click();
+  await expect(page).toHaveURL(/\/confirmacao$/);
+  await expect(page.getByRole('heading', { name: 'Confirmar e-mail' })).toBeVisible();
+
+  await page.getByLabel('Código recebido por e-mail').fill('a'.repeat(43));
+  await page.getByRole('button', { name: /Confirmar e-mail/ }).click();
+  await expect(page).toHaveURL(/\/acesso$/);
+  await page.getByLabel('E-mail').fill('entregador@example.test');
+  await page.getByLabel('Senha').fill('Senha-sintetica-123');
+  await page.getByRole('button', { name: /Entrar/ }).click();
+  await expect(page).toHaveURL(/\/app\/entregador\/cadastro$/);
 });
 
 test('acesso à conta começa em login e cadastro exige escolha explícita', async ({ page }) => {
@@ -89,7 +130,7 @@ test('separa acesso público do dashboard e encerra a sessão na página de aces
   await page.getByLabel('Senha').fill('Senha-sintetica-123');
   await page.getByRole('button', { name: /Entrar/ }).click();
   await expect(page).toHaveURL(/\/app$/);
-  await expect(page.getByRole('heading', { name: /Olá,/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Escolher área', exact: true })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Áreas do produto' })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

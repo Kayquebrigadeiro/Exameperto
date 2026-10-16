@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
-import type { FormEvent, ReactNode } from "react";
+import type { FormEvent, MouseEvent, ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { parseApiResponse as parse, uploadWithProgress } from "./api";
 import {
@@ -389,6 +389,11 @@ const labels: Record<Mode, string> = {
 };
 
 function PublicHome() {
+  const startDelivererRegistration = (event: MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    window.sessionStorage.setItem("exameperto-registration-intent", "entregador");
+    navigate("/cadastro");
+  };
   return (
     <main className="public-home">
       <header className="public-nav">
@@ -405,7 +410,7 @@ function PublicHome() {
         </a>
         <nav aria-label="Acesso público">
           <a href="/acesso">Entrar</a>
-          <a className="nav-quiet" href="/cadastro">
+          <a className="nav-quiet" href="/cadastro" onClick={startDelivererRegistration}>
             Sou entregador
           </a>
           <a className="nav-cta" href="/cadastro">
@@ -5933,6 +5938,8 @@ function AccountPage() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [expired, setExpired] = useState(false);
   const [restoring, setRestoring] = useState(true);
+  const delivererIntent = () =>
+    window.sessionStorage.getItem("exameperto-registration-intent") === "entregador";
   useEffect(() => {
     const change = () => setMode(authRouteFromPath());
     addEventListener("popstate", change);
@@ -6008,16 +6015,23 @@ function AccountPage() {
       );
       if (mode === "login") {
         setSession(result as Tokens);
-        navigate("/app");
+        const destination = delivererIntent() ? "/app/entregador/cadastro" : "/app";
+        window.sessionStorage.removeItem("exameperto-registration-intent");
+        navigate(destination);
         setFeedback({
           tone: "info",
           text: "Sessão iniciada. Seu e-mail está confirmado; identidade e demais verificações continuam independentes.",
         });
-      } else if (mode === "verification")
+      } else if (mode === "verification") {
+        setMode("login");
+        navigate("/acesso");
         setFeedback({
           tone: "info",
-          text: "E-mail confirmado. Você já pode entrar.",
+          text: delivererIntent()
+            ? "E-mail confirmado. Entre para completar seu cadastro de entregador."
+            : "E-mail confirmado. Você já pode entrar.",
         });
+      }
       else if (mode === "recovery/complete") {
         setSession(null);
         setFeedback({
@@ -6028,6 +6042,8 @@ function AccountPage() {
         const email = String(fields.email ?? "");
         setEmailHint(email);
         window.sessionStorage.setItem("exameperto-email", email);
+        setMode("verification");
+        navigate("/confirmacao");
         setFeedback({
           tone: "info",
           text: "Solicitação recebida. Se o endereço puder iniciar um cadastro, enviaremos as instruções. Se você já possui uma conta, entre ou recupere o acesso.",
