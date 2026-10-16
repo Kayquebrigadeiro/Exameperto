@@ -1,5 +1,25 @@
 # Status — atualizado em 14/10/2026
 
+## Preparação do ensaio Android da entrega `de25a99` — 16/10/2026
+
+Preparação independente do aparelho registrada em
+[ANDROID-ENSAIO-DE25A99](ANDROID-ENSAIO-DE25A99.md). A entrega alvo é
+`de25a99`; não houve inicialização de rastreamento, chamada a `/locations`,
+ensaio físico, deploy ou distribuição. O host tem Docker 28.5.2, Maven,
+Node 24.19.0 e npm 12.0.2; não tem `adb`, emulador ou `sdkmanager`, e usa
+OpenJDK 25.0.3, incompatível com o requisito JDK 21 sem troca de toolchain.
+
+Foi preparado o Compose isolado
+`infra/compose.android-homologation.yaml`, com banco/volume próprios,
+`127.0.0.1:55433` e sem qualquer alteração no Compose normal. O backend
+planejado usa `127.0.0.1:58080`, raiz privada temporária própria e
+`EXAME_PERTO_TRACKING_ENABLED=false`/
+`EXAME_PERTO_TRACKING_RETENTION_ENABLED=false`. Nenhum download grande,
+serviço, migração ou objeto sintético foi iniciado nesta etapa. O ensaio
+permanece pendente de JDK 21, Platform-Tools/SDK (ou aparelho com depuração
+USB), senha exclusiva de homologação e autorização explícita para executar os
+comandos; o roteiro não concede aprovação profissional nem operação real.
+
 ## Análise de benefícios e operação de privacidade — 15/10/2026
 
 As telas de `/app/analise-beneficios` e `/app/operacao-privacidade` foram

@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:17.6
+    ports:
+      - "127.0.0.1:55433:5432"
+    environment:
+      POSTGRES_DB: exameperto_android_homolog
+      POSTGRES_USER: exameperto_android_homolog
+      POSTGRES_PASSWORD: ${EXAME_PERTO_ANDROID_HOMOLOG_POSTGRES_PASSWORD:?defina uma senha somente para a homologação Android}
+    volumes:
+      - exame_perto_android_homolog_postgres:/var/lib/postgresql/data
+
+volumes:
+  exame_perto_android_homolog_postgres:
