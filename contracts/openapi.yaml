@@ -3384,15 +3384,14 @@ paths:
             schema:
               $ref: '#/components/schemas/AssignmentInput'
   /financial-operations/{operationId}/checkout:
-    get:
-      operationId: getCheckout
-      summary: Acessar pagamento real da parcela aceita
+    post:
+      operationId: createCheckout
+      summary: Preparar checkout de teste da parcela aceita
       tags:
       - financial-operations
-      description: Pagador titular ou familiar PEDIDOS autorizado ao pedido, somente COBRANCA pendente própria;
-        URL do provedor não confirma pagamento.
+      description: Pagador titular ou familiar PEDIDOS autorizado ao pedido, somente COBRANCA pendente própria. Cria ou reutiliza a mesma tentativa idempotente; a URL do provedor não confirma pagamento.
       x-permission: Pagador titular ou familiar PEDIDOS autorizado ao pedido, somente COBRANCA pendente própria;
-        URL do provedor não confirma pagamento.
+        a confirmação depende de evento autenticado ou consulta ao provedor.
       parameters:
       - name: operationId
         in: path
@@ -3402,7 +3401,7 @@ paths:
           format: uuid
       responses:
         '200':
-          description: Acessar pagamento real da parcela aceita
+          description: Checkout hospedado de teste, sem cobrança real
           content:
             application/json:
               schema:
@@ -3423,6 +3422,24 @@ paths:
           $ref: '#/components/responses/Error429'
         '503':
           $ref: '#/components/responses/Error503'
+  /financial-operations/{operationId}/reconcile:
+    post:
+      operationId: reconcilePayment
+      summary: Consultar situação do pagamento de teste
+      tags: [financial-operations]
+      description: Consulta a mesma tentativa no provedor e aplica somente o estado autenticado, sem criar cobrança nova.
+      x-permission: Pagador titular ou familiar PEDIDOS autorizado ao pedido
+      parameters:
+      - name: operationId
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200': {description: Estado financeiro atualizado, content: {application/json: {schema: {$ref: '#/components/schemas/FinancialOperation'}}}}
+        '401': {$ref: '#/components/responses/Error401'}
+        '404': {$ref: '#/components/responses/Error404'}
+        '409': {$ref: '#/components/responses/Error409'}
+        '503': {$ref: '#/components/responses/Error503'}
   /financial/payouts:
     get:
       operationId: listPayoutPanel

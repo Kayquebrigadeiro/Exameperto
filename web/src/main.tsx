@@ -153,6 +153,7 @@ type Order = {
   pickupAuthorizationId: string;
   pickupUnitId: string;
 };
+type FinancialOperation = { id: string; orderId: string; type: string; amount: number; currency: string; status: string; version: number };
 type GeocodeCandidate = { label: string; latitude: number; longitude: number; provider: string; reference: string; confirmationToken: string };
 type AvailableUnit = { id: string; label: string };
 type CatalogProtocol = {
@@ -2755,6 +2756,8 @@ function OrderPanel({ session }: { session: Tokens }) {
   const [documentId, setDocumentId] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
   const [quotes, setQuotes] = useState<Record<string, Quote[]>>({});
+  const [financialOperations, setFinancialOperations] = useState<Record<string, FinancialOperation[]>>({});
+  const [checkout, setCheckout] = useState<Record<string, { url: string; expiresAt: string; operationId: string }>>({});
   const [benefitPrograms, setBenefitPrograms] = useState<BenefitProgramOption[]>([]);
   const [coverageProgramId, setCoverageProgramId] = useState("");
   const [assignments, setAssignments] = useState<Record<string, Assignment>>(
@@ -2905,6 +2908,8 @@ function OrderPanel({ session }: { session: Tokens }) {
       ),
     );
     setQuotes(Object.fromEntries(entries));
+    const financialEntries = await Promise.all(current.map(async (order) => [order.id, (await api(`/orders/${order.id}/financial-operations`).catch(() => ({ result: [] }))).result as FinancialOperation[]] as const));
+    setFinancialOperations(Object.fromEntries(financialEntries));
     const active = current.filter((order) =>
       ["ACEITA", "RETIRADA", "EM_ENTREGA", "OCORRENCIA"].includes(order.status),
     );
@@ -3228,6 +3233,27 @@ function OrderPanel({ session }: { session: Tokens }) {
     } finally {
       setBusy(false);
     }
+  }
+  async function openCheckout(operation: FinancialOperation) {
+    setBusy(true);
+    try {
+      const response = await api(`/financial-operations/${operation.id}/checkout`, { method: "POST" });
+      const value = response.result as { url: string; expiresAt: string; operationId: string };
+      setCheckout((current) => ({ ...current, [operation.id]: value }));
+      setNotice({ tone: "info", text: "Checkout oficial de teste preparado. Nenhuma cobrança real será feita; a confirmação depende do fornecedor." });
+    } catch (err) {
+      setNotice({ tone: "error", text: err instanceof Error ? err.message : "O checkout não pôde ser preparado." });
+    } finally { setBusy(false); }
+  }
+  async function reconcilePayment(operation: FinancialOperation) {
+    setBusy(true);
+    try {
+      await api(`/financial-operations/${operation.id}/reconcile`, { method: "POST" });
+      setNotice({ tone: "info", text: "Situação consultada no provedor. A cobertura só muda após estado autenticado." });
+      await load();
+    } catch (err) {
+      setNotice({ tone: "error", text: err instanceof Error ? err.message : "A situação não pôde ser consultada." });
+    } finally { setBusy(false); }
   }
   async function issueReceiptCode(order: Order) {
     setBusy(true);
@@ -3639,6 +3665,18 @@ function OrderPanel({ session }: { session: Tokens }) {
               </p>
             )}
           </div>
+          {(financialOperations[selectedOrder.id] ?? []).filter((operation) => operation.type === "COBRANCA").map((operation) => (
+            <div className="quote-area payment-status-card" key={operation.id}>
+              <div className="card-heading"><div><span className="card-kicker">PAGAMENTO PARTICULAR</span><h3>{formatMoney(operation.amount)} · {operation.currency}</h3></div><strong>{operation.status === "CONFIRMADA" ? "Confirmado" : operation.status === "FALHOU" ? "Recusado" : operation.status === "INCERTA" || operation.status === "RECONCILIAR" ? "Resultado incerto" : operation.status === "PROCESSANDO" ? "Em processamento" : "Pendente"}</strong></div>
+              <p>Pagamento de teste — sem cobrança real. O retorno do checkout não confirma a operação; a confirmação depende do estado autenticado do fornecedor.</p>
+              <div className="journey-actions">
+                {!checkout[operation.id] && operation.status !== "CONFIRMADA" && operation.status !== "FALHOU" && <button type="button" disabled={busy} onClick={() => void openCheckout(operation)}>Preparar checkout oficial</button>}
+                {checkout[operation.id] && <a className="button" href={checkout[operation.id].url} target="_blank" rel="noreferrer">Abrir checkout oficial</a>}
+                {operation.status !== "CONFIRMADA" && <button type="button" className="secondary" disabled={busy} onClick={() => void reconcilePayment(operation)}>Atualizar situação</button>}
+              </div>
+              {operation.status === "INCERTA" || operation.status === "RECONCILIAR" ? <p className="dependency-note">A confirmação não foi presumida. Consulte novamente a mesma tentativa; não será criada outra cobrança automaticamente.</p> : null}
+            </div>
+          ))}
         </article>
       ) : (
         <>

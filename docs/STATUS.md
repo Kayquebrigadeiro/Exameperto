@@ -1022,3 +1022,15 @@ mostra os dois endereços explicitamente confirmados. A evidência é 1/1 para
 esta combinação sintética; não representa cobertura completa de provedores,
 instituições ou endereços reais. A consulta externa pública anterior foi
 reutilizada, sem nova chamada desnecessária.
+
+## Pagamento particular em sandbox — 15/10/2026
+
+Partindo de `3c7095416433ad02d394896debe934d35dccd414`, foi escolhido o Mercado Pago Checkout Pro/Orders por oferecer contas e credenciais de teste separadas, checkout hospedado, consulta autenticada, notificações assinadas e `X-Idempotency-Key`. A documentação oficial consultada foi [contas de teste](https://www.mercadopago.com.br/developers/pt/docs/checkout-pro-preferences/test-accounts), [credenciais](https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/resources/credentials?scope=prod), [criação de Orders](https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-pro/create-order/post) e [webhooks](https://www.mercadopago.com.br/developers/pt/docs/subscriptions/additional-content/your-integrations/notifications/webhooks). Nenhuma conta externa foi criada.
+
+O backend cria tentativa idempotente derivada da operação financeira, define valor/moeda/referência a partir do orçamento aceito, guarda somente a URL hospedada e o identificador do fornecedor, consulta a situação autenticada e rejeita confirmação baseada apenas no retorno do checkout. Webhook verifica assinatura e consulta o pagamento; eventos são deduplicados e validados contra referência, beneficiário, valor e moeda. A interface exibe “Pagamento de teste — sem cobrança real” e não coleta cartão ou CVV. A migração nova é V20; as aplicadas anteriores não foram alteradas.
+
+Configuração privada: `scripts/configure-local-payment.sh` lê Access Token de teste, segredo de assinatura e, opcionalmente, e-mail comprador `@testuser.com` sem eco e grava somente `.env.smtp.local` com modo 600. O endpoint de webhook é `/api/v1/integrations/payments/events`; homologação real exige URL HTTPS pública no painel de teste. Nenhum túnel foi aberto.
+
+Validações: `MercadoPagoPaymentProviderTest` passou 2/2 com servidor HTTP controlado; `QuoteAcceptanceFlowTest` passou 4/4; `npm run build` passou. `PaymentSandboxBrowserFlowTest` passou 1/1 com Chromium → Vite → Spring → PostgreSQL 17.6 descartável e sem interceptação: login, aceite, preparação do checkout, URL hospedada de teste, consulta autenticada controlada, confirmação, reload e persistência de `operacao_financeira` e `pedido`; screenshot sanitizada em `web/target/payment-sandbox-confirmed-sanitized.png`. O cenário browser é integral para uma combinação sintética e não representa cobertura completa de contas, instituições ou fornecedor externo.
+
+O sandbox oficial não foi consultado nesta rodada porque Access Token e segredo não estão configurados; portanto não há homologação de API externa nem webhook externo recebido. A capacidade interna fica disponível após a configuração privada e consulta com instrumentos de teste. Produção, split, repasse, cobrança real e deploy continuam desabilitados.

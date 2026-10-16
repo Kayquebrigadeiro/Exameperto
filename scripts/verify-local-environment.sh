@@ -34,7 +34,7 @@ grep -q '"code":"INVALID_INPUT"' /tmp/exame-perto-local-check.json || fail "corp
 
 docker compose --env-file "$ENV_FILE" -f "$ROOT_DIR/infra/compose.yaml" exec -T postgres \
   psql -U "$DATABASE_USER" -d exameperto -Atc \
-  "select case when (select max(installed_rank) from flyway_schema_history)=19 and (select estado from controle_restauracao where singleton)='NORMAL' then 'ok' else 'fail' end" \
+  "select case when (select max(installed_rank) from flyway_schema_history)=20 and (select estado from controle_restauracao where singleton)='NORMAL' then 'ok' else 'fail' end" \
   | grep -qx ok || fail "migrações ou gate de restauração não estão prontos"
 
 if [[ "${EXAME_PERTO_ROUTE_ENABLED:-false}" == "true" && -n "${EXAME_PERTO_ROUTE_API_KEY:-}" ]]; then
@@ -42,5 +42,10 @@ if [[ "${EXAME_PERTO_ROUTE_ENABLED:-false}" == "true" && -n "${EXAME_PERTO_ROUTE
 else
   echo "INFO: adaptador de rota não configurado; o orçamento dependente de rota permanece bloqueado."
 fi
+if [[ "${EXAME_PERTO_PAYMENT_ENABLED:-false}" == "true" && "${EXAME_PERTO_PAYMENT_ENVIRONMENT:-}" == "SANDBOX" && -n "${EXAME_PERTO_PAYMENT_ACCESS_TOKEN:-}" && -n "${EXAME_PERTO_PAYMENT_WEBHOOK_SECRET:-}" ]]; then
+  echo "OK: pagamento Mercado Pago sandbox configurado (provedor não consultado neste script)."
+else
+  echo "INFO: pagamento sandbox não configurado; cobrança particular permanece bloqueada."
+fi
 echo "INFO: acessibilidade do provedor e consulta de rota são verificações explícitas, não executadas na inicialização."
-echo "OK: Vite → backend → PostgreSQL; V19 aplicada; restauração NORMAL; configuração privada estruturalmente válida."
+echo "OK: Vite → backend → PostgreSQL; V20 aplicada; restauração NORMAL; configuração privada estruturalmente válida."

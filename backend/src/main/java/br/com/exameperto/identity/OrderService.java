@@ -126,8 +126,13 @@ class OrderService {
     boolean paymentEvent(byte[] body,Map<String,String> headers){
         if(!payments.configured())throw error(HttpStatus.SERVICE_UNAVAILABLE,"INTEGRATION_UNAVAILABLE","O provedor de pagamento não está habilitado.");
         PaymentProvider.PaymentEvent event=payments.authenticateAndParse(body,headers);
+        return applyPaymentEvent(event,hashBytes(body));
+    }
+
+    @Transactional
+    boolean applyPaymentEvent(PaymentProvider.PaymentEvent event,byte[] payloadHash){
         if(event==null||event.externalEventId()==null||event.operationId()==null||event.result()==null||event.amount()==null||event.occurredAt()==null)throw error(HttpStatus.BAD_REQUEST,"INVALID_EVENT","O evento autenticado está incompleto.");
-        byte[] payloadHash=hashBytes(body); String provider=payments.providerId();
+        String provider=payments.providerId();
         jdbc.query("SELECT pg_advisory_xact_lock(hashtextextended(?,0))",(rs,n)->0,provider+":"+event.externalEventId());
         try{Map<String,Object> old=jdbc.queryForMap("SELECT payload_hash FROM evento_pagamento WHERE provedor=? AND evento_externo_id=?",provider,event.externalEventId());if(!MessageDigest.isEqual((byte[])old.get("payload_hash"),payloadHash))throw error(HttpStatus.CONFLICT,"EVENT_CONFLICT","O identificador do evento foi reutilizado com conteúdo divergente.");return false;}catch(EmptyResultDataAccessException ignored){}
         Map<String,Object> op;try{op=jdbc.queryForMap("SELECT * FROM operacao_financeira WHERE id=? FOR UPDATE",event.operationId());}catch(EmptyResultDataAccessException ex){throw error(HttpStatus.NOT_FOUND,"NOT_FOUND","Operação financeira não encontrada.");}

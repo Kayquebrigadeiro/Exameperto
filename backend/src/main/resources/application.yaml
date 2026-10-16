@@ -66,6 +66,15 @@ review:
   file-safety-inspection-enabled: true
 payment:
   max-event-payload-bytes: 65536
+  mercadopago:
+    enabled: ${EXAME_PERTO_PAYMENT_ENABLED:false}
+    environment: ${EXAME_PERTO_PAYMENT_ENVIRONMENT:SANDBOX}
+    access-token: ${EXAME_PERTO_PAYMENT_ACCESS_TOKEN:}
+    webhook-secret: ${EXAME_PERTO_PAYMENT_WEBHOOK_SECRET:}
+    sandbox-payer-email: ${EXAME_PERTO_PAYMENT_SANDBOX_PAYER_EMAIL:}
+    api-base-url: ${EXAME_PERTO_PAYMENT_API_BASE_URL:https://api.mercadopago.com}
+    timeout: ${EXAME_PERTO_PAYMENT_TIMEOUT:PT5S}
+    max-response-bytes: ${EXAME_PERTO_PAYMENT_MAX_RESPONSE_BYTES:65536}
 orders:
   route:
     enabled: ${EXAME_PERTO_ROUTE_ENABLED:false}
