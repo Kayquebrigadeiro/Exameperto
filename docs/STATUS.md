@@ -1034,3 +1034,25 @@ Configuração privada: `scripts/configure-local-payment.sh` lê Access Token de
 Validações: `MercadoPagoPaymentProviderTest` passou 2/2 com servidor HTTP controlado; `QuoteAcceptanceFlowTest` passou 4/4; `npm run build` passou. `PaymentSandboxBrowserFlowTest` passou 1/1 com Chromium → Vite → Spring → PostgreSQL 17.6 descartável e sem interceptação: login, aceite, preparação do checkout, URL hospedada de teste, consulta autenticada controlada, confirmação, reload e persistência de `operacao_financeira` e `pedido`; screenshot sanitizada em `web/target/payment-sandbox-confirmed-sanitized.png`. O cenário browser é integral para uma combinação sintética e não representa cobertura completa de contas, instituições ou fornecedor externo.
 
 O sandbox oficial não foi consultado nesta rodada porque Access Token e segredo não estão configurados; portanto não há homologação de API externa nem webhook externo recebido. A capacidade interna fica disponível após a configuração privada e consulta com instrumentos de teste. Produção, split, repasse, cobrança real e deploy continuam desabilitados.
+
+### Adiamento final de pagamento — decisão do autor
+
+A homologação oficial de pagamento foi adiada até o fechamento do projeto e não deve ser solicitada novamente nesta etapa. Permanecem pendentes:
+
+- Access Token de teste disponível no ambiente e ensaio oficial de checkout, pagamento e consulta autenticada com vendedor, comprador e instrumento de teste;
+- webhook externo com URL HTTPS pública autorizada;
+- validação do contrato e do comportamento efetivo no fornecedor.
+
+Os testes HTTP controlados e a jornada com provedor controlado permanecem classificados como validação interna/isolada; não são homologação oficial. Produção continua desabilitada e o banco normal, configurações privadas, conta e arquivos pessoais permanecem preservados.
+
+## Próximas lacunas independentes de pagamento
+
+Prioridade: aplicativo do entregador e rastreamento em dispositivo.
+
+Implementado tecnicamente, mas sem ensaio físico: o app Expo possui cadastro, documentos em quarentena, vínculos de veículo, ofertas, designação, retirada, custódia, recebimento e histórico; o rastreamento foreground solicita permissão, envia posições reais em buffer limitado, trata baixa precisão e desatualização, e interrompe após revogação, logout ou encerramento. As APIs Spring, autorização da tarefa e persistência PostgreSQL foram exercitadas com dados sintéticos isolados.
+
+Ensaio físico pendente: permissão real do sistema, precisão e perda de sinal, buffer offline, retomada após suspensão, bateria, rede intermitente, reinício do aplicativo e revogação enquanto o app está aberto. Não há aparelho ou emulador validado nesta entrega; export/build não substitui esse ensaio.
+
+Implementação ainda faltante: captura em segundo plano/background não está implementada; a versão atual é foreground-only. Retenção/expurgo de posições GPS também não possui job operacional e o recurso permanece desabilitado até política de retenção, finalidade, responsável e prazo aprovados. Isso é distinto do ensaio físico e não deve ser tratado como resolvido por testes de API.
+
+Outras lacunas independentes: homologação de armazenamento, backup/restore, antimalware e distribuição mobile; critérios e responsável profissional para aprovação de entregador/veículo; e decisões operacionais para ocorrências, retorno e reentrega. Nenhuma depende do pagamento adiado.
