@@ -104,7 +104,7 @@ class VehicleLinkFlowTest {
         assertThat(request(rotated,"GET","/analyst/vehicle-reviews",null,"application/json").statusCode()).isEqualTo(401);
     }
 
-    @Test void currentSchemaMigratesFreshDatabaseAndUpgradesExistingV5SchemaThroughV19() {
+    @Test void currentSchemaMigratesFreshDatabaseAndUpgradesExistingV5SchemaThroughV21() {
         String schema="vehicle_v6_upgrade_"+UUID.randomUUID().toString().replace("-","");
         jdbc.execute("CREATE SCHEMA \""+schema+"\"");
         Flyway before=Flyway.configure().dataSource(dataSource).schemas(schema).defaultSchema(schema).locations("classpath:db/migration").target(MigrationVersion.fromVersion("5")).load();
@@ -112,9 +112,12 @@ class VehicleLinkFlowTest {
         assertThat(jdbc.queryForObject("SELECT max(version) FROM \""+schema+"\".flyway_schema_history",String.class)).isEqualTo("5");
         Flyway upgrade=Flyway.configure().dataSource(dataSource).schemas(schema).defaultSchema(schema).locations("classpath:db/migration").load();
         upgrade.migrate();
-        assertThat(jdbc.queryForObject("SELECT max(version::integer) FROM \""+schema+"\".flyway_schema_history",Integer.class)).isEqualTo(19);
+        assertThat(jdbc.queryForObject("SELECT max(version::integer) FROM \""+schema+"\".flyway_schema_history",Integer.class)).isEqualTo(21);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM information_schema.tables WHERE table_schema=? AND table_name='vinculo_veiculo'",Long.class,schema)).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM information_schema.tables WHERE table_schema=? AND table_name='posicao_tarefa'",Long.class,schema)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM information_schema.columns WHERE table_schema=? AND table_name='operacao_financeira' AND column_name IN ('checkout_url','checkout_expires_at','checkout_attempt')",Long.class,schema)).isEqualTo(3);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM information_schema.tables WHERE table_schema=? AND table_name='diario_expurgo_gps'",Long.class,schema)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM information_schema.columns WHERE table_schema=? AND table_name='diario_expurgo_gps' AND column_name IN ('politica_id','designacao_id','sequencia','referencia_hash','capturada_em','expurgado_em')",Long.class,schema)).isEqualTo(6);
         jdbc.execute("DROP SCHEMA \""+schema+"\" CASCADE");
     }
 
