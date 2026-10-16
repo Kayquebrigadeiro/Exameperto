@@ -51,6 +51,23 @@ mkdir -p "$EXAME_PERTO_PRIVATE_ROOT" && chmod 700 "$EXAME_PERTO_PRIVATE_ROOT"
 mvn -q -f backend/pom.xml spring-boot:run
 ```
 
+Como o container desta preparação já existe, não pedir uma senha nova para
+retomá-lo. Carregar a senha somente no shell, sem exibi-la, e repetir as
+variáveis de backend:
+
+```sh
+export EXAME_PERTO_ANDROID_HOMOLOG_POSTGRES_PASSWORD="$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' exame-perto-android-homolog-postgres-1 | sed -n 's/^POSTGRES_PASSWORD=//p')"
+export DATABASE_URL='jdbc:postgresql://127.0.0.1:55433/exameperto_android_homolog'
+export DATABASE_USER='exameperto_android_homolog'
+export DATABASE_PASSWORD="$EXAME_PERTO_ANDROID_HOMOLOG_POSTGRES_PASSWORD"
+export EXAME_PERTO_TRACKING_ENABLED=false
+export EXAME_PERTO_TRACKING_RETENTION_ENABLED=false
+export SERVER_PORT=58080
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+export PATH="$JAVA_HOME/bin:$PATH"
+mvn -q -f backend/pom.xml spring-boot:run
+```
+
 O repositório não possui `mvnw`; usar o Maven acima somente após
 instalar/selecionar JDK 21. Antes de iniciar o backend, conferir
 que a URL aponta para `55433`, o objeto aponta para a raiz temporária e ambas as
