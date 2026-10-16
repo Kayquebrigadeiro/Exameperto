@@ -23,11 +23,11 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 @org.springframework.test.annotation.DirtiesContext
 @Testcontainers
-@SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT,properties={"registration.privacy-approved=true","registration.allowed-origin=http://localhost:5173","security.data-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=","security.search-key=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=","security.signing-key=AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=","registration.attempts-per-minute=1000","registration.global-attempts-per-minute=5000","tracking.enabled=true"})
+@SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT,properties={"registration.privacy-approved=true","registration.allowed-origin=http://localhost:5173","security.data-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=","security.search-key=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=","security.signing-key=AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=","registration.attempts-per-minute=1000","registration.global-attempts-per-minute=5000","tracking.enabled=true","tracking.retention.enabled=true"})
 class TrackingFlowTest {
     @Container static final PostgreSQLContainer<?> DB=new PostgreSQLContainer<>("postgres:17.6");
     @DynamicPropertySource static void db(DynamicPropertyRegistry r){r.add("spring.datasource.url",DB::getJdbcUrl);r.add("spring.datasource.username",DB::getUsername);r.add("spring.datasource.password",DB::getPassword);}
-    @LocalServerPort int port; @Autowired JdbcTemplate jdbc; @Autowired DataProtector protector; @Autowired ObjectMapper json; @Autowired TrackingLiveRegistry live;
+    @LocalServerPort int port; @Autowired JdbcTemplate jdbc; @Autowired DataProtector protector; @Autowired ObjectMapper json; @Autowired TrackingLiveRegistry live; @Autowired TrackingRetentionJob retention;
     HttpClient http=HttpClient.newHttpClient(); final String password="Senha-sintetica-123"; UUID tariff,cancel,assignmentPolicy;
     @BeforeEach void policies(){int n=Math.abs(UUID.randomUUID().hashCode()%1000000)+100;tariff=UUID.randomUUID();cancel=UUID.randomUUID();assignmentPolicy=UUID.randomUUID();jdbc.update("INSERT INTO tarifa(id,numero,formula_codigo,parametros,inicio,estado) VALUES (?,?,'BASE_KM_MINUTO','{}',clock_timestamp(),'ATIVA')",tariff,n);jdbc.update("INSERT INTO politica_cancelamento(id,numero,criterios,inicio,estado) VALUES (?,?,'{}',clock_timestamp(),'ATIVA')",cancel,n+1);jdbc.update("INSERT INTO politica_designacao(id,numero,limite_tarefas_simultaneas,inicio,estado) VALUES (?,?,3,clock_timestamp(),'ATIVA')",assignmentPolicy,n+2);}
 
@@ -70,6 +70,20 @@ class TrackingFlowTest {
         }
         Account expiring=account("ws-expiring");UUID expiringGrant=grant(patient,f.patient,expiring,true);try(StompSocket socket=connect(expiring.token)){socket.subscribe(f.order);Thread.sleep(200);jdbc.update("UPDATE sessao SET access_expira_em=clock_timestamp()-interval '1 second' WHERE id=?",expiring.session);assertThat(send(driver,f.order,point(f.assignment,4,Instant.now(),-23.52,-46.60,40)).statusCode()).isEqualTo(201);assertThat(socket.awaitPrefix("MESSAGE",1)).isNull();}jdbc.update("UPDATE autorizacao_paciente SET revogada_em=clock_timestamp() WHERE id=?",expiringGrant);
         Account closing=account("ws-closing");grant(patient,f.patient,closing,true);try(StompSocket socket=connect(closing.token)){socket.subscribe(f.order);Thread.sleep(200);jdbc.update("UPDATE designacao SET encerrada_em=clock_timestamp() WHERE id=?",f.assignment);jdbc.update("UPDATE pedido SET estado='ENTREGUE' WHERE id=?",f.order);assertThat(send(driver,f.order,point(f.assignment,5,Instant.now(),-23.51,-46.59,45)).statusCode()).isEqualTo(404);live.publish(f.order,new LocationView(f.assignment,5,Instant.now(),Instant.now(),java.math.BigDecimal.valueOf(-23.51),java.math.BigDecimal.valueOf(-46.59),java.math.BigDecimal.valueOf(45),false,false));assertThat(socket.awaitPrefix("MESSAGE",1)).isNull();}
+    }
+
+    @Test void retentionRequiresValidatedPolicyDeletesExpiredRowsAndKeepsJournalWithoutCoordinates() {
+        Account patient=account("retention-patient"),driverAccount=account("retention-driver"); Fixture f=fixture(patient,driverAccount);
+        UUID old=UUID.randomUUID(), recent=UUID.randomUUID(), policy=UUID.randomUUID();
+        jdbc.update("INSERT INTO posicao_tarefa(id,pedido_id,designacao_id,sequencia,capturada_em,latitude,longitude,precisao_m) VALUES (?,?,?,11,clock_timestamp()-interval '3 days',-23.55,-46.63,10)",old,f.order,f.assignment);
+        jdbc.update("INSERT INTO posicao_tarefa(id,pedido_id,designacao_id,sequencia,capturada_em,latitude,longitude,precisao_m) VALUES (?,?,?,12,clock_timestamp(),-23.54,-46.62,10)",recent,f.order,f.assignment);
+        jdbc.update("INSERT INTO politica_retencao(id,categoria,numero,finalidade_codigo,gatilho,prazo_dias,responsavel_id,base_validada,verificacao_descarte,validada_em) VALUES (?, 'GPS', 1, 'ENTREGA_RASTREAMENTO', 'POSICAO_EXPIRADA', 1, ?, true, true, clock_timestamp())",policy,driverAccount.id);
+        assertThat(retention.runBatches()).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM posicao_tarefa WHERE id=?",Long.class,old)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM posicao_tarefa WHERE id=?",Long.class,recent)).isOne();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM diario_expurgo_gps WHERE designacao_id=? AND sequencia=11",Long.class,f.assignment)).isOne();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM information_schema.columns WHERE table_name='diario_expurgo_gps' AND column_name IN ('latitude','longitude')",Long.class)).isZero();
+        assertThat(retention.runBatches()).isZero();
     }
 
     private StompSocket connect(String token)throws Exception{StompSocket listener=new StompSocket();listener.socket=http.newWebSocketBuilder().subprotocols("v12.stomp").buildAsync(URI.create("ws://127.0.0.1:"+port+"/ws"),listener).get(5,TimeUnit.SECONDS);listener.send("CONNECT\naccept-version:1.2\nAuthorization:Bearer "+token+"\nheart-beat:0,0\n\n\0");assertThat(listener.awaitPrefix("CONNECTED",5)).isNotNull();return listener;}

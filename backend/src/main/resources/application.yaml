@@ -98,5 +98,10 @@ tracking:
   rate-maximum: 8
   max-payload-bytes: 1024
   low-accuracy-meters: 100
+  retention:
+    enabled: ${EXAME_PERTO_TRACKING_RETENTION_ENABLED:false}
+    batch-size: ${EXAME_PERTO_TRACKING_RETENTION_BATCH_SIZE:100}
+    max-batches-per-run: ${EXAME_PERTO_TRACKING_RETENTION_MAX_BATCHES:10}
+    queue-delay-ms: ${EXAME_PERTO_TRACKING_RETENTION_QUEUE_DELAY_MS:60000}
 privacy:
   purge-enabled: ${EXAME_PERTO_PRIVACY_PURGE_ENABLED:false}

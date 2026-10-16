@@ -5,8 +5,25 @@ require_command psql; require_var SOURCE_DATABASE_URL; require_var PURGE_JOURNAL
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 psql "$PURGE_JOURNAL_DATABASE_URL" -X --no-psqlrc -v ON_ERROR_STOP=1 -q -f "$script_dir/journal-init.sql"
+gps_rows=$(mktemp)
+trap 'rm -f -- "$gps_rows"' EXIT
+psql "$SOURCE_DATABASE_URL" -X --no-psqlrc -v ON_ERROR_STOP=1 -At -F $'\t' -c \
+  "SELECT designacao_id,sequencia,encode(referencia_hash,'hex'),capturada_em FROM diario_expurgo_gps ORDER BY expurgado_em,designacao_id,sequencia" > "$gps_rows"
+gps_captured=0
+while IFS=$'\t' read -r assignment sequence reference_hash captured_at; do
+  [[ -n "$assignment" ]] || continue
+  valid_uuid "$assignment" || die "identificador inválido no diário GPS"
+  [[ "$sequence" =~ ^[1-9][0-9]*$ && "$reference_hash" =~ ^[0-9a-f]+$ ]] || die "entrada inválida no diário GPS"
+  psql "$PURGE_JOURNAL_DATABASE_URL" -X --no-psqlrc -v ON_ERROR_STOP=1 -q \
+    -v assignment="$assignment" -v sequence="$sequence" -v reference_hash="$reference_hash" -v captured_at="$captured_at" <<'SQL'
+INSERT INTO gps_position_purge(designacao_id,sequencia,referencia_hash,capturada_em)
+VALUES (:'assignment'::uuid,:'sequence'::bigint,decode(:'reference_hash','hex'),:'captured_at'::timestamptz)
+ON CONFLICT (designacao_id,sequencia) DO NOTHING;
+SQL
+  gps_captured=$((gps_captured+1))
+done < "$gps_rows"
 source_rows=$(mktemp)
-trap 'rm -f -- "$source_rows"' EXIT
+trap 'rm -f -- "$gps_rows" "$source_rows"' EXIT
 psql "$SOURCE_DATABASE_URL" -X --no-psqlrc -v ON_ERROR_STOP=1 -At -F $'\t' -c \
   "SELECT e.id,s.usuario_id,t.categoria,e.verificada_em FROM execucao_expurgo e JOIN solicitacao_privacidade s ON s.id=e.solicitacao_id JOIN tombstone_expurgo t ON t.execucao_id=e.id WHERE e.estado='VERIFICADA' AND e.verificada_em IS NOT NULL ORDER BY e.verificada_em,e.id" > "$source_rows"
 captured=0
@@ -60,4 +77,4 @@ VALUES (:'execution'::uuid,:'owner'::uuid,:'order'::uuid,decode(:'origin','hex')
 ON CONFLICT DO NOTHING;
 SQL
 done < "$order_rows"
-printf 'captured=%s\n' "$captured"
+printf 'captured=%s gps_captured=%s\n' "$captured" "$gps_captured"

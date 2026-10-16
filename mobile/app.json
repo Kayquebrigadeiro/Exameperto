@@ -1,4 +1,4 @@
 {
   "expo": { "name": "Exame Perto Entregador", "slug": "exame-perto-entregador", "version": "0.1.0", "orientation": "portrait", "scheme": "exameperto",
-    "plugins": [["expo-location", {"locationWhenInUsePermission":"Permitir que o Exame Perto compartilhe sua localização somente durante a tarefa ativa."}]] }
+    "plugins": [["expo-location", {"locationWhenInUsePermission":"Permitir que o Exame Perto compartilhe sua localização somente durante a tarefa ativa.","locationAlwaysAndWhenInUsePermission":"Permitir que o Exame Perto continue compartilhando a localização somente durante a entrega ativa, inclusive quando o app estiver em segundo plano.","isIosBackgroundLocationEnabled":true,"isAndroidBackgroundLocationEnabled":true,"isAndroidForegroundServiceEnabled":true}]] }
 }

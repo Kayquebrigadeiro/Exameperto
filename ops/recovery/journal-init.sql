@@ -35,3 +35,13 @@ CREATE TABLE IF NOT EXISTS account_closure_order (
     PRIMARY KEY (execution_id,order_id)
 );
 REVOKE ALL ON account_closure_order FROM PUBLIC;
+
+CREATE TABLE IF NOT EXISTS gps_position_purge (
+    designacao_id uuid NOT NULL,
+    sequencia bigint NOT NULL CHECK (sequencia > 0),
+    referencia_hash bytea NOT NULL,
+    capturada_em timestamptz NOT NULL,
+    captured_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    PRIMARY KEY (designacao_id, sequencia)
+);
+REVOKE ALL ON gps_position_purge FROM PUBLIC;

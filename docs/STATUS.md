@@ -1056,3 +1056,19 @@ Ensaio físico pendente: permissão real do sistema, precisão e perda de sinal,
 Implementação ainda faltante: captura em segundo plano/background não está implementada; a versão atual é foreground-only. Retenção/expurgo de posições GPS também não possui job operacional e o recurso permanece desabilitado até política de retenção, finalidade, responsável e prazo aprovados. Isso é distinto do ensaio físico e não deve ser tratado como resolvido por testes de API.
 
 Outras lacunas independentes: homologação de armazenamento, backup/restore, antimalware e distribuição mobile; critérios e responsável profissional para aprovação de entregador/veículo; e decisões operacionais para ocorrências, retorno e reentrega. Nenhuma depende do pagamento adiado.
+
+## Rastreamento mobile em segundo plano e retenção GPS — 15/10/2026
+
+Partindo de `201e42b`, a implementação foi concluída sem alterar conta, banco normal, interfaces aprovadas ou credenciais de pagamento. O app do entregador agora registra uma tarefa de localização em segundo plano no nível superior do módulo Expo, solicita primeiro plano e segundo plano somente após explicação contextual, exibe o estado ativo e mantém fila limitada no SecureStore, vinculada a designação/pedido. Cada envio contém somente o contrato de posição; o backend revalida token, entregador, designação ativa, sequência, idade, futuro, frequência e política. Refresh rotacionado é reutilizado pelos pontos seguintes; logout, encerramento/revogação e tarefa não ativa limpam a fila e interrompem a tarefa.
+
+O `app.json` habilita o config plugin oficial do `expo-location` para permissões de background e serviço foreground. O SDK 57 continua sendo a stack instalada; o rastreamento em segundo plano exige development build, não Expo Go. Force-stop pelo usuário, suspensão agressiva do sistema, rede sem sinal e limitações de bateria podem interromper a captura; não há promessa de continuidade. O `adb` não está instalado nesta máquina, portanto não houve ensaio físico, screenshot de dispositivo ou rastreamento de pessoa. O roteiro Android permanece em `mobile/README.md`.
+
+No backend, a migração V21 criou `diario_expurgo_gps` sem latitude/longitude. `TrackingRetentionJob` é desligado por padrão, não inventa prazo e não expurga nada quando falta política válida. Quando habilitado isoladamente, escolhe somente política `GPS`/`ENTREGA_RASTREAMENTO`/`POSICAO_EXPIRADA` validada, com responsável ativo, prazo explícito, base e verificação aprovadas; usa lock, lotes limitados, exceções por hash e diário transacional. `capture-purges.sh` e `restore.sh` agora copiam/reaplicam o diário GPS no PostgreSQL externo, evitando reintrodução de posições por backup antigo antes da liberação do gate.
+
+Validações executadas:
+
+- `TrackingFlowTest`: 3/3 contra PostgreSQL 17.6 descartável, incluindo autorização/ordem/duplicação/revogação via API, WebSocket e retenção de posição antiga com posição recente preservada; a segunda execução não repetiu o expurgo.
+- `BackupRestoreFlowTest`: passou contra três PostgreSQL 17.6 descartáveis após a integração do diário externo; os scripts passaram `bash -n` e `git diff --check`.
+- `mvn -q -DskipTests compile`, `npm run typecheck`, `npm run build:android` e `expo config --type public`: passaram. O export confirma bundle/configuração, não execução física.
+
+Evidência limitada: backend e persistência foram exercitados em ambiente isolado com dados sintéticos; a captura real em segundo plano, tela bloqueada, troca de app, perda/retomada de sinal, reinício, revogação durante o app suspenso e consumo de bateria continuam pendentes do autor com aparelho Android/development build. Não foi feito rastreamento real de pessoas. O ambiente normal mantém `EXAME_PERTO_TRACKING_ENABLED=false` e `EXAME_PERTO_TRACKING_RETENTION_ENABLED=false`; sem política aprovada, captura e expurgo permanecem bloqueados.

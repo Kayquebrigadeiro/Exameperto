@@ -19,6 +19,16 @@ Pré-requisitos: Node.js >= 20.19.4, npm, JDK 21, Docker, Android Studio/SDK com
 
 Sem `adb`, emulador ou aparelho conectado, esses passos continuam pendentes e nenhum build/export substitui o ensaio no dispositivo.
 
+### Rastreamento em segundo plano e retenção
+
+O compartilhamento de localização só pode ser iniciado para uma designação `ATIVA` do entregador autenticado. A tela explica a finalidade antes das permissões, mostra o estado ativo e o logout, o encerramento da designação ou a revogação no servidor interrompem o envio. A fila local é limitada, expira em dois minutos, fica no SecureStore e é descartada quando a autorização deixa de ser válida; o servidor revalida a conta, a designação e a janela de cada posição.
+
+O módulo usa `expo-location` e `expo-task-manager` em um development build. O Expo Go não executa localização em segundo plano. No Android, o usuário precisa conceder localização em primeiro plano e em segundo plano; o serviço foreground exibe uma notificação. O sistema pode interromper a captura quando o usuário força o encerramento do app, e não há promessa de captura ininterrupta. Não iniciar rastreamento fora de uma entrega ativa.
+
+Ensaio físico Android, somente com dados sintéticos e ambiente isolado: iniciar uma designação ativa, aceitar as permissões contextualizadas, bloquear a tela, trocar de aplicativo, interromper e restaurar a rede, aguardar a fila ser enviada, reiniciar o app, fazer logout e revogar a designação. Confirmar no PostgreSQL as sequências sem duplicação, a rejeição após revogação/encerramento e o descarte da fila. Medir bateria apenas como observação do aparelho; export e typecheck não comprovam execução em segundo plano.
+
+O expurgo server-side permanece desabilitado por padrão (`EXAME_PERTO_TRACKING_RETENTION_ENABLED=false`) e só executa com uma `politica_retencao` ativa, validada, versionada, com responsável ativo, prazo explícito e verificação de descarte para `GPS`/`ENTREGA_RASTREAMENTO`/`POSICAO_EXPIRADA`. O job é limitado por lotes, usa lock transacional, respeita exceções e grava somente identidade da posição e hash no diário, nunca latitude/longitude. Sem política válida, nenhuma posição é expurgada.
+
 O app está alinhado ao Expo SDK 57/React Native 0.86. O [relatório de dependências](../docs/AUDITORIA-DEPENDENCIAS-MOBILE.md) registra a migração e os alertas transitivos remanescentes do toolchain. Antes de qualquer distribuição, repita `npm audit --omit=dev`, a análise de alcance e os ensaios em dispositivo; não use `npm audit fix --force`, pois a sugestão atual faz downgrade incompatível da stack.
 ### Custódia e entrega (ticket 12)
 

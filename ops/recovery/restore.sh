@@ -101,9 +101,23 @@ while IFS=$'\t' read -r execution owner verified; do
   apply_owner "$execution" "$owner" "$verified"
 done < "$journal_rows"
 
+gps_rows=$(mktemp)
+trap 'rm -f -- "$journal_rows" "$gps_rows"' EXIT
+psql "$PURGE_JOURNAL_DATABASE_URL" -X --no-psqlrc -v ON_ERROR_STOP=1 -At -F $'\t' -c \
+  "SELECT designacao_id,sequencia,encode(referencia_hash,'hex'),capturada_em FROM gps_position_purge ORDER BY captured_at,designacao_id,sequencia" > "$gps_rows"
+while IFS=$'\t' read -r assignment sequence reference_hash captured_at; do
+  [[ -n "$assignment" ]] || continue
+  valid_uuid "$assignment" || die "identificador inválido no diário GPS"
+  [[ "$sequence" =~ ^[1-9][0-9]*$ && "$reference_hash" =~ ^[0-9a-f]+$ ]] || die "entrada inválida no diário GPS"
+  psql "$RESTORE_DATABASE_URL" -X --no-psqlrc -v ON_ERROR_STOP=1 -q \
+    -v assignment="$assignment" -v sequence="$sequence" <<'SQL'
+DELETE FROM posicao_tarefa WHERE designacao_id=:'assignment'::uuid AND sequencia=:'sequence'::bigint;
+SQL
+done < "$gps_rows"
+
 closure_rows=$(mktemp)
 order_rows=$(mktemp)
-trap 'rm -f -- "$journal_rows" "$closure_rows" "$order_rows"' EXIT
+trap 'rm -f -- "$journal_rows" "$gps_rows" "$closure_rows" "$order_rows"' EXIT
 psql "$PURGE_JOURNAL_DATABASE_URL" -X --no-psqlrc -v ON_ERROR_STOP=1 -At -F $'\t' -c \
   "SELECT execution_id,owner_id,encode(email_cifrado,'hex'),encode(email_busca,'hex'),encode(nome_cifrado,'hex'),senha_hash,coalesce(encode(cpf_cifrado,'hex'),''),coalesce(encode(cpf_busca,'hex'),''),coalesce(nascimento::text,''),coalesce(identidade_estado,'') FROM account_closure_completion ORDER BY completed_at,execution_id" > "$closure_rows"
 while IFS=$'\t' read -r execution owner email_cipher email_lookup name_cipher password cpf_cipher cpf_lookup birth identity; do
