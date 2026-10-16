@@ -64,6 +64,14 @@ storage:
   private-root: ${EXAME_PERTO_PRIVATE_ROOT:${java.io.tmpdir}/exame-perto-private}
 review:
   file-safety-inspection-enabled: true
+antimalware:
+  enabled: ${EXAME_PERTO_ANTIMALWARE_ENABLED:false}
+  host: ${EXAME_PERTO_ANTIMALWARE_HOST:127.0.0.1}
+  port: ${EXAME_PERTO_ANTIMALWARE_PORT:3310}
+  connect-timeout: ${EXAME_PERTO_ANTIMALWARE_CONNECT_TIMEOUT:PT2S}
+  scan-timeout: ${EXAME_PERTO_ANTIMALWARE_SCAN_TIMEOUT:PT15S}
+  max-bytes: ${EXAME_PERTO_ANTIMALWARE_MAX_BYTES:10485760}
+  max-attempts: ${EXAME_PERTO_ANTIMALWARE_MAX_ATTEMPTS:3}
 payment:
   max-event-payload-bytes: 65536
   mercadopago:

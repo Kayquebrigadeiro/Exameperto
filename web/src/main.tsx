@@ -72,6 +72,7 @@ type Evidence = {
   status: string;
   version: number;
   reason?: string | null;
+  antimalwareStatus?: string;
 };
 type VehicleEvidence = Evidence & { purpose: string; current: boolean };
 type VehicleLink = {
@@ -2441,7 +2442,7 @@ function DelivererPanel({ session }: { session: Tokens }) {
             <p key={d.id}>
               <strong>{d.status}</strong>
               <span>
-                {d.category} · {d.mime} · {Math.round(d.size / 1024)} KiB
+                {d.category} · {d.mime} · {Math.round(d.size / 1024)} KiB · antimalware {d.antimalwareStatus ?? "PENDENTE"}
               </span>
               {d.reason && <small>Motivo informado: {d.reason}</small>}
               {d.status === "REJEITADO" && (

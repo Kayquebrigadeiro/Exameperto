@@ -3,6 +3,7 @@ package br.com.exameperto.identity;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.Arrays;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.util.List;
@@ -24,10 +25,15 @@ class DelivererService {
     private final JdbcTemplate jdbc;
     private final PrivateObjectStore store;
     private final MfaService mfa;
+    private final MalwareScanner malwareScanner;
     private final boolean fileSafetyInspectionEnabled;
+    private final int malwareMaxAttempts;
     DelivererService(JdbcTemplate jdbc, PrivateObjectStore store, MfaService mfa,
-        @Value("${review.file-safety-inspection-enabled:true}") boolean fileSafetyInspectionEnabled) {
-        this.jdbc=jdbc; this.store=store; this.mfa=mfa; this.fileSafetyInspectionEnabled=fileSafetyInspectionEnabled;
+        MalwareScanner malwareScanner,
+        @Value("${review.file-safety-inspection-enabled:true}") boolean fileSafetyInspectionEnabled,
+        @Value("${antimalware.max-attempts:3}") int malwareMaxAttempts) {
+        this.jdbc=jdbc; this.store=store; this.mfa=mfa; this.malwareScanner=malwareScanner;
+        this.fileSafetyInspectionEnabled=fileSafetyInspectionEnabled; this.malwareMaxAttempts=malwareMaxAttempts;
     }
 
     @Transactional
@@ -67,8 +73,8 @@ class DelivererService {
 
     List<DocumentView> documents(UUID userId) {
         own(userId);
-        return jdbc.query("SELECT d.id,d.categoria,d.mime,d.tamanho,d.estado,d.version,(SELECT r.motivo_codigo FROM revisao_entregador r WHERE r.documento_id=d.id ORDER BY r.criado_em DESC,r.id DESC LIMIT 1) FROM documento d WHERE d.proprietario_id=? ORDER BY d.created_at DESC,d.id DESC",
-            (rs,n)->new DocumentView(rs.getObject(1,UUID.class),rs.getString(2),rs.getString(3),rs.getLong(4),rs.getString(5),rs.getLong(6),rs.getString(7)),userId);
+        return jdbc.query("SELECT d.id,d.categoria,d.mime,d.tamanho,d.estado,d.version,(SELECT r.motivo_codigo FROM revisao_entregador r WHERE r.documento_id=d.id ORDER BY r.criado_em DESC,r.id DESC LIMIT 1),d.antimalware_estado FROM documento d WHERE d.proprietario_id=? ORDER BY d.created_at DESC,d.id DESC",
+            (rs,n)->new DocumentView(rs.getObject(1,UUID.class),rs.getString(2),rs.getString(3),rs.getLong(4),rs.getString(5),rs.getLong(6),rs.getString(7),rs.getString(8)),userId);
     }
 
     Download authorizedDownload(UUID userId, UUID documentId) {
@@ -111,10 +117,39 @@ class DelivererService {
 
     boolean inspectEvidence(UUID documentId) {
         Map<String,Object> document;
-        try { document=jdbc.queryForMap("SELECT objeto_chave,mime,estado FROM documento WHERE id=? FOR UPDATE",documentId); }
+        try { document=jdbc.queryForMap("SELECT objeto_chave,mime,tamanho,sha256,version,estado,antimalware_estado,antimalware_hash,antimalware_versao,antimalware_tentativas FROM documento WHERE id=? FOR UPDATE",documentId); }
         catch (EmptyResultDataAccessException ex) { throw error(HttpStatus.NOT_FOUND,"NOT_FOUND","Documento não encontrado."); }
         if (!"QUARENTENA".equals(document.get("estado")) && !"INSPECAO_PENDENTE".equals(document.get("estado")))
             throw error(HttpStatus.CONFLICT,"REVIEW_CONFLICT","O arquivo não está aguardando inspeção.");
+        String malwareState=(String)document.get("antimalware_estado");
+        byte[] expectedHash=(byte[])document.get("sha256");
+        long version=((Number)document.get("version")).longValue();
+        boolean alreadyClean="LIMPO".equals(malwareState) && Arrays.equals(expectedHash,(byte[])document.get("antimalware_hash")) && Long.valueOf(version).equals(document.get("antimalware_versao"));
+        if (!alreadyClean) {
+            int attempts=((Number)document.get("antimalware_tentativas")).intValue();
+            if (attempts>=malwareMaxAttempts && "FALHA_INSPECAO".equals(malwareState))
+                throw error(HttpStatus.SERVICE_UNAVAILABLE,"ANTIMALWARE_UNAVAILABLE","A inspeção antimalware atingiu o limite de tentativas; o arquivo permanece em quarentena.");
+            MalwareScanner.ScanResult scan;
+            try (InputStream input=store.open((String)document.get("objeto_chave"))) {
+                scan=malwareScanner.scan(input,((Number)document.get("tamanho")).longValue());
+            } catch (Exception ex) {
+                jdbc.update("UPDATE documento SET antimalware_estado='FALHA_INSPECAO',antimalware_tentativas=antimalware_tentativas+1,antimalware_detalhe=?,updated_at=clock_timestamp(),version=version+1 WHERE id=?",failureCode(ex),documentId);
+                throw error(HttpStatus.SERVICE_UNAVAILABLE,"ANTIMALWARE_UNAVAILABLE","A inspeção antimalware não está disponível; o arquivo permanece em quarentena.");
+            }
+            if (!Arrays.equals(expectedHash,scan.contentHash()) || scan.bytes()!=((Number)document.get("tamanho")).longValue()) {
+                jdbc.update("UPDATE documento SET antimalware_estado='FALHA_INSPECAO',antimalware_tentativas=antimalware_tentativas+1,antimalware_detalhe='CONTENT_CHANGED',updated_at=clock_timestamp(),version=version+1 WHERE id=?",documentId);
+                throw error(HttpStatus.SERVICE_UNAVAILABLE,"ANTIMALWARE_UNAVAILABLE","O conteúdo mudou durante a inspeção; o arquivo permanece em quarentena.");
+            }
+            if (scan.state()==MalwareScanner.ScanResult.State.FAILURE) {
+                jdbc.update("UPDATE documento SET antimalware_estado='FALHA_INSPECAO',antimalware_tentativas=antimalware_tentativas+1,antimalware_detalhe=?,updated_at=clock_timestamp(),version=version+1 WHERE id=?",safeDetail(scan.detail()),documentId);
+                throw error(HttpStatus.SERVICE_UNAVAILABLE,"ANTIMALWARE_UNAVAILABLE","A inspeção antimalware não foi concluída; o arquivo permanece em quarentena.");
+            }
+            if (scan.state()==MalwareScanner.ScanResult.State.DETECTED) {
+                jdbc.update("UPDATE documento SET antimalware_estado='DETECTADO',antimalware_hash=?,antimalware_versao=version+1,antimalware_inspecionado_em=clock_timestamp(),antimalware_detalhe=?,estado='REJEITADO',updated_at=clock_timestamp(),version=version+1 WHERE id=?",expectedHash,safeDetail(scan.detail()),documentId);
+                return false;
+            }
+            jdbc.update("UPDATE documento SET antimalware_estado='LIMPO',antimalware_hash=?,antimalware_versao=version+1,antimalware_inspecionado_em=clock_timestamp(),antimalware_detalhe='CLAMAV_OK',updated_at=clock_timestamp(),version=version+1 WHERE id=?",expectedHash,documentId);
+        }
         boolean safe;
         try(InputStream input=store.open((String)document.get("objeto_chave"))){safe=safeStructure(input.readAllBytes(),(String)document.get("mime"));}
         catch(Exception ex){throw error(HttpStatus.SERVICE_UNAVAILABLE,"STORAGE_UNAVAILABLE","Não foi possível inspecionar o arquivo privado.");}
@@ -177,7 +212,10 @@ class DelivererService {
         return false;
     }
     private DelivererView deliverer(UUID id) { return jdbc.queryForObject("SELECT id,nascimento,estado,version FROM entregador WHERE id=?",(rs,n)->new DelivererView(rs.getObject(1,UUID.class),rs.getObject(2,LocalDate.class),rs.getString(3),rs.getLong(4)),id); }
-    DocumentView document(UUID id) { return jdbc.queryForObject("SELECT d.id,d.categoria,d.mime,d.tamanho,d.estado,d.version,(SELECT r.motivo_codigo FROM revisao_entregador r WHERE r.documento_id=d.id ORDER BY r.criado_em DESC,r.id DESC LIMIT 1) FROM documento d WHERE d.id=?",(rs,n)->new DocumentView(rs.getObject(1,UUID.class),rs.getString(2),rs.getString(3),rs.getLong(4),rs.getString(5),rs.getLong(6),rs.getString(7)),id); }
+    DocumentView document(UUID id) { return jdbc.queryForObject("SELECT d.id,d.categoria,d.mime,d.tamanho,d.estado,d.version,(SELECT r.motivo_codigo FROM revisao_entregador r WHERE r.documento_id=d.id ORDER BY r.criado_em DESC,r.id DESC LIMIT 1),d.antimalware_estado FROM documento d WHERE d.id=?",(rs,n)->new DocumentView(rs.getObject(1,UUID.class),rs.getString(2),rs.getString(3),rs.getLong(4),rs.getString(5),rs.getLong(6),rs.getString(7),rs.getString(8)),id); }
+
+    private String failureCode(Exception ex) { return safeDetail(ex.getClass().getSimpleName()); }
+    private String safeDetail(String value) { return value==null?"INSPECTION_FAILED":value.replaceAll("[^A-Za-z0-9_.-]","_").substring(0,Math.min(120,value.replaceAll("[^A-Za-z0-9_.-]","_").length())); }
     record Download(String key,String mime,long size) {}
     record StoredEvidence(UUID id,String key) {}
     static DelivererException error(HttpStatus s,String c,String m) { return new DelivererException(s,c,m); }

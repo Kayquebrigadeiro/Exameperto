@@ -1,4 +1,40 @@
-# Status — atualizado em 14/10/2026
+# Status — atualizado em 16/10/2026
+
+## Antimalware local para uploads privados — 16/10/2026
+
+Foi integrado o ClamAV/ClamD local por `INSTREAM`, limitado a loopback
+(`127.0.0.1:3310`), sem serviço público de análise e sem execução do conteúdo
+recebido. A migração V22 acrescenta hash, versão, tentativas, detalhe e os
+estados `PENDENTE`, `LIMPO`, `DETECTADO` e `FALHA_INSPECAO`. A inspeção ocorre
+sobre o objeto exato persistido em quarentena; timeout, indisponibilidade,
+limite, mudança de tamanho/hash e falha de protocolo permanecem bloqueados e
+não produzem `LIMPO`. Substituição gera nova versão e nova inspeção; download
+continua condicionado à quarentena, autorização e inspeção estrutural. Resultado
+limpo não é autenticidade documental nem aprovação profissional.
+
+O ensaio isolado usou PostgreSQL/Testcontainers e armazenamento temporário:
+`ClamAvMalwareScannerIntegrationTest` passou 2/2 com ClamAV real (arquivo
+limpo, EICAR, scanner indisponível e tamanho alterado); `DelivererEvidenceFlowTest`
+passou 2/2; `VehicleLinkFlowTest` passou 2/2, incluindo upgrade V5→V22 e as
+estruturas antimalware; `npm run build --prefix web` passou. O EICAR não foi
+persistido no banco normal nem versionado. A validação de upload continua
+exigindo tipo estrutural real antes da quarentena.
+
+No ambiente normal, `127.0.0.1:55173` → `127.0.0.1:58080` → PostgreSQL
+`127.0.0.1:5433` foi conferido sem documento real: Flyway aplicou somente V22,
+o gate de restauração permaneceu `NORMAL`, o gateway SMTP registrou
+`enabled=true`, remetente configurado e allowlist com uma entrada, e o ClamD
+respondeu `PONG` em loopback. O backend foi reiniciado somente para aplicar a
+migração e habilitar a configuração local; nenhuma mensagem ou captura foi
+iniciada.
+
+Para o ensaio local, execute `scripts/start-local-antimalware.sh` e configure
+`EXAME_PERTO_ANTIMALWARE_ENABLED=true`, host `127.0.0.1` e porta `3310` antes do
+backend; o healthcheck exige `clamdscan --ping` e falha fechado. A base de
+assinaturas local existe, mas sua atualização operacional ainda precisa ser
+decidida e monitorada; nenhuma atualização grande foi baixada nesta etapa.
+ClamAV continua uma camada de detecção, não de autenticidade ou aprovação.
+
 
 ## Entregador web e localização em primeiro plano — 16/10/2026
 

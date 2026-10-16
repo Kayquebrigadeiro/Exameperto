@@ -68,6 +68,11 @@ echo "Dependências locais verificadas: Docker, Java, Maven, Node, npm e curl."
 docker compose --env-file "$ENV_FILE" -f "$ROOT_DIR/infra/compose.yaml" up -d postgres
 wait_for_port postgres 5433
 
+"$ROOT_DIR/scripts/start-local-antimalware.sh"
+export EXAME_PERTO_ANTIMALWARE_ENABLED=true
+export EXAME_PERTO_ANTIMALWARE_HOST=127.0.0.1
+export EXAME_PERTO_ANTIMALWARE_PORT="${EXAME_PERTO_ANTIMALWARE_PORT:-3310}"
+
 if port_open 8080; then
   [[ -f "$RUN_DIR/backend.pid" ]] || fail "porta 8080 ocupada por processo não iniciado por este script"
   echo "OK: backend já estava disponível; nenhum processo duplicado foi criado"

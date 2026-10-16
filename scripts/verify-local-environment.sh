@@ -32,9 +32,15 @@ status="$(curl -sS -o /tmp/exame-perto-local-check.json -w '%{http_code}' --max-
 [[ "$status" == "400" ]] || fail "proxy/backend não retornaram a validação esperada (HTTP $status)"
 grep -q '"code":"INVALID_INPUT"' /tmp/exame-perto-local-check.json || fail "corpo de erro da API não é o esperado"
 
+if [[ "${EXAME_PERTO_ANTIMALWARE_ENABLED:-false}" == "true" ]]; then
+  command -v clamdscan >/dev/null || fail "clamdscan ausente enquanto antimalware está habilitado"
+  clamdscan --config-file="$ROOT_DIR/.local-run/clamd.conf" --ping 1 >/dev/null 2>&1 || fail "clamd não responde; inspeção deve permanecer indisponível"
+  echo "OK: ClamAV local responde em loopback; nenhum resultado limpo é produzido sem scanner."
+fi
+
 docker compose --env-file "$ENV_FILE" -f "$ROOT_DIR/infra/compose.yaml" exec -T postgres \
   psql -U "$DATABASE_USER" -d exameperto -Atc \
-  "select case when (select max(installed_rank) from flyway_schema_history)=20 and (select estado from controle_restauracao where singleton)='NORMAL' then 'ok' else 'fail' end" \
+  "select case when (select max(version::integer) from flyway_schema_history)=22 and (select estado from controle_restauracao where singleton)='NORMAL' then 'ok' else 'fail' end" \
   | grep -qx ok || fail "migrações ou gate de restauração não estão prontos"
 
 if [[ "${EXAME_PERTO_ROUTE_ENABLED:-false}" == "true" && -n "${EXAME_PERTO_ROUTE_API_KEY:-}" ]]; then
@@ -48,4 +54,4 @@ else
   echo "INFO: pagamento sandbox não configurado; cobrança particular permanece bloqueada."
 fi
 echo "INFO: acessibilidade do provedor e consulta de rota são verificações explícitas, não executadas na inicialização."
-echo "OK: Vite → backend → PostgreSQL; V20 aplicada; restauração NORMAL; configuração privada estruturalmente válida."
+echo "OK: Vite → backend → PostgreSQL; V22 aplicada; restauração NORMAL; configuração privada estruturalmente válida."

@@ -36,6 +36,7 @@ stop_managed() {
 
 stop_managed web
 stop_managed backend
+"$ROOT_DIR/scripts/stop-local-antimalware.sh"
 if [[ -f "$ENV_FILE" ]]; then
   docker compose --env-file "$ENV_FILE" -f "$ROOT_DIR/infra/compose.yaml" stop postgres
 else

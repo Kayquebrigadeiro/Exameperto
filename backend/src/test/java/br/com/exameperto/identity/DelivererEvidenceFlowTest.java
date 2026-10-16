@@ -39,6 +39,7 @@ class DelivererEvidenceFlowTest {
     @Container static final PostgreSQLContainer<?> POSTGRES=new PostgreSQLContainer<>("postgres:17.6");
     static final Path TEST_ROOT=Path.of(System.getProperty("java.io.tmpdir"),"exame-perto-deliverer-test-"+UUID.randomUUID());
     @DynamicPropertySource static void db(DynamicPropertyRegistry r){r.add("spring.datasource.url",POSTGRES::getJdbcUrl);r.add("spring.datasource.username",POSTGRES::getUsername);r.add("spring.datasource.password",POSTGRES::getPassword);r.add("storage.private-root",TEST_ROOT::toString);}
+    @DynamicPropertySource static void antimalware(DynamicPropertyRegistry r){r.add("antimalware.enabled",()->"true");r.add("antimalware.host",()->"127.0.0.1");r.add("antimalware.port",()->"3310");}
     @LocalServerPort int port; @MockBean EmailGateway email; @Autowired ObjectMapper json; @Autowired JdbcTemplate jdbc;
     @AfterAll static void cleanup() throws Exception { if(Files.exists(TEST_ROOT)) try(var paths=Files.walk(TEST_ROOT)){paths.sorted(java.util.Comparator.reverseOrder()).forEach(p->{try{Files.deleteIfExists(p);}catch(Exception ignored){}});} }
     final HttpClient client=HttpClient.newHttpClient(); final java.util.concurrent.ConcurrentHashMap<String,String> mail=new java.util.concurrent.ConcurrentHashMap<>(); static final String PASS="Senha-sintetica-123";
@@ -72,6 +73,7 @@ class DelivererEvidenceFlowTest {
         assertThat(request(rotated,"POST","/auth/logout",null,"application/json").statusCode()).isEqualTo(204);
         assertThat(request(rotated,"POST","/analyst/reviews/"+reviewId+"/decision","{\"decision\":\"APROVAR\"}","application/json").statusCode()).isEqualTo(401);
         assertThat(Files.exists(TEST_ROOT.resolve("quarantine"))).isTrue();
+
     }
     @Test void repeatedInvalidMfaCodesArePersistedAndRateLimited() throws Exception {
         Account analyst=active("mfa-rate");
