@@ -26,12 +26,16 @@ rastreamento mobile e retenção GPS`).
 ## Perfil isolado preparado
 
 O arquivo Compose separado cria banco e volume distintos do perfil local
-normal. Os comandos abaixo são deliberadamente manuais; não foram executados
-nesta preparação para não baixar imagens nem iniciar serviços sem confirmação
-das dependências e da senha de homologação.
+normal. A imagem `postgres:17.6` já estava em cache. O PostgreSQL foi iniciado
+em 16/10/2026; a senha foi gerada em memória com `openssl rand`, não foi
+impressa nem versionada. O backend foi iniciado temporariamente com JDK 21,
+aplicou as migrações até V21, respondeu HTTP 401 sem autenticação e foi
+encerrado. O container isolado permanece disponível para a etapa do aparelho.
 
 ```sh
-export EXAME_PERTO_ANDROID_HOMOLOG_POSTGRES_PASSWORD='senha-exclusiva-e-temporaria'
+read -r -s -p 'Senha temporária da homologação Android: ' EXAME_PERTO_ANDROID_HOMOLOG_POSTGRES_PASSWORD
+printf '\n'
+export EXAME_PERTO_ANDROID_HOMOLOG_POSTGRES_PASSWORD
 docker compose -p exame-perto-android-homolog \
   -f infra/compose.android-homologation.yaml up -d postgres
 
@@ -75,18 +79,63 @@ Verificação realizada no host em 16/10/2026:
 | npm | `12.0.2` | necessário para `npm ci` |
 | Docker | `28.5.2` | necessário para PostgreSQL isolado |
 | Maven | disponível | necessário para backend |
-| Java | OpenJDK `25.0.3` | trocar/selecionar JDK 21 antes do build |
+| Java global | OpenJDK `25.0.3` | não alterar |
+| JDK do projeto | OpenJDK `21.0.12.1` em `/usr/lib/jvm/java-21-openjdk-amd64` | usar somente via `JAVA_HOME`/`PATH` do comando |
 | `adb` | ausente | Android SDK Platform-Tools |
-| emulador/`sdkmanager` | ausentes | Android SDK, build-tools e AVD, ou aparelho USB |
+| `sdkmanager`/SDK | ausentes | instalar em `$HOME/Android/Sdk`, sem privilégio |
+| Gradle global | ausente | não é necessário: o wrapper deve usar Gradle `9.3.1` |
 
-Espaço observado: filesystem com aproximadamente `822 GB` livres e `/tmp`
-com `7.8 GB` livres. Antes de downloads grandes, reservar pelo menos **15 GB**
-livres: cerca de 1–2 GB para npm/Gradle do app, 2–4 GB para SDK/build-tools,
-2–4 GB para Android Studio/AVD opcional e margem para imagens Docker e
-artefatos. Um aparelho físico evita o download do AVD, mas ainda exige
-Platform-Tools, SDK de compilação e JDK 21. Não fazer `npm ci`, pull de imagem,
-instalação de Android Studio ou download de SDK até confirmar esse espaço e
-autorizar os downloads.
+Requisitos efetivos encontrados no React Native `0.86.3` instalado:
+
+- Android minSdk `24`, compileSdk/targetSdk `36`;
+- Build Tools `36.0.0`;
+- NDK `27.1.12297006`;
+- Android Gradle Plugin `8.12.0`;
+- Gradle Wrapper `9.3.1`.
+
+O projeto não contém diretório `mobile/android` ainda; `expo run:android`
+deverá gerar o projeto nativo e o wrapper local. Para manter o Java global
+inalterado, todos os comandos Android devem ser executados assim:
+
+```sh
+cd /home/grekas/Projetos/AquiPerto/mobile
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+export PATH="$JAVA_HOME/bin:$PATH"
+java -version                 # deve mostrar 21.x
+```
+
+Dependências realmente ausentes, sem instalação privilegiada. Depois de obter
+o ZIP oficial do Android Command-line Tools para Linux em
+`/tmp/commandlinetools-linux.zip`, instalar apenas no diretório do usuário:
+
+```sh
+set -eu
+export ANDROID_HOME="$HOME/Android/Sdk"
+export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
+mkdir -p "$ANDROID_HOME/cmdline-tools/latest"
+unzip -q /tmp/commandlinetools-linux.zip -d /tmp/android-cmdline-tools
+mv /tmp/android-cmdline-tools/cmdline-tools/* "$ANDROID_HOME/cmdline-tools/latest/"
+rm -rf /tmp/android-cmdline-tools
+yes | sdkmanager --sdk_root="$ANDROID_HOME" --licenses >/dev/null
+sdkmanager --sdk_root="$ANDROID_HOME" \
+  'platform-tools' 'platforms;android-36' 'build-tools;36.0.0' \
+  'ndk;27.1.12297006'
+adb version
+```
+
+O comando acima não foi executado. Não é necessário instalar Gradle global;
+o wrapper baixará `gradle-9.3.1-bin.zip` quando o build nativo for autorizado.
+Se o ZIP ainda não estiver disponível, parar antes de `unzip`; não usar
+`sudo`, Android Studio, AVD ou emulador neste ensaio.
+
+Espaço observado: filesystem raiz com aproximadamente `8.0 GB` livres,
+`/home` com `822 GB` livres e `/tmp` com `7.8 GB` livres. O aparelho físico
+evita o AVD, mas ainda exige aproximadamente 1 GB para command-line tools e
+Platform-Tools, 1–2 GB para plataforma/build-tools/NDK, até 300 MB para o
+Gradle distribution e 1–2 GB de caches/build; reservar **5–8 GB na raiz**.
+O cache atual do Gradle ocupa 1.8 GB e o `node_modules` 361 MB. Não fazer
+downloads grandes além dos comandos acima sem confirmar que a raiz mantém
+essa margem.
 
 ## Cenários sintéticos preparados
 

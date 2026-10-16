@@ -6,19 +6,20 @@ Preparação independente do aparelho registrada em
 [ANDROID-ENSAIO-DE25A99](ANDROID-ENSAIO-DE25A99.md). A entrega alvo é
 `de25a99`; não houve inicialização de rastreamento, chamada a `/locations`,
 ensaio físico, deploy ou distribuição. O host tem Docker 28.5.2, Maven,
-Node 24.19.0 e npm 12.0.2; não tem `adb`, emulador ou `sdkmanager`, e usa
-OpenJDK 25.0.3, incompatível com o requisito JDK 21 sem troca de toolchain.
+Node 24.19.0 e npm 12.0.2; não tem `adb`, emulador ou `sdkmanager`.
+OpenJDK 21.0.12.1 está instalado em `/usr/lib/jvm/java-21-openjdk-amd64` e
+foi usado somente via `JAVA_HOME`/`PATH`; o Java global 25 não foi alterado.
 
 Foi preparado o Compose isolado
 `infra/compose.android-homologation.yaml`, com banco/volume próprios,
-`127.0.0.1:55433` e sem qualquer alteração no Compose normal. O backend
-planejado usa `127.0.0.1:58080`, raiz privada temporária própria e
+`127.0.0.1:55433` e sem qualquer alteração no Compose normal. O PostgreSQL
+isolado foi iniciado, V21 foi aplicada e o backend temporário respondeu 401
+em `127.0.0.1:58080` antes de ser encerrado. A raiz privada própria e
 `EXAME_PERTO_TRACKING_ENABLED=false`/
 `EXAME_PERTO_TRACKING_RETENTION_ENABLED=false`. Nenhum download grande,
-serviço, migração ou objeto sintético foi iniciado nesta etapa. O ensaio
-permanece pendente de JDK 21, Platform-Tools/SDK (ou aparelho com depuração
-USB), senha exclusiva de homologação e autorização explícita para executar os
-comandos; o roteiro não concede aprovação profissional nem operação real.
+objeto sintético ou GPS foi criado. O ensaio permanece pendente de
+Platform-Tools/SDK e aparelho com depuração USB; o roteiro não concede
+aprovação profissional nem operação real.
 
 ## Análise de benefícios e operação de privacidade — 15/10/2026
 
