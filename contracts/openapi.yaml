@@ -4631,9 +4631,10 @@ components:
       additionalProperties: false
       properties:
         id: {type: string, format: uuid}
+        birthDate: {type: string, format: date}
         status: {type: string, enum: [RASCUNHO, EM_ANALISE, APROVADO, REJEITADO, SUSPENSO]}
         version: {type: integer, minimum: 0}
-      required: [id, status, version]
+      required: [id, birthDate, status, version]
     Document:
       type: object
       additionalProperties: false

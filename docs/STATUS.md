@@ -1107,6 +1107,26 @@ Implementação ainda faltante: captura em segundo plano/background não está i
 
 Outras lacunas independentes: homologação de armazenamento, backup/restore, antimalware e distribuição mobile; critérios e responsável profissional para aprovação de entregador/veículo; e decisões operacionais para ocorrências, retorno e reentrega. Nenhuma depende do pagamento adiado.
 
+## Abas e jornada do entregador web — 16/10/2026
+
+Corrigida a navegação do painel para uma única `tablist` semântica: Cadastro,
+Enviar documento, Situação dos documentos, Visão geral e Veículos e vínculos
+agora trocam conteúdo sem manter formulários inativos visíveis. As abas têm
+foco por teclado, setas/Home/End, `tabpanel` associado e indicação ativa.
+Cadastro devolve e reaplica a data persistida, upload valida tipo/tamanho,
+mostra progresso e recarrega a situação após resposta confirmada. Histórico
+identifica quarentena, inspeção, rejeição e oferece substituição explícita
+sem confundir upload com aprovação profissional.
+
+Validação integrada: `DelivererBrowserFlowTest` passou 1/1 com Chromium →
+Vite → Spring → PostgreSQL 17.6 descartável, sem interceptação da API,
+cobrindo login, cadastro, reload, navegação por teclado, rejeição de arquivo
+inválido, upload real em quarentena, atualização da situação, veículo,
+substituição e bloqueio de ofertas. Build web, compilação Maven e `git
+diff --check` passaram. Banco normal, SMTP, conta e arquivos pessoais não
+foram usados pelo ensaio; pagamento, aprovação profissional e rastreamento
+normal permanecem desabilitados.
+
 ## Rastreamento mobile em segundo plano e retenção GPS — 15/10/2026
 
 Partindo de `201e42b`, a implementação foi concluída sem alterar conta, banco normal, interfaces aprovadas ou credenciais de pagamento. O app do entregador agora registra uma tarefa de localização em segundo plano no nível superior do módulo Expo, solicita primeiro plano e segundo plano somente após explicação contextual, exibe o estado ativo e mantém fila limitada no SecureStore, vinculada a designação/pedido. Cada envio contém somente o contrato de posição; o backend revalida token, entregador, designação ativa, sequência, idade, futuro, frequência e política. Refresh rotacionado é reutilizado pelos pontos seguintes; logout, encerramento/revogação e tarefa não ativa limpam a fila e interrompem a tarefa.

@@ -14,19 +14,30 @@ test('entregador acompanha cadastro, documentos, veículo e bloqueio de ofertas'
   await navigation.getByRole('link', { name: 'Área do entregador', exact: true }).click();
   await expect(page).toHaveURL(/\/app\/entregador$/);
   const panel = page.getByRole('region', { name: 'Cadastro e comprovações' });
-  await panel.getByRole('tab', { name: 'Cadastro e documentos' }).click();
+  await panel.getByRole('tab', { name: 'Cadastro', exact: true }).click();
   await panel.getByLabel('Data de nascimento').fill('1990-01-15');
   await panel.getByRole('button', { name: 'Salvar cadastro' }).click();
   await expect(panel.getByRole('alert')).toContainText('Isto não aprova');
+  await expect(panel.getByRole('tabpanel', { name: 'Cadastro' })).toBeVisible();
+  await page.reload();
+  const reloadedPanel = page.getByRole('region', { name: 'Cadastro e comprovações' });
+  await reloadedPanel.getByRole('tab', { name: 'Cadastro', exact: true }).click();
+  await expect(reloadedPanel.getByLabel('Data de nascimento')).toHaveValue('1990-01-15');
+  await reloadedPanel.getByRole('tab', { name: 'Cadastro', exact: true }).press('ArrowRight');
+  await expect(reloadedPanel.getByRole('tab', { name: 'Enviar documento', exact: true })).toHaveAttribute('aria-selected', 'true');
 
   const pdf = { name: 'habilitacao.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%%EOF') };
-  await panel.getByRole('tab', { name: 'Enviar documento' }).click();
-  await panel.getByLabel('Categoria').selectOption('HABILITACAO');
-  await panel.getByLabel(/Arquivo PDF/).setInputFiles(pdf);
-  await panel.getByRole('button', { name: 'Enviar para quarentena' }).first().click();
-  await expect(panel.getByRole('alert')).toContainText('quarentena');
-  await panel.getByRole('tab', { name: 'Situação dos documentos' }).click();
-  await expect(panel.locator('.registers').getByText('HABILITACAO', { exact: false })).toBeVisible();
+  await reloadedPanel.getByLabel('Categoria').selectOption('HABILITACAO');
+  await reloadedPanel.getByLabel(/Arquivo PDF/).setInputFiles({ name: 'invalido.txt', mimeType: 'text/plain', buffer: Buffer.from('não é documento') });
+  await reloadedPanel.getByRole('button', { name: 'Enviar para quarentena' }).click();
+  await expect(reloadedPanel.getByRole('alert')).toContainText('PDF, JPEG ou PNG');
+  await reloadedPanel.getByLabel(/Arquivo PDF/).setInputFiles(pdf);
+  await reloadedPanel.getByRole('button', { name: 'Enviar para quarentena' }).click();
+  await expect(reloadedPanel.getByRole('alert')).toContainText('quarentena');
+  await reloadedPanel.getByRole('tab', { name: 'Situação dos documentos', exact: true }).click();
+  await expect(reloadedPanel.getByRole('tabpanel', { name: 'Situação dos documentos' })).toBeVisible();
+  await expect(reloadedPanel.getByRole('tabpanel', { name: 'Enviar documento' })).toBeHidden();
+  await expect(reloadedPanel.locator('.registers').getByText('HABILITACAO', { exact: false })).toBeVisible();
 
   await panel.getByRole('tab', { name: 'Veículos e vínculos' }).click();
   await panel.getByLabel('Placa').fill('TST1A23');

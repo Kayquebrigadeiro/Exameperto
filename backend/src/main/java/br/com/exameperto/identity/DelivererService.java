@@ -176,7 +176,7 @@ class DelivererService {
         if("image/png".equals(mime)){byte[] end={(byte)0x49,(byte)0x45,(byte)0x4e,(byte)0x44,(byte)0xae,(byte)0x42,(byte)0x60,(byte)0x82};if(bytes.length<end.length)return false;for(int i=0;i<end.length;i++)if(bytes[bytes.length-end.length+i]!=end[i])return false;return true;}
         return false;
     }
-    private DelivererView deliverer(UUID id) { return jdbc.queryForObject("SELECT id,estado,version FROM entregador WHERE id=?",(rs,n)->new DelivererView(rs.getObject(1,UUID.class),rs.getString(2),rs.getLong(3)),id); }
+    private DelivererView deliverer(UUID id) { return jdbc.queryForObject("SELECT id,nascimento,estado,version FROM entregador WHERE id=?",(rs,n)->new DelivererView(rs.getObject(1,UUID.class),rs.getObject(2,LocalDate.class),rs.getString(3),rs.getLong(4)),id); }
     DocumentView document(UUID id) { return jdbc.queryForObject("SELECT d.id,d.categoria,d.mime,d.tamanho,d.estado,d.version,(SELECT r.motivo_codigo FROM revisao_entregador r WHERE r.documento_id=d.id ORDER BY r.criado_em DESC,r.id DESC LIMIT 1) FROM documento d WHERE d.id=?",(rs,n)->new DocumentView(rs.getObject(1,UUID.class),rs.getString(2),rs.getString(3),rs.getLong(4),rs.getString(5),rs.getLong(6),rs.getString(7)),id); }
     record Download(String key,String mime,long size) {}
     record StoredEvidence(UUID id,String key) {}

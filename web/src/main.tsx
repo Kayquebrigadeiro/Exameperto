@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
-import type { FormEvent, MouseEvent, ReactNode } from "react";
+import type { FormEvent, KeyboardEvent, MouseEvent, ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { parseApiResponse as parse, uploadWithProgress } from "./api";
 import {
@@ -63,7 +63,7 @@ type Grant = {
   revokedAt: string | null;
   version: number;
 };
-type Deliverer = { id: string; status: string; version: number };
+type Deliverer = { id: string; birthDate: string; status: string; version: number };
 type Evidence = {
   id: string;
   category: string;
@@ -2117,8 +2117,7 @@ function DelivererPanel({ session }: { session: Tokens }) {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-  const [section, setSection] = useState<"overview" | "documents" | "vehicles">("overview");
-  const [documentSection, setDocumentSection] = useState<"profile" | "upload" | "history">("profile");
+  const [section, setSection] = useState<"overview" | "profile" | "upload" | "history" | "vehicles">("overview");
   const [offerAccess, setOfferAccess] = useState<"loading" | "allowed" | string>("loading");
   async function load() {
     const h = { Authorization: `Bearer ${session.accessToken}` };
@@ -2126,6 +2125,7 @@ function DelivererPanel({ session }: { session: Tokens }) {
     if (p.ok) {
       const current = (await p.json()) as Deliverer;
       setProfile(current);
+      setBirthDate(current.birthDate);
       const d = await fetch("/api/v1/me/deliverer/documents", { headers: h });
       if (d.ok) setDocs(await d.json());
       const v = await fetch("/api/v1/me/vehicle-links", { headers: h });
@@ -2190,6 +2190,15 @@ function DelivererPanel({ session }: { session: Tokens }) {
     const file = (form.elements.namedItem("file") as HTMLInputElement)
       .files?.[0];
     if (!file) return;
+    const allowedTypes = new Set(["application/pdf", "image/jpeg", "image/png"]);
+    if (!allowedTypes.has(file.type) || file.size > 10 * 1024 * 1024) {
+      setNotice({ tone: "error", text: "Escolha um PDF, JPEG ou PNG de até 10 MiB. O arquivo não foi enviado." });
+      return;
+    }
+    if (!profile) {
+      setNotice({ tone: "error", text: "Salve o cadastro de entregador antes de enviar documentos." });
+      return;
+    }
     const data = new FormData();
     data.append("category", category);
     data.append("file", file);
@@ -2302,6 +2311,20 @@ function DelivererPanel({ session }: { session: Tokens }) {
       window.setTimeout(() => setUploadProgress(null), 800);
     }
   }
+  const tabs = [
+    ["overview", "Visão geral"],
+    ["profile", "Cadastro"],
+    ["upload", "Enviar documento"],
+    ["history", "Situação dos documentos"],
+    ["vehicles", "Veículos e vínculos"],
+  ] as const;
+  function moveTab(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+    setSection(tabs[next][0]);
+    window.requestAnimationFrame(() => document.getElementById(`deliverer-tab-${tabs[next][0]}`)?.focus());
+  }
   return (
     <section className="family" aria-labelledby="deliverer-title">
       <div className="section-heading">
@@ -2313,12 +2336,8 @@ function DelivererPanel({ session }: { session: Tokens }) {
         </p>
       </div>
       <div className="tabs" role="tablist" aria-label="Área do entregador">
-        {([
-          ["overview", "Visão geral"],
-          ["documents", "Cadastro e documentos"],
-          ["vehicles", "Veículos e vínculos"],
-        ] as const).map(([value, label]) => (
-          <button type="button" className="tab" role="tab" aria-selected={section === value} key={value} onClick={() => setSection(value)}>
+        {tabs.map(([value, label], index) => (
+          <button type="button" className="tab" role="tab" id={`deliverer-tab-${value}`} aria-controls={`deliverer-panel-${value}`} aria-selected={section === value} tabIndex={section === value ? 0 : -1} key={value} onClick={() => setSection(value)} onKeyDown={(event) => moveTab(event, index)}>
             {label}
           </button>
         ))}
@@ -2343,20 +2362,15 @@ function DelivererPanel({ session }: { session: Tokens }) {
           <div className="empty-state">
             <strong>Próximas ações</strong>
             <p>{!profile ? "Informe sua data de nascimento para enviar o cadastro." : !docs.length ? "Envie documentos e aguarde a análise profissional." : !vehicles.length ? "Cadastre um veículo e seu vínculo." : offerAccess === "allowed" ? "Nenhuma pendência de habilitação foi informada pelo servidor." : "A habilitação para ofertas continua bloqueada por requisitos do backend."}</p>
-            <button type="button" onClick={() => setSection("documents")}>{profile ? "Ver cadastro e documentos" : "Começar cadastro"}</button>
+            <button type="button" onClick={() => setSection(profile ? "history" : "profile")}>{profile ? "Ver situação dos documentos" : "Começar cadastro"}</button>
           </div>
         </>
       )}
-      {section === "documents" && (
-        <>
-          <div className="tabs" role="tablist" aria-label="Cadastro e documentos">
-            {([["profile", "Cadastro"], ["upload", "Enviar documento"], ["history", "Situação dos documentos"]] as const).map(([value, label]) => (
-              <button type="button" className="tab" role="tab" aria-selected={documentSection === value} key={value} onClick={() => setDocumentSection(value)}>{label}</button>
-            ))}
-          </div>
-      <div className="work-grid">
-        <form className="work-card" hidden={documentSection !== "profile"} onSubmit={save}>
+      {section === "profile" && (
+        <div id="deliverer-panel-profile" role="tabpanel" aria-labelledby="deliverer-tab-profile" tabIndex={0} className="work-grid">
+        <form className="work-card" onSubmit={save}>
           <h3>{profile ? "Atualizar cadastro" : "Criar cadastro"}</h3>
+          <p>Dados básicos e situação atual do cadastro. Salvar alterações mantém o processo em rascunho e não concede aprovação profissional.</p>
           <label htmlFor="delivererBirthDate">Data de nascimento</label>
           <input
             id="delivererBirthDate"
@@ -2374,7 +2388,16 @@ function DelivererPanel({ session }: { session: Tokens }) {
             </small>
           )}
         </form>
-        <form className="work-card" hidden={documentSection !== "upload"} onSubmit={upload}>
+        <aside className="work-card">
+          <h3>Situação atual</h3>
+          <p>{profile ? `Cadastro ${profile.status.toLowerCase()}. Documentos e habilitação são analisados separadamente.` : "Nenhum cadastro foi persistido ainda."}</p>
+          <strong>{docs.length ? `${docs.length} documento(s) registrado(s)` : "Nenhum documento registrado"}</strong>
+        </aside>
+        </div>
+      )}
+      {section === "upload" && (
+        <div id="deliverer-panel-upload" role="tabpanel" aria-labelledby="deliverer-tab-upload" tabIndex={0}>
+        <form className="work-card" onSubmit={upload}>
           <h3>Enviar documento privado</h3>
           <label htmlFor="documentCategory">Categoria</label>
           <select
@@ -2397,9 +2420,11 @@ function DelivererPanel({ session }: { session: Tokens }) {
             accept="application/pdf,image/jpeg,image/png"
             required
           />
-          <button disabled={busy}>Enviar para quarentena</button>
+          <button disabled={busy || !profile}>Enviar para quarentena</button>
+          {!profile && <small>O cadastro básico é necessário antes do upload.</small>}
         </form>
-      </div>
+        </div>
+      )}
       {uploadProgress !== null && (
         <div className="upload-progress" role="status" aria-live="polite">
           <span>Enviando arquivo privado</span>
@@ -2409,7 +2434,7 @@ function DelivererPanel({ session }: { session: Tokens }) {
           <strong>{uploadProgress}%</strong>
         </div>
       )}
-      <article className="registers" hidden={documentSection !== "history"}>
+      {section === "history" && <article id="deliverer-panel-history" role="tabpanel" aria-labelledby="deliverer-tab-history" tabIndex={0} className="registers">
         <h3>Histórico mínimo</h3>
         {docs.length ? (
           docs.map((d) => (
@@ -2420,16 +2445,17 @@ function DelivererPanel({ session }: { session: Tokens }) {
               </span>
               {d.reason && <small>Motivo informado: {d.reason}</small>}
               {d.status === "REJEITADO" && (
-                <small>Envie um novo arquivo da mesma categoria para substituir este documento.</small>
+                <>
+                  <small>Envie um novo arquivo da mesma categoria para substituir este documento.</small>
+                  <button type="button" className="secondary" onClick={() => { setCategory(d.category); setSection("upload"); }}>Substituir documento</button>
+                </>
               )}
             </p>
           ))
         ) : (
           <p className="empty">Nenhum arquivo enviado.</p>
         )}
-      </article>
-        </>
-      )}
+      </article>}
       {section === "vehicles" && (
         <>
       <div className="section-heading vehicle-heading">
