@@ -1,5 +1,34 @@
 # Status — atualizado em 14/10/2026
 
+## Entregador web e localização em primeiro plano — 16/10/2026
+
+O fluxo existente de `/app/entregador` e `/app/entregador/entregas` foi
+reaproveitado. A área agora permite iniciar explicitamente localização web em
+primeiro plano somente depois de retirada/custódia ativa e designação vigente.
+O navegador pede permissão contextual; a interface informa captura ativa,
+precisão baixa, posição desatualizada, indisponibilidade, permissão negada e
+perda de rede. O backend continua revalidando designação, sessão e política;
+nenhuma regra de oferta, cobertura ou aprovação foi duplicada no frontend.
+
+Ao interromper, trocar de conta/área, perder autorização ou concluir a
+entrega, o `watchPosition` é encerrado e requisições pendentes são abortadas;
+não existe fila persistente. A interface explicita que aba suspensa, navegador
+fechado ou computador bloqueado não garantem captura, e que posições simuladas
+no navegador servem somente à homologação, não comprovam GPS físico.
+
+Verificações em PostgreSQL/Testcontainers descartável, com `tracking.enabled`
+ativado somente na suíte browser: `TrackingFlowTest` 3/3, `CustodyBrowserFlowTest`
+1/1 e `DelivererBrowserFlowTest` 1/1. O build web e a compilação backend com
+JDK 21 passaram. A correção de capacidade permite abrir a área do entregador
+sem criar perfil ou conceder habilitação; o cadastro, documentos e veículos
+continuam decididos pelas APIs existentes. O container exclusivo da
+homologação Android foi parado com `stop`; o volume foi preservado.
+
+O ambiente normal continua com captura e retenção GPS desabilitadas. Não houve
+GPS real, banco normal, deploy, serviço pago ou distribuição. Pendências finais:
+GPS mobile em segundo plano e ensaio Android; homologação oficial de pagamento
+e webhook.
+
 ## Preparação do ensaio Android da entrega `de25a99` — 16/10/2026
 
 Preparação independente do aparelho registrada em

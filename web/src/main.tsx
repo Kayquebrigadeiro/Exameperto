@@ -236,6 +236,18 @@ type Incident = {
   description?: string;
   createdAt: string;
 };
+type BrowserTrackingState = {
+  taskId: string | null;
+  status: "idle" | "starting" | "active" | "stopped" | "denied" | "error";
+  message: string;
+  pending: number;
+  lastPosition: {
+    capturedAt: string;
+    accuracyMeters: number;
+    stale: boolean;
+    lowAccuracy: boolean;
+  } | null;
+};
 
 const orderStatusLabels: Record<string, string> = {
   EM_VERIFICACAO: "Em verificação",
@@ -4548,6 +4560,17 @@ function DeliveryWorkPanel({ session }: { session: Tokens }) {
   const [busy, setBusy] = useState(false);
   const [deliverySection, setDeliverySection] = useState<"offers" | "active" | "history">("offers");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [tracking, setTracking] = useState<BrowserTrackingState>({
+    taskId: null,
+    status: "idle",
+    message: "A localização web não está compartilhada.",
+    pending: 0,
+    lastPosition: null,
+  });
+  const trackingWatchRef = useRef<number | null>(null);
+  const trackingTaskRef = useRef<TaskAssignment | null>(null);
+  const trackingSequenceRef = useRef(1);
+  const trackingRequestsRef = useRef(new Set<AbortController>());
   async function api(path: string, init: RequestInit = {}) {
     return parse(
       await fetch(`/api/v1${path}`, {
@@ -4606,6 +4629,27 @@ function DeliveryWorkPanel({ session }: { session: Tokens }) {
       setNotice({ tone: "error", text: (e as Error).message }),
     );
   }, [session.accessToken]);
+  useEffect(() => {
+    return () => {
+      if (trackingWatchRef.current !== null && "geolocation" in navigator) {
+        navigator.geolocation.clearWatch(trackingWatchRef.current);
+      }
+      trackingWatchRef.current = null;
+      trackingTaskRef.current = null;
+      trackingRequestsRef.current.forEach((request) => request.abort());
+      trackingRequestsRef.current.clear();
+    };
+  }, []);
+  useEffect(() => {
+    if (!tracking.taskId) return;
+    const task = assignments.find((value) => value.id === tracking.taskId);
+    const state = task ? custody[task.orderId] : null;
+    if (!task || task.status !== "ATIVA" || state?.status !== "ATIVA") {
+      stopBrowserTracking(
+        "A autorização operacional deixou de ser válida; a captura foi encerrada e os envios pendentes foram descartados.",
+      );
+    }
+  }, [assignments, custody, tracking.taskId]);
   async function run(action: () => Promise<void>, success: string) {
     setBusy(true);
     setNotice(null);
@@ -4685,6 +4729,11 @@ function DeliveryWorkPanel({ session }: { session: Tokens }) {
             [task.orderId]: response.result as Custody,
           }));
         }
+        if (action === "deliver") {
+          stopBrowserTracking(
+            "Entrega encerrada; a captura foi interrompida e os envios pendentes foram descartados.",
+          );
+        }
       },
       action === "pickup"
         ? "Retirada e custódia registradas."
@@ -4694,6 +4743,108 @@ function DeliveryWorkPanel({ session }: { session: Tokens }) {
             ? "Entrega confirmada pelo código do destinatário."
             : "Ocorrência registrada; nenhum desfecho foi presumido.",
     );
+  }
+  async function trackingPreflight(task: TaskAssignment) {
+    const response = await fetch(`/api/v1/orders/${task.orderId}/locations/latest`, {
+      headers: { Authorization: `Bearer ${session.accessToken}` },
+    });
+    if (response.ok || response.status === 404) return;
+    const body = await response.json().catch(() => ({})) as { code?: string; message?: string };
+    if (body.code === "POLICY_UNDEFINED") {
+      throw new Error("A localização web permanece bloqueada até existir uma política de retenção aprovada neste ambiente.");
+    }
+    throw new Error(body.message ?? "A designação não está autorizada para localização web.");
+  }
+  function stopBrowserTracking(message = "A localização web foi interrompida.") {
+    if (trackingWatchRef.current !== null && "geolocation" in navigator) {
+      navigator.geolocation.clearWatch(trackingWatchRef.current);
+    }
+    trackingWatchRef.current = null;
+    trackingTaskRef.current = null;
+    trackingRequestsRef.current.forEach((request) => request.abort());
+    trackingRequestsRef.current.clear();
+    setTracking({ taskId: null, status: "stopped", message, pending: 0, lastPosition: null });
+  }
+  function trackingError(error: GeolocationPositionError) {
+    if (error.code === error.PERMISSION_DENIED) {
+      stopBrowserTracking("Permissão de localização negada. Nenhum ponto foi compartilhado.");
+      setTracking((current) => ({ ...current, status: "denied" }));
+    } else if (error.code === error.POSITION_UNAVAILABLE) {
+      setTracking((current) => ({ ...current, status: "error", message: "A posição está indisponível neste navegador ou dispositivo; nenhum ponto novo foi enviado." }));
+    } else {
+      setTracking((current) => ({ ...current, status: "error", message: "O navegador demorou para obter a posição; tente novamente quando a localização estiver disponível." }));
+    }
+  }
+  async function sendBrowserPosition(task: TaskAssignment, position: GeolocationPosition) {
+    if (trackingTaskRef.current?.id !== task.id) return;
+    const capturedAt = new Date(position.timestamp).toISOString();
+    const accuracyMeters = position.coords.accuracy;
+    const lowAccuracy = accuracyMeters > 100;
+    const controller = new AbortController();
+    trackingRequestsRef.current.add(controller);
+    setTracking((current) => ({
+      ...current,
+      pending: trackingRequestsRef.current.size,
+      lastPosition: { capturedAt, accuracyMeters, stale: Date.now() - position.timestamp > 60_000, lowAccuracy },
+    }));
+    try {
+      const response = await fetch(`/api/v1/orders/${task.orderId}/locations`, {
+        method: "POST",
+        signal: controller.signal,
+        headers: { Authorization: `Bearer ${session.accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assignmentId: task.id,
+          sequence: trackingSequenceRef.current++,
+          capturedAt,
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracyMeters,
+        }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({})) as { code?: string; message?: string };
+        if (["POLICY_UNDEFINED", "TRACKING_INACTIVE", "NOT_FOUND"].includes(body.code ?? "")) {
+          stopBrowserTracking("O backend deixou de autorizar esta captura; ela foi encerrada e nenhum envio pendente foi mantido.");
+          return;
+        }
+        setTracking((current) => ({ ...current, status: "error", message: body.message ?? "A posição não foi aceita pelo backend; ela não foi mantida em fila." }));
+        return;
+      }
+      setTracking((current) => ({ ...current, status: "active", message: lowAccuracy ? "Captura ativa, mas a precisão está acima de 100 m." : "Captura ativa; a última posição foi aceita pelo backend." }));
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setTracking((current) => ({ ...current, status: "error", message: "Sem conexão com o backend; esta posição não foi enfileirada e será descartada ao interromper." }));
+    } finally {
+      trackingRequestsRef.current.delete(controller);
+      setTracking((current) => ({ ...current, pending: trackingRequestsRef.current.size }));
+    }
+  }
+  async function startBrowserTracking(task: TaskAssignment) {
+    const state = custody[task.orderId];
+    if (task.status !== "ATIVA" || state?.status !== "ATIVA") {
+      setNotice({ tone: "error", text: "A localização só pode começar com designação vigente e custódia ativa." });
+      return;
+    }
+    if (!("geolocation" in navigator)) {
+      setTracking({ taskId: null, status: "error", message: "Este navegador não oferece localização em primeiro plano.", pending: 0, lastPosition: null });
+      return;
+    }
+    if (trackingWatchRef.current !== null) stopBrowserTracking("A captura anterior foi interrompida.");
+    setTracking({ taskId: task.id, status: "starting", message: "Verificando a autorização da tarefa antes de pedir a permissão do navegador…", pending: 0, lastPosition: null });
+    try {
+      await trackingPreflight(task);
+      trackingTaskRef.current = task;
+      trackingSequenceRef.current = 1;
+      const watchId = navigator.geolocation.watchPosition(
+        (position) => void sendBrowserPosition(task, position),
+        trackingError,
+        { enableHighAccuracy: true, maximumAge: 15_000, timeout: 15_000 },
+      );
+      trackingWatchRef.current = watchId;
+      setTracking((current) => ({ ...current, status: "active", message: "Captura ativa; aguardando a primeira posição aceita pelo backend." }));
+    } catch (error) {
+      setTracking({ taskId: null, status: "error", message: error instanceof Error ? error.message : "A captura não foi autorizada.", pending: 0, lastPosition: null });
+    }
   }
   return (
     <section className="family" aria-label="Ofertas e entregas">
@@ -4797,6 +4948,47 @@ function DeliveryWorkPanel({ session }: { session: Tokens }) {
                   >
                     Iniciar entrega
                   </button>
+                  {task.status === "ATIVA" && (
+                    <div className="web-tracking-card" data-testid="web-tracking-card" aria-live="polite">
+                      <strong>Localização web · primeiro plano</strong>
+                      <p>
+                        Começa somente por ação sua, após custódia ativa. O navegador pedirá uma permissão contextual;
+                        a autorização da designação e a política continuam sendo revalidadas pelo backend.
+                      </p>
+                      <p className="web-tracking-limitation">
+                        Esta captura não continua garantidamente com a aba suspensa, o navegador fechado ou o computador bloqueado.
+                        Em homologação, a posição pode ser simulada pelo navegador; isso não comprova GPS físico.
+                      </p>
+                      {tracking.taskId === task.id && (
+                        <>
+                          <span className={`web-tracking-state ${tracking.status}`}>
+                            {tracking.message}
+                          </span>
+                          {tracking.lastPosition && (
+                            <small>
+                              Última posição: {new Date(tracking.lastPosition.capturedAt).toLocaleTimeString("pt-BR")} · precisão aproximada {Math.round(tracking.lastPosition.accuracyMeters)} m
+                              {tracking.lastPosition.stale ? " · desatualizada" : ""}
+                              {tracking.lastPosition.lowAccuracy ? " · baixa precisão" : ""}
+                            </small>
+                          )}
+                          {tracking.pending > 0 && <small>{tracking.pending} envio pendente em trânsito; não há fila persistente.</small>}
+                          <button type="button" className="secondary" onClick={() => stopBrowserTracking("Captura interrompida pelo entregador; envios pendentes foram descartados.")}>
+                            Interromper localização
+                          </button>
+                        </>
+                      )}
+                      {tracking.taskId !== task.id && (
+                        <button
+                          type="button"
+                          disabled={busy || state?.status !== "ATIVA"}
+                          onClick={() => void startBrowserTracking(task)}
+                        >
+                          Iniciar localização web
+                        </button>
+                      )}
+                      {state?.status !== "ATIVA" && <small>Registre a retirada para habilitar a localização desta entrega.</small>}
+                    </div>
+                  )}
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();

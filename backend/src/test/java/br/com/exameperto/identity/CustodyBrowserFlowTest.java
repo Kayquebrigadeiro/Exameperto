@@ -19,7 +19,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @org.springframework.test.annotation.DirtiesContext
 @Testcontainers
 @EnabledIfSystemProperty(named="browserTest",matches="true")
-@SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT,properties={"registration.privacy-approved=true","registration.allowed-origin=http://127.0.0.1:5187","security.cookie-secure=false","security.data-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=","security.search-key=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=","security.signing-key=AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=","registration.attempts-per-minute=1000","registration.global-attempts-per-minute=5000"})
+@SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT,properties={"registration.privacy-approved=true","registration.allowed-origin=http://127.0.0.1:5187","security.cookie-secure=false","security.data-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=","security.search-key=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=","security.signing-key=AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=","registration.attempts-per-minute=1000","registration.global-attempts-per-minute=5000","tracking.enabled=true"})
 class CustodyBrowserFlowTest {
     @Container static final PostgreSQLContainer<?> POSTGRES=new PostgreSQLContainer<>("postgres:17.6");
     @DynamicPropertySource static void db(DynamicPropertyRegistry r){r.add("spring.datasource.url",POSTGRES::getJdbcUrl);r.add("spring.datasource.username",POSTGRES::getUsername);r.add("spring.datasource.password",POSTGRES::getPassword);}
@@ -52,6 +52,7 @@ class CustodyBrowserFlowTest {
         assertThat(jdbc.queryForObject("SELECT encerrada_em IS NOT NULL FROM custodia WHERE pedido_id=?",Boolean.class,delivery)).isTrue();
         assertThat(jdbc.queryForObject("SELECT estado FROM pedido WHERE id=?",String.class,incident)).isEqualTo("OCORRENCIA");
         assertThat(jdbc.queryForObject("SELECT encerrada_em IS NULL FROM custodia WHERE pedido_id=?",Boolean.class,incident)).isTrue();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM posicao_tarefa WHERE pedido_id=?",Long.class,incident)).isGreaterThan(0L);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM codigo_recebimento WHERE pedido_id=? AND usado_em IS NOT NULL",Long.class,delivery)).isEqualTo(1);
     }
 

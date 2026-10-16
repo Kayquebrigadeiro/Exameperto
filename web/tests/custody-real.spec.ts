@@ -33,12 +33,17 @@ async function command(page: Page, token: string, path: string, version: number,
 }
 
 test('navegador → API real → PostgreSQL ensaia custódia e segredo do destinatário', async ({ page, browser }) => {
-  const driverContext = await browser.newContext();
+  const driverContext = await browser.newContext({
+    permissions: ['geolocation'],
+    geolocation: { latitude: -23.5505, longitude: -46.6333 },
+  });
   const driverPage = await driverContext.newPage();
   const delivered = process.env.CUSTODY_DELIVERY_ORDER_ID!;
   const incident = process.env.CUSTODY_INCIDENT_ORDER_ID!;
   await loginUi(driverPage, process.env.CUSTODY_DRIVER_EMAIL!);
-  await driverPage.getByRole('navigation', { name: 'Áreas do produto' }).getByRole('link', { name: 'Minhas entregas', exact: true }).click();
+  const driverNavigation = driverPage.getByRole('navigation', { name: 'Áreas do produto' });
+  await expect(driverNavigation).toBeVisible();
+  await driverNavigation.getByRole('link', { name: 'Entregas', exact: true }).click();
   const deliveryPanel = driverPage.getByRole('region', { name: 'Ofertas e entregas' });
   const offers = deliveryPanel.getByRole('button', { name: 'Aceitar oferta', exact: true });
   await expect(offers).toHaveCount(2);
@@ -56,6 +61,10 @@ test('navegador → API real → PostgreSQL ensaia custódia e segredo do destin
   await expect(driverPage.getByRole('alert')).toContainText('Entrega iniciada');
   await incidentTask.getByRole('button', { name: 'Registrar retirada' }).click();
   await expect(driverPage.getByRole('alert')).toContainText('Retirada e custódia registradas');
+  const trackingCard = incidentTask.getByTestId('web-tracking-card');
+  await trackingCard.getByRole('button', { name: 'Iniciar localização web' }).click();
+  await expect(trackingCard).toContainText('Captura ativa');
+  await expect(trackingCard).toContainText('Última posição');
   await driverPage.goto('/app/entregas');
   const refreshedPanel = driverPage.getByRole('region', { name: 'Ofertas e entregas' });
   await refreshedPanel.getByRole('tab', { name: 'Entrega atribuída', exact: true }).click();
@@ -71,7 +80,7 @@ test('navegador → API real → PostgreSQL ensaia custódia e segredo do destin
   expect((await command(outsiderPage, outsider, `/orders/${delivered}/receipt-code`, 5)).status).toBe(404);
 
   await loginUi(page, process.env.CUSTODY_RECIPIENT_EMAIL!);
-  await page.getByRole('navigation', { name: 'Áreas do produto' }).getByRole('link', { name: 'Pedidos', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Áreas do produto' }).getByRole('link', { name: 'Meus pedidos', exact: true }).click();
   const panel = page.getByRole('region', { name: 'Pedidos', exact: true });
   const orderItems = panel.locator('button.order-list-item');
   await expect(orderItems).toHaveCount(2);

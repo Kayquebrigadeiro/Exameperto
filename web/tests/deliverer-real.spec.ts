@@ -10,7 +10,8 @@ test('entregador acompanha cadastro, documentos, veículo e bloqueio de ofertas'
   await expect(page.getByRole('status').filter({ hasText: 'Sessão iniciada' })).toBeVisible();
 
   const navigation = page.getByRole('navigation', { name: 'Áreas do produto' });
-  await navigation.getByRole('link', { name: 'Cadastro de entrega', exact: true }).click();
+  await expect(navigation).toBeVisible();
+  await navigation.getByRole('link', { name: 'Área do entregador', exact: true }).click();
   await expect(page).toHaveURL(/\/app\/entregador$/);
   const panel = page.getByRole('region', { name: 'Cadastro e comprovações' });
   await panel.getByRole('tab', { name: 'Cadastro e documentos' }).click();
@@ -50,8 +51,8 @@ test('entregador acompanha cadastro, documentos, veículo e bloqueio de ofertas'
 
   await page.screenshot({ path: '/tmp/exameperto-entregador.png', fullPage: true });
 
-  await navigation.getByRole('link', { name: 'Minhas entregas', exact: true }).click();
-  await expect(page).toHaveURL(/\/app\/entregas$/);
+  await navigation.getByRole('link', { name: 'Entregas', exact: true }).click();
+  await expect(page).toHaveURL(/\/app\/entregador\/entregas$/);
   const work = page.getByRole('region', { name: 'Ofertas e entregas' });
   await expect(work).toContainText('Nenhuma oferta elegível');
   await expect(work).toContainText('Aprovação profissional');

@@ -1251,6 +1251,39 @@ textarea:focus-visible {
 .task-record textarea {
   min-height: 4rem;
 }
+.web-tracking-card {
+  display: grid;
+  gap: .45rem;
+  margin: .35rem 0;
+  padding: .9rem 1rem;
+  border: 1px solid #5f8b78;
+  border-left: .25rem solid #91d1b6;
+  background: #1b302b;
+  color: #e9efe9;
+}
+.web-tracking-card p,
+.web-tracking-card small {
+  margin: 0;
+  color: #b8c8c2;
+  font-size: .73rem;
+  line-height: 1.5;
+}
+.web-tracking-card .web-tracking-limitation {
+  color: #f0d6a1;
+}
+.web-tracking-state {
+  color: #91d1b6;
+  font-size: .78rem;
+  font-weight: 700;
+}
+.web-tracking-state.error,
+.web-tracking-state.denied,
+.web-tracking-state.stopped {
+  color: #f0b49f;
+}
+.web-tracking-card button {
+  margin-top: .2rem;
+}
 .loading-state {
   max-width: 74rem;
   margin: 5rem auto;
