@@ -17,11 +17,31 @@ class OperationalPolicyService {
   private final JdbcTemplate jdbc;
   private final MfaService mfa;
   private final ObjectMapper json;
-  OperationalPolicyService(JdbcTemplate jdbc, MfaService mfa, ObjectMapper json) { this.jdbc=jdbc; this.mfa=mfa; this.json=json; }
+  private final CustodyService custody;
+  OperationalPolicyService(JdbcTemplate jdbc, MfaService mfa, ObjectMapper json, CustodyService custody) { this.jdbc=jdbc; this.mfa=mfa; this.json=json; this.custody=custody; }
+
+  List<OperationalIncidentView> incidents(AuthService.SessionPrincipal p){ return custody.operationalIncidents(p); }
+  IncidentView resolve(AuthService.SessionPrincipal p,UUID id,IncidentResolutionInput input){ return custody.resolveIncident(p,id,input); }
 
   List<OperationalPolicyView> list(AuthService.SessionPrincipal p) {
     elevated(p);
     return jdbc.query("SELECT id,'TARIFA',numero,versao,escopo,estado,inicio,fim,publicada_em,desativada_em,usada_em IS NOT NULL FROM tarifa UNION ALL SELECT id,'CANCELAMENTO',numero,versao,escopo,estado,inicio,fim,publicada_em,desativada_em,usada_em IS NOT NULL FROM politica_cancelamento UNION ALL SELECT id,'DESIGNACAO',numero,versao,escopo,estado,inicio,fim,publicada_em,desativada_em,usada_em IS NOT NULL FROM politica_designacao ORDER BY 2,3 DESC", (rs,n)->view(rs));
+  }
+
+  OperationalPolicyDetailView detail(AuthService.SessionPrincipal p,String type,UUID id) {
+    elevated(p); String table=table(type); Map<String,Object> row=policyRow(table,id);
+    Map<String,Object> values;
+    try {
+      if ("TARIFA".equals(type)) values=json.readValue(String.valueOf(row.get("parametros")),Map.class);
+      else if ("CANCELAMENTO".equals(type)) values=json.readValue(String.valueOf(row.get("criterios")),Map.class);
+      else values=Map.of("simultaneousTasks",row.get("limite_tarefas_simultaneas"));
+    } catch(Exception ex){ throw error("INVALID_POLICY","Os valores da política não puderam ser lidos."); }
+    return new OperationalPolicyDetailView(type.equals("TARIFA")?tariff(id):type.equals("CANCELAMENTO")?cancellation(id):designation(id),values);
+  }
+
+  List<OperationalPolicyHistoryView> history(AuthService.SessionPrincipal p,String type,UUID id) {
+    elevated(p); policyRow(table(type),id);
+    return jdbc.query("SELECT acao,versao,escopo,created_at FROM auditoria_politica_operacional WHERE tipo=? AND politica_id=? ORDER BY created_at,id",(rs,n)->new OperationalPolicyHistoryView(rs.getString(1),rs.getInt(2),rs.getString(3),rs.getTimestamp(4).toInstant()),type,id);
   }
 
   @Transactional
@@ -32,6 +52,19 @@ class OperationalPolicyService {
     jdbc.update("INSERT INTO tarifa(id,numero,formula_codigo,parametros,inicio,fim,estado,versao,escopo,responsavel_id) VALUES (?,?, 'BASE_KM_MINUTO',?::jsonb,?,?,'RASCUNHO',1,?,?)", id,number,parameters,Timestamp.from(in.startsAt()),in.endsAt()==null?null:Timestamp.from(in.endsAt()),in.scope().trim(),p.userId());
     audit("TARIFA",id,1,in.scope(),"CRIADA",p.userId(),parameters);
     return tariff(id);
+  }
+
+  @Transactional
+  OperationalPolicyView editTariff(AuthService.SessionPrincipal p,UUID id,TariffPolicyInput in) {
+    elevated(p); validate(in); Map<String,Object> row=tariffRow(id); String state=String.valueOf(row.get("estado"));
+    if ("RASCUNHO".equals(state)) {
+      jdbc.update("UPDATE tarifa SET parametros=?::jsonb,inicio=?,fim=?,escopo=?,responsavel_id=? WHERE id=? AND estado='RASCUNHO'",parameters(in),Timestamp.from(in.startsAt()),in.endsAt()==null?null:Timestamp.from(in.endsAt()),in.scope().trim(),p.userId(),id);
+      audit("TARIFA",id,((Number)row.get("versao")).intValue(),in.scope(),"EDITADA",p.userId(),parameters(in)); return tariff(id);
+    }
+    if (!"ATIVA".equals(state)) throw error("POLICY_NOT_EDITABLE","Somente rascunhos ou políticas publicadas podem gerar uma nova versão.");
+    lockScope("TARIFA",in.scope()); int version=((Number)row.get("versao")).intValue()+1; UUID next=UUID.randomUUID(); String parameters=parameters(in);
+    jdbc.update("INSERT INTO tarifa(id,numero,formula_codigo,parametros,inicio,fim,estado,versao,escopo,responsavel_id) VALUES (?,?, 'BASE_KM_MINUTO',?::jsonb,?,?,'RASCUNHO',?,?,?)",next,row.get("numero"),parameters,Timestamp.from(in.startsAt()),in.endsAt()==null?null:Timestamp.from(in.endsAt()),version,in.scope().trim(),p.userId());
+    audit("TARIFA",next,version,in.scope(),"NOVA_VERSAO",p.userId(),parameters); return tariff(next);
   }
 
   @Transactional
@@ -60,7 +93,7 @@ class OperationalPolicyService {
   private String parameters(TariffPolicyInput in){try{return json.writeValueAsString(Map.of("base",in.baseAmount().toPlainString(),"perKm",in.perKmAmount().toPlainString(),"perMinute",in.perMinuteAmount().toPlainString(),"minimum",in.minimumAmount().toPlainString(),"roundingScale",in.roundingScale(),"validitySeconds",in.quoteValiditySeconds(),"acceptanceDeadlineSeconds",in.acceptanceDeadlineSeconds(),"executionDeadlineSeconds",in.executionDeadlineSeconds(),"returnAmount",in.returnAmount().toPlainString(),"returnCoverage",in.returnCoverage().trim()));}catch(Exception e){throw new IllegalStateException(e);}}
   private int nextNumber(String table){return jdbc.queryForObject("SELECT coalesce(max(numero),0)+1 FROM "+table,Integer.class);}
   private OperationalPolicyView createCancellationRow(AuthService.SessionPrincipal p,CancellationPolicyInput in){int number=nextNumber("politica_cancelamento");UUID id=UUID.randomUUID();try{String criteria=json.writeValueAsString(Map.of("beforeDesignation",in.beforeDesignation(),"afterDesignation",in.afterDesignation(),"afterPickup",in.afterPickup(),"refundHandling",in.refundHandling()));jdbc.update("INSERT INTO politica_cancelamento(id,numero,criterios,inicio,fim,estado,versao,escopo,responsavel_id) VALUES (?,?,?::jsonb,?,?,'RASCUNHO',1,?,?)",id,number,criteria,Timestamp.from(in.startsAt()),in.endsAt()==null?null:Timestamp.from(in.endsAt()),in.scope().trim(),p.userId());audit("CANCELAMENTO",id,1,in.scope(),"CRIADA",p.userId(),criteria);return cancellation(id);}catch(Exception e){throw new IllegalStateException(e);}}
-  private String table(String type){return switch(type){case "CANCELAMENTO"->"politica_cancelamento";case "DESIGNACAO"->"politica_designacao";default->throw error("INVALID_INPUT","Tipo de política inválido.");};}
+  private String table(String type){return switch(type){case "TARIFA"->"tarifa";case "CANCELAMENTO"->"politica_cancelamento";case "DESIGNACAO"->"politica_designacao";default->throw error("INVALID_INPUT","Tipo de política inválido.");};}
   private Map<String,Object> policyRow(String table,UUID id){try{return jdbc.queryForMap("SELECT * FROM "+table+" WHERE id=?",id);}catch(EmptyResultDataAccessException e){throw error("NOT_FOUND","Política não encontrada.");}}
   private OperationalPolicyView cancellation(UUID id){return jdbc.queryForObject("SELECT id,numero,versao,escopo,estado,inicio,fim,publicada_em,desativada_em,usada_em IS NOT NULL FROM politica_cancelamento WHERE id=?",(rs,n)->view(rs,"CANCELAMENTO"),id);}
   private OperationalPolicyView designation(UUID id){return jdbc.queryForObject("SELECT id,numero,versao,escopo,estado,inicio,fim,publicada_em,desativada_em,usada_em IS NOT NULL FROM politica_designacao WHERE id=?",(rs,n)->view(rs,"DESIGNACAO"),id);}

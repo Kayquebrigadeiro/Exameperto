@@ -237,6 +237,7 @@ type Incident = {
   description?: string;
   createdAt: string;
 };
+type CancellationRequest = { id: string; orderId: string; phase: string; reasonCode: string; status: string; financialTreatment: string; createdAt: string };
 type BrowserTrackingState = {
   taskId: string | null;
   status: "idle" | "starting" | "active" | "stopped" | "denied" | "error";
@@ -2812,6 +2813,7 @@ function OrderPanel({ session }: { session: Tokens }) {
   );
   const [custodies, setCustodies] = useState<Record<string, Custody>>({});
   const [incidents, setIncidents] = useState<Record<string, Incident[]>>({});
+  const [cancellations, setCancellations] = useState<Record<string, CancellationRequest[]>>({});
   const [receiptCodes, setReceiptCodes] = useState<
     Record<string, ReceiptChallenge>
   >({});
@@ -2954,6 +2956,8 @@ function OrderPanel({ session }: { session: Tokens }) {
     setQuotes(Object.fromEntries(entries));
     const financialEntries = await Promise.all(current.map(async (order) => [order.id, (await api(`/orders/${order.id}/financial-operations`).catch(() => ({ result: [] }))).result as FinancialOperation[]] as const));
     setFinancialOperations(Object.fromEntries(financialEntries));
+    const cancellationEntries = await Promise.all(current.map(async (order) => [order.id, (await api(`/orders/${order.id}/cancellation-requests`).catch(() => ({ result: [] }))).result as CancellationRequest[]] as const));
+    setCancellations(Object.fromEntries(cancellationEntries));
     const active = current.filter((order) =>
       ["ACEITA", "RETIRADA", "EM_ENTREGA", "OCORRENCIA"].includes(order.status),
     );
@@ -3125,6 +3129,14 @@ function OrderPanel({ session }: { session: Tokens }) {
     } finally {
       setBusy(false);
     }
+  }
+  async function cancelOrder(order: Order, reasonCode: string) {
+    setBusy(true); setNotice(null);
+    try {
+      await api(`/orders/${order.id}/cancel`, { method: "POST", headers: { "If-Match": String(order.version), "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify({ reasonCode }) });
+      await load(); setNotice({ tone: "info", text: ["ACEITA", "RETIRADA", "EM_ENTREGA", "OCORRENCIA"].includes(order.status) ? "Solicitação de cancelamento registrada para apuração operacional." : "Pedido cancelado; reservas elegíveis foram liberadas." });
+    } catch (e) { setNotice({ tone: "error", text: e instanceof Error ? e.message : "O cancelamento não foi confirmado." }); }
+    finally { setBusy(false); }
   }
   function address(value: typeof origin) {
     return {
@@ -3542,6 +3554,12 @@ function OrderPanel({ session }: { session: Tokens }) {
               Atenção: {orderStatusLabel(incident.status)}.
             </p>
           ))}
+          <div className="quote-area cancellation-card">
+            <div className="card-heading"><div><span className="card-kicker">CANCELAMENTO</span><h3>Cancelar ou acompanhar solicitação</h3></div></div>
+            {(["ACEITA", "RETIRADA", "EM_ENTREGA", "OCORRENCIA"].includes(selectedOrder.status) || ["AGUARDANDO_ACEITE", "DISPONIVEL"].includes(selectedOrder.status)) && !(cancellations[selectedOrder.id] ?? []).some((item) => item.status === "PENDENTE_APURACAO") && <form className="review-toolbar" onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); if (window.confirm("Confirmar cancelamento? A fase e as consequências financeiras serão avaliadas pela política vigente.")) void cancelOrder(selectedOrder, String(data.get("reasonCode"))); }}><label>Motivo<select name="reasonCode" required><option value="SOLICITACAO_USUARIO">Solicitação do usuário</option><option value="IMPOSSIBILIDADE_OPERACIONAL">Impossibilidade operacional</option><option value="OUTRO">Outro motivo</option></select></label><button type="submit" disabled={busy}>Solicitar cancelamento</button></form>}
+            {(cancellations[selectedOrder.id] ?? []).map((item) => <p className="inline-status" role="status" key={item.id}>Cancelamento {item.status.toLowerCase().replaceAll("_", " ")} · fase {item.phase.toLowerCase().replaceAll("_", " ")} · tratamento financeiro {item.financialTreatment.toLowerCase().replaceAll("_", " ")}.</p>)}
+            {!(cancellations[selectedOrder.id] ?? []).length && !["ACEITA", "RETIRADA", "EM_ENTREGA", "OCORRENCIA", "AGUARDANDO_ACEITE", "DISPONIVEL"].includes(selectedOrder.status) && <p className="dependency-note">Este pedido não está em uma fase cancelável.</p>}
+          </div>
           {assignments[selectedOrder.id] && (
             <div className="assignment-status">
               <strong>Entrega designada</strong>
@@ -4587,6 +4605,7 @@ function DeliveryWorkPanel({ session }: { session: Tokens }) {
     Record<string, { origin: TaskAddress; destination: TaskAddress }>
   >({});
   const [custody, setCustody] = useState<Record<string, Custody>>({});
+  const [incidents, setIncidents] = useState<Record<string, Incident[]>>({});
   const [payouts, setPayouts] = useState<Record<string, Payout>>({});
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
@@ -4639,6 +4658,8 @@ function DeliveryWorkPanel({ session }: { session: Tokens }) {
               ?.result,
             (await api(`/orders/${task.orderId}/payout`).catch(() => null))
               ?.result,
+            (await api(`/orders/${task.orderId}/incidents`).catch(() => ({ result: [] })))
+              .result,
           ] as const,
       ),
     );
@@ -4655,6 +4676,7 @@ function DeliveryWorkPanel({ session }: { session: Tokens }) {
           .map(([id, , value]) => [id, value]),
       ),
     );
+    setIncidents(Object.fromEntries(states.filter(([, , , value]) => value).map(([id, , , value]) => [id, value as Incident[]])));
   }
   useEffect(() => {
     void load().catch((e) =>
@@ -4775,6 +4797,13 @@ function DeliveryWorkPanel({ session }: { session: Tokens }) {
             ? "Entrega confirmada pelo código do destinatário."
             : "Ocorrência registrada; nenhum desfecho foi presumido.",
     );
+  }
+  async function executeResolution(task: TaskAssignment, evidenceDocumentId: string) {
+    await run(async () => { await api(`/orders/${task.orderId}/resolution-execution`, { method: "POST", headers: { "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify({ evidenceDocumentId }) }); }, "Execução da resolução registrada; o deslocamento autorizado pode ser iniciado.");
+  }
+  async function completeReturn(task: TaskAssignment, evidenceDocumentId: string) {
+    const version = custody[task.orderId]?.version ?? task.version;
+    await run(async () => { await api(`/orders/${task.orderId}/return-completion`, { method: "POST", headers: { "If-Match": String(version), "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify({ evidenceDocumentId }) }); }, "Retorno comprovado e custódia encerrada conforme o protocolo.");
   }
   async function trackingPreflight(task: TaskAssignment) {
     const response = await fetch(`/api/v1/orders/${task.orderId}/locations/latest`, {
@@ -5061,6 +5090,7 @@ function DeliveryWorkPanel({ session }: { session: Tokens }) {
                     </label>
                     <button disabled={busy}>Registrar ocorrência</button>
                   </form>
+                  {incidents[task.orderId]?.filter((incident) => incident.status === "ENCERRADA" && ["RETORNO", "REENTREGA"].includes((incident as Incident & { decision?: string }).decision ?? "")).map((incident) => { const resolved = incident as Incident & { decision?: string; destinationType?: string }; return <div className="journey-actions" key={`resolution-${incident.id}`}><span>Resolução autorizada: {resolved.decision} · destino {resolved.destinationType ?? "operacional"}</span>{proof && !state?.closedAt && <button disabled={busy} onClick={() => void executeResolution(task, proof.id)}>Executar resolução</button>}{resolved.decision === "RETORNO" && state?.status === "ATIVA" && <button disabled={busy || !proof} onClick={() => proof && void completeReturn(task, proof.id)}>Comprovar retorno e encerrar</button>}</div>; })}
                   {addresses[task.orderId] && (
                     <address>
                       Retirada: {addresses[task.orderId].origin.street},{" "}
@@ -5102,13 +5132,28 @@ function OperationalWorkspace({ session }: { session: Tokens }) {
       </section>
       <MfaAccess session={session} />
       <OperationalPolicyPanel session={session} />
+      <OperationalIncidentPanel session={session} />
       {queue === "deliverers" ? <OperationalReviewPanel session={session} /> : <VehicleReviewPanel session={session} />}
     </>
   );
 }
 
+function OperationalIncidentPanel({ session }: { session: Tokens }) {
+  const [items, setItems] = useState<Array<{ id: string; orderId: string; orderStatus: string; type: string; status: string; description: string; custodyId: string | null; custodyStatus: string; decision?: string; destinationType?: string; createdAt: string }>>([]);
+  const [units, setUnits] = useState<Array<{ id: string; name: string; city: string; state: string; registrationStatus: string }>>([]);
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const [busy, setBusy] = useState(false);
+  async function api(path: string, init: RequestInit = {}) { return parse(await fetch(`/api/v1${path}`, { ...init, headers: { Authorization: `Bearer ${session.accessToken}`, ...(init.body ? { "Content-Type": "application/json" } : {}), ...(init.headers ?? {}) } })); }
+  async function load() { const [incidents, catalog] = await Promise.all([api("/admin/operational-policies/incidents"), api("/admin/units")]); setItems(incidents.result as typeof items); setUnits((catalog.result as typeof units).filter((unit) => unit.registrationStatus === "ATIVA")); }
+  useEffect(() => { void load().catch((e) => setNotice({ tone: "error", text: e instanceof Error ? e.message : "Não foi possível carregar as ocorrências." })); }, [session.accessToken]);
+  async function resolve(id: string, event: FormEvent<HTMLFormElement>) { event.preventDefault(); const data = new FormData(event.currentTarget); setBusy(true); setNotice(null); try { await api(`/admin/operational-policies/incidents/${id}/resolve`, { method: "POST", body: JSON.stringify({ decision: data.get("decision"), destinationType: data.get("destinationType"), destinationUnitId: data.get("destinationUnitId") || null, instructions: data.get("instructions"), evidenceReference: data.get("evidenceReference") || null }) }); await load(); setNotice({ tone: "info", text: "Resolução registrada com MFA; a execução permanece pendente do entregador." }); } catch (e) { setNotice({ tone: "error", text: e instanceof Error ? e.message : "A resolução foi recusada." }); } finally { setBusy(false); } }
+  return <section className="family review-panel" aria-label="Ocorrências operacionais"><div className="section-heading"><span className="eyebrow dark">OCORRÊNCIAS</span><h2>Resolução e custódia</h2><p>O acesso exige papel operacional e MFA. A decisão não simula execução nem pagamento; o entregador deve cumprir o destino autorizado.</p></div>{notice && <p className={`feedback ${notice.tone}`} role="alert">{notice.text}</p>}<div className="registers">{items.length ? items.map((item) => <article key={item.id}><h3>{item.type.replaceAll("_", " ")}</h3><p><strong>{item.status}</strong><span>Pedido {item.orderId} · pedido {item.orderStatus} · custódia {item.custodyStatus}</span></p><p>{item.description}</p>{item.status !== "ENCERRADA" ? <form className="review-toolbar" onSubmit={(event) => void resolve(item.id, event)}><label>Decisão<select name="decision" required><option value="REENTREGA">Autorizar reentrega</option><option value="RETORNO">Autorizar retorno</option><option value="ENCERRAR">Encerrar sem nova entrega</option></select></label><label>Destino<select name="destinationType" required><option value="UNIDADE">Unidade</option><option value="RETORNO">Retorno</option><option value="DESTINATARIO">Destinatário</option></select></label><label>Unidade de destino<select name="destinationUnitId"><option value="">Selecione conforme a decisão</option>{units.map((unit) => <option value={unit.id} key={unit.id}>{unit.name} · {unit.city}/{unit.state}</option>)}</select></label><label>Instruções<textarea name="instructions" required maxLength={1000} /></label><label>Referência de evidência<input name="evidenceReference" maxLength={300} /></label><button disabled={busy}>Registrar resolução com MFA</button></form> : <p className="inline-status">Decisão {item.decision ?? "registrada"} · destino {item.destinationType ?? "não informado"}. A execução fica no histórico do entregador.</p>}</article>) : <p className="empty-state">Nenhuma ocorrência operacional disponível.</p>}</div></section>;
+}
+
 function OperationalPolicyPanel({ session }: { session: Tokens }) {
   const [policies, setPolicies] = useState<Array<{ id: string; type: string; number: number; version: number; scope: string; status: string; startsAt: string; endsAt?: string; used: boolean }>>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [history, setHistory] = useState<Array<{ action: string; version: number; scope: string; occurredAt: string }>>([]);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({ scope: "GLOBAL", base: "", perKm: "", perMinute: "", minimum: "", rounding: "2", validity: "900", acceptance: "900", execution: "86400", returnAmount: "", returnCoverage: "" });
@@ -5129,14 +5174,25 @@ function OperationalPolicyPanel({ session }: { session: Tokens }) {
   async function create() {
     setBusy(true); setNotice(null);
     try {
-      await api("/admin/operational-policies/tariffs", { method: "POST", body: JSON.stringify({ scope: form.scope, baseAmount: form.base, perKmAmount: form.perKm, perMinuteAmount: form.perMinute, minimumAmount: form.minimum, roundingScale: Number(form.rounding), quoteValiditySeconds: Number(form.validity), acceptanceDeadlineSeconds: Number(form.acceptance), executionDeadlineSeconds: Number(form.execution), returnAmount: form.returnAmount, returnCoverage: form.returnCoverage, startsAt: new Date().toISOString() }) });
-      await load(); setNotice({ tone: "info", text: "Rascunho tarifário persistido. Publique-o explicitamente após revisar os prazos e a cobertura." });
+      const body = { scope: form.scope, baseAmount: form.base, perKmAmount: form.perKm, perMinuteAmount: form.perMinute, minimumAmount: form.minimum, roundingScale: Number(form.rounding), quoteValiditySeconds: Number(form.validity), acceptanceDeadlineSeconds: Number(form.acceptance), executionDeadlineSeconds: Number(form.execution), returnAmount: form.returnAmount, returnCoverage: form.returnCoverage, startsAt: new Date().toISOString() };
+      await api(editingId ? `/admin/operational-policies/tariffs/${editingId}` : "/admin/operational-policies/tariffs", { method: editingId ? "PUT" : "POST", body: JSON.stringify(body) });
+      await load(); setEditingId(null); setNotice({ tone: "info", text: editingId ? "Rascunho atualizado. A versão publicada permaneceu imutável." : "Rascunho tarifário persistido. Publique-o explicitamente após revisar os prazos e a cobertura." });
     } catch (e) { setNotice({ tone: "error", text: e instanceof Error ? e.message : "Não foi possível salvar a política." }); }
+    finally { setBusy(false); }
+  }
+  async function edit(id: string) {
+    setBusy(true); setNotice(null);
+    try {
+      const response = await api(`/admin/operational-policies/TARIFA/${id}`);
+      const values = response.result.values as Record<string, string | number>;
+      setForm({ scope: policies.find((p) => p.id === id)?.scope ?? "GLOBAL", base: String(values.base ?? ""), perKm: String(values.perKm ?? ""), perMinute: String(values.perMinute ?? ""), minimum: String(values.minimum ?? ""), rounding: String(values.roundingScale ?? "2"), validity: String(values.validitySeconds ?? "900"), acceptance: String(values.acceptanceDeadlineSeconds ?? "900"), execution: String(values.executionDeadlineSeconds ?? "86400"), returnAmount: String(values.returnAmount ?? ""), returnCoverage: String(values.returnCoverage ?? "") });
+      setEditingId(id); setHistory((await api(`/admin/operational-policies/TARIFA/${id}/history`)).result as typeof history);
+    } catch (e) { setNotice({ tone: "error", text: e instanceof Error ? e.message : "Não foi possível abrir a política." }); }
     finally { setBusy(false); }
   }
   async function transition(id: string, action: "publish" | "deactivate") {
     setBusy(true); setNotice(null);
-    try { await api(`/admin/operational-policies/tariffs/${id}/${action}`, { method: "POST" }); await load(); setNotice({ tone: "info", text: action === "publish" ? "Política publicada pelo backend." : "Política desativada pelo backend." }); }
+    try { if (action === "deactivate" && !window.confirm("Desativar esta política? Orçamentos já aceitos conservarão sua versão.")) return; await api(`/admin/operational-policies/tariffs/${id}/${action}`, { method: "POST" }); await load(); setNotice({ tone: "info", text: action === "publish" ? "Política publicada pelo backend." : "Política desativada pelo backend." }); }
     catch (e) { setNotice({ tone: "error", text: e instanceof Error ? e.message : "Transição não confirmada." }); }
     finally { setBusy(false); }
   }
@@ -5151,7 +5207,7 @@ function OperationalPolicyPanel({ session }: { session: Tokens }) {
     <div className="section-heading"><span className="eyebrow dark">POLÍTICAS</span><h2>Tarifa e vigência</h2><p>Rascunhos exigem MFA e publicação explícita. Valores aceitos ficam vinculados à versão e à rota da cotação; não há valores comerciais preenchidos por padrão.</p></div>
     <form className="review-toolbar" onSubmit={(e) => { e.preventDefault(); void create(); }}>
       {field("scope", "Escopo")}{field("base", "Tarifa base", "number")}{field("perKm", "Valor por km", "number")}{field("perMinute", "Valor por minuto", "number")}{field("minimum", "Valor mínimo", "number")}{field("rounding", "Casas de arredondamento", "number")}{field("validity", "Validade da cotação (s)", "number")}{field("acceptance", "Prazo para aceite (s)", "number")}{field("execution", "Prazo para execução (s)", "number")}{field("returnAmount", "Valor de retorno", "number")}{field("returnCoverage", "Cobertura de retorno")}
-      <button type="submit" disabled={busy}>Salvar rascunho</button>
+      <button type="submit" disabled={busy}>{editingId ? "Atualizar rascunho" : "Salvar rascunho"}</button>{editingId && <button type="button" className="secondary" onClick={() => { setEditingId(null); setHistory([]); }}>Cancelar edição</button>}
     </form>
     <div className="review-toolbar">
       <form onSubmit={(e) => { e.preventDefault(); void createPolicy("cancellations", { scope: cancellation.scope, beforeDesignation: cancellation.before, afterDesignation: cancellation.after, afterPickup: cancellation.pickup, refundHandling: cancellation.refund }, "Política de cancelamento"); }}>
@@ -5161,7 +5217,7 @@ function OperationalPolicyPanel({ session }: { session: Tokens }) {
         <h3>Capacidade de designação</h3><label>Escopo<input value={designation.scope} onChange={(e) => setDesignation({ ...designation, scope: e.target.value })} required /></label><label>Tarefas simultâneas<input type="number" min="1" value={designation.simultaneousTasks} onChange={(e) => setDesignation({ ...designation, simultaneousTasks: e.target.value })} required /></label><button type="submit" disabled={busy}>Salvar rascunho</button>
       </form>
     </div>
-    <div className="registers">{policies.filter((p) => p.type === "TARIFA").map((p) => <article key={p.id}><h3>Tarifa {p.number} · v{p.version}</h3><p><strong>{p.status}</strong><span>Escopo {p.scope} · vigência a partir de {new Date(p.startsAt).toLocaleString("pt-BR")}</span></p><div className="journey-actions">{p.status === "RASCUNHO" && <button type="button" disabled={busy} onClick={() => void transition(p.id, "publish")}>Publicar</button>}{p.status === "ATIVA" && <button type="button" disabled={busy} onClick={() => void transition(p.id, "deactivate")}>Desativar</button>}</div></article>)}</div>
+    <div className="registers">{policies.filter((p) => p.type === "TARIFA").map((p) => <article key={p.id}><h3>Tarifa {p.number} · v{p.version}</h3><p><strong>{p.status}</strong><span>Escopo {p.scope} · vigência {new Date(p.startsAt).toLocaleString("pt-BR")} {p.endsAt ? `até ${new Date(p.endsAt).toLocaleString("pt-BR")}` : "sem fim"}</span></p><div className="journey-actions">{p.status === "RASCUNHO" && <button type="button" disabled={busy} onClick={() => void edit(p.id)}>Editar</button>}{p.status === "RASCUNHO" && <button type="button" disabled={busy} onClick={() => void transition(p.id, "publish")}>Revisar e publicar</button>}{p.status === "ATIVA" && <><button type="button" className="secondary" disabled={busy} onClick={() => void edit(p.id)}>Criar nova versão</button><button type="button" disabled={busy} onClick={() => void transition(p.id, "deactivate")}>Desativar</button></>}</div>{editingId === p.id && <div className="order-history"><span className="card-kicker">HISTÓRICO DA POLÍTICA</span>{history.map((item, index) => <div key={`${item.occurredAt}-${index}`}><strong>{item.action}</strong><span>v{item.version} · {item.scope}</span><small>{new Date(item.occurredAt).toLocaleString("pt-BR")}</small></div>)}</div>}</article>)}</div>
     {notice && <p className={`feedback ${notice.tone}`} role="alert">{notice.text}</p>}
   </section>;
 }

@@ -12,7 +12,12 @@ class OperationalPolicyController {
   private final OperationalPolicyService service;
   OperationalPolicyController(OperationalPolicyService service){this.service=service;}
   @GetMapping List<OperationalPolicyView> list(Authentication a){return service.list(principal(a));}
+  @GetMapping("/{type}/{id}") OperationalPolicyDetailView detail(Authentication a,@PathVariable String type,@PathVariable UUID id){return service.detail(principal(a),type.toUpperCase(),id);}
+  @GetMapping("/{type}/{id}/history") List<OperationalPolicyHistoryView> history(Authentication a,@PathVariable String type,@PathVariable UUID id){return service.history(principal(a),type.toUpperCase(),id);}
+  @GetMapping("/incidents") List<OperationalIncidentView> incidents(Authentication a){return service.incidents(principal(a));}
+  @PostMapping("/incidents/{id}/resolve") IncidentView resolve(Authentication a,@PathVariable UUID id,@Valid @RequestBody IncidentResolutionInput input){return service.resolve(principal(a),id,input);}
   @PostMapping("/tariffs") OperationalPolicyView tariff(Authentication a,@Valid @RequestBody TariffPolicyInput in){return service.createTariff(principal(a),in);}
+  @PutMapping("/tariffs/{id}") OperationalPolicyView editTariff(Authentication a,@PathVariable UUID id,@Valid @RequestBody TariffPolicyInput in){return service.editTariff(principal(a),id,in);}
   @PostMapping("/tariffs/{id}/publish") OperationalPolicyView publish(Authentication a,@PathVariable UUID id){return service.publishTariff(principal(a),id);}
   @PostMapping("/tariffs/{id}/deactivate") OperationalPolicyView deactivate(Authentication a,@PathVariable UUID id){return service.deactivateTariff(principal(a),id);}
   @PostMapping("/cancellations") OperationalPolicyView cancellation(Authentication a,@Valid @RequestBody CancellationPolicyInput in){return service.createCancellation(principal(a),in);}

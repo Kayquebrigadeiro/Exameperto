@@ -4498,6 +4498,69 @@ paths:
         '200': {description: Política desativada, content: {application/json: {schema: {$ref: '#/components/schemas/OperationalPolicy'}}}}
         '403': {$ref: '#/components/responses/Error403'}
         '422': {$ref: '#/components/responses/Error422'}
+  /admin/operational-policies/tariffs/{id}:
+    get:
+      operationId: getTariffPolicyDetail
+      summary: Consultar tarifa e valores
+      x-permission: ANALISTA_OPERACIONAL + MFA
+      parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+      responses: {'200': {description: Detalhe da tarifa, content: {application/json: {schema: {$ref: '#/components/schemas/OperationalPolicyDetail'}}}}, '403': {$ref: '#/components/responses/Error403'}}
+    put:
+      operationId: editTariffPolicy
+      summary: Editar rascunho ou criar nova versão tarifária
+      description: Rascunhos são editados; versões publicadas permanecem imutáveis e geram novo rascunho.
+      x-permission: ANALISTA_OPERACIONAL + MFA
+      parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/TariffPolicyInput'}}}}
+      responses: {'200': {description: Rascunho atualizado, content: {application/json: {schema: {$ref: '#/components/schemas/OperationalPolicy'}}}}, '403': {$ref: '#/components/responses/Error403'}, '422': {$ref: '#/components/responses/Error422'}}
+  /admin/operational-policies/{type}/{id}:
+    get:
+      operationId: getOperationalPolicyDetail
+      summary: Consultar política operacional e valores
+      x-permission: ANALISTA_OPERACIONAL + MFA
+      parameters: [{name: type, in: path, required: true, schema: {type: string}}, {name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+      responses: {'200': {description: Detalhe, content: {application/json: {schema: {$ref: '#/components/schemas/OperationalPolicyDetail'}}}}, '403': {$ref: '#/components/responses/Error403'}}
+  /admin/operational-policies/{type}/{id}/history:
+    get:
+      operationId: listOperationalPolicyHistory
+      summary: Histórico da política
+      x-permission: ANALISTA_OPERACIONAL + MFA
+      parameters: [{name: type, in: path, required: true, schema: {type: string}}, {name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+      responses: {'200': {description: Histórico, content: {application/json: {schema: {type: array, items: {type: object}}}}}, '403': {$ref: '#/components/responses/Error403'}}
+  /admin/operational-policies/incidents:
+    get:
+      operationId: listOperationalIncidents
+      summary: Listar ocorrências operacionais
+      x-permission: ANALISTA_OPERACIONAL + MFA
+      responses: {'200': {description: Ocorrências, content: {application/json: {schema: {type: array, items: {type: object}}}}}, '403': {$ref: '#/components/responses/Error403'}}
+  /admin/operational-policies/incidents/{id}/resolve:
+    post:
+      operationId: resolveOperationalIncident
+      summary: Atribuir resolução à ocorrência
+      x-permission: ANALISTA_OPERACIONAL + MFA
+      parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object}}}}
+      responses: {'200': {description: Resolução registrada, content: {application/json: {schema: {type: object}}}}, '403': {$ref: '#/components/responses/Error403'}, '422': {$ref: '#/components/responses/Error422'}}
+  /orders/{id}/cancellation-requests:
+    get:
+      operationId: listCancellationRequests
+      summary: Consultar solicitações de cancelamento
+      parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+      responses: {'200': {description: Solicitações, content: {application/json: {schema: {type: array, items: {type: object}}}}}, '403': {$ref: '#/components/responses/Error403'}}
+  /orders/{id}/resolution-execution:
+    post:
+      operationId: executeOperationalResolution
+      summary: Executar retorno ou reentrega
+      parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object}}}}
+      responses: {'200': {description: Execução registrada, content: {application/json: {schema: {type: object}}}}, '403': {$ref: '#/components/responses/Error403'}, '422': {$ref: '#/components/responses/Error422'}}
+  /orders/{id}/return-completion:
+    post:
+      operationId: completeOperationalReturn
+      summary: Comprovar retorno e encerrar ocorrência
+      parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object}}}}
+      responses: {'200': {description: Retorno encerrado, content: {application/json: {schema: {type: object}}}}, '403': {$ref: '#/components/responses/Error403'}, '422': {$ref: '#/components/responses/Error422'}}
   /admin/operational-policies/cancellations:
     post:
       operationId: createCancellationPolicyDraft
@@ -4605,6 +4668,12 @@ components:
         publishedAt: {type: string, format: date-time, nullable: true}
         deactivatedAt: {type: string, format: date-time, nullable: true}
         used: {type: boolean}
+    OperationalPolicyDetail:
+      type: object
+      required: [policy, values]
+      properties:
+        policy: {$ref: '#/components/schemas/OperationalPolicy'}
+        values: {type: object, additionalProperties: true}
     TariffPolicyInput:
       type: object
       required: [scope, baseAmount, perKmAmount, perMinuteAmount, minimumAmount, roundingScale, quoteValiditySeconds, acceptanceDeadlineSeconds, executionDeadlineSeconds, returnAmount, returnCoverage, startsAt]

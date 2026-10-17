@@ -27,6 +27,10 @@ record OperationalPolicyView(java.util.UUID id, String type, int number, int ver
                              String scope, String status, Instant startsAt, Instant endsAt,
                              Instant publishedAt, Instant deactivatedAt, boolean used) {}
 
+record OperationalPolicyDetailView(OperationalPolicyView policy, java.util.Map<String,Object> values) {}
+
+record OperationalPolicyHistoryView(String action, int version, String scope, Instant occurredAt) {}
+
 record CancellationPolicyInput(@NotBlank @Size(max=120) String scope,
                                @NotBlank @Size(max=40) String beforeDesignation,
                                @NotBlank @Size(max=40) String afterDesignation,

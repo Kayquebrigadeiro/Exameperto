@@ -1355,3 +1355,30 @@ aprovada ou autorização explícita para ampliá-la.
 O log sanitizado de erro da execução contém somente `correlationId` e tipo da
 exceção; tokens, TOTP e segredos não foram registrados. Não houve escrita em
 banco normal, publicação de política real, pagamento externo ou deploy.
+
+## Implementação das interfaces operacionais — 17/10/2026
+
+Partindo de `03841d4`, foram acrescentadas as telas e contratos autorizados
+para edição de rascunho, publicação, desativação com confirmação, histórico,
+cancelamento contextual e resolução operacional. Versões publicadas não são
+alteradas: a edição cria novo rascunho versionado. A resolução mantém a
+apuração pendente e não a apresenta como pagamento confirmado. A migração V27
+registra execução e encerramento de retorno/reentrega.
+
+Validação concluída em ambiente isolado, com Chromium → Vite → Spring →
+PostgreSQL 17.6 descartável e sem interceptação da API:
+
+- Política: passou 1/1 em `OperationalPolicyBrowserFlowTest`, cobrindo
+  criação de rascunho, edição, publicação, rejeição de sobreposição,
+  desativação e consulta de estado/histórico.
+- Regressões: passaram `OrderFlowTest` 1/1, `QuoteAcceptanceFlowTest` 4/4 e
+  `CustodyFlowTest` 2/2, incluindo reservas, custódia, cotação/versionamento,
+  idempotência e transições inválidas.
+- Build web, compilação Maven e `git diff --check`: passaram.
+
+Ainda não executadas nesta rodada com navegador real: as três fases de
+cancelamento no fluxo completo de pedido; resolução com decisão administrativa
+seguida de retorno/reentrega até encerramento; e a matriz independente de
+ausência de MFA/papel e acesso institucional indevido para cada nova tela.
+Essas lacunas não são declaradas como aprovadas; os contratos/backend têm
+testes focais parciais, mas falta a jornada browser independente correspondente.
