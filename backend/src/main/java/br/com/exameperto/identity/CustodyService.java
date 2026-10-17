@@ -20,9 +20,10 @@ class CustodyService {
     private final DataProtector protector;
     private final ObjectMapper json;
     private final PayoutService payouts;
+    private final MfaService mfa;
 
-    CustodyService(JdbcTemplate jdbc, DataProtector protector, ObjectMapper json, PayoutService payouts) {
-        this.jdbc = jdbc; this.protector = protector; this.json = json; this.payouts = payouts;
+    CustodyService(JdbcTemplate jdbc, DataProtector protector, ObjectMapper json, PayoutService payouts, MfaService mfa) {
+        this.jdbc = jdbc; this.protector = protector; this.json = json; this.payouts = payouts; this.mfa = mfa;
     }
 
     @Transactional
@@ -97,12 +98,31 @@ class CustodyService {
         Map<String,Object> order=lockOrder(orderId); replayIncident=replayIncident(actor,"INCIDENT:"+orderId,key,requestHash); if(replayIncident!=null)return replayIncident;
         requireVersion(order,expectedVersion); boolean driver=assignedDriver(actor,orderId); if(!driver&&!isParticipant(actor,orderId))throw notFound();
         if(!List.of("ACEITA","RETIRADA","EM_ENTREGA","OCORRENCIA").contains(order.get("estado")))throw error(HttpStatus.CONFLICT,"INVALID_STATE","Não é possível abrir ocorrência neste estado.");
-        if(!List.of("UNIDADE_FECHADA","DESTINATARIO_AUSENTE","LACRE_COMPROMETIDO","OUTRA").contains(input.type()))throw error(HttpStatus.BAD_REQUEST,"INVALID_INPUT","Tipo de ocorrência inválido.");
+        if(!List.of("UNIDADE_FECHADA","DESTINATARIO_AUSENTE","ATRASO","LACRE_COMPROMETIDO","AVARIA","RECUSA","OUTRA").contains(input.type()))throw error(HttpStatus.BAD_REQUEST,"INVALID_INPUT","Tipo de ocorrência inválido.");
         UUID custody=nullableCustody(orderId), assignment=(UUID)activeAssignment(orderId).get("id"), id=UUID.randomUUID();
         jdbc.update("INSERT INTO ocorrencia_entrega(id,pedido_id,custodia_id,designacao_id,aberta_por,tipo,descricao,estado) VALUES (?,?,?,?,?,?,?,'ABERTA')",id,orderId,custody,assignment,actor,input.type(),input.description());
         String prior=String.valueOf(order.get("estado")); if(!"OCORRENCIA".equals(prior)){jdbc.update("UPDATE pedido SET estado='OCORRENCIA',version=version+1,updated_at=clock_timestamp() WHERE id=? AND version=?",orderId,expectedVersion);}
         jdbc.update("INSERT INTO evento_custodia(id,pedido_id,custodia_id,designacao_id,ator_id,tipo,estado_anterior,estado_novo,motivo_codigo) VALUES (?,?,?,?,?,'OCORRENCIA',?,?,?)",UUID.randomUUID(),orderId,custody,assignment,actor,prior,"OCORRENCIA",input.type());
         remember(actor,"INCIDENT:"+orderId,key,requestHash,orderId,id); return incident(id);
+    }
+
+    @Transactional
+    IncidentView resolveIncident(AuthService.SessionPrincipal principal, UUID incidentId, IncidentResolutionInput input) {
+        if (jdbc.queryForObject("SELECT count(*) FROM papel_global WHERE usuario_id=? AND papel='ANALISTA_OPERACIONAL' AND revogado_em IS NULL",Long.class,principal.userId())==0) throw error(HttpStatus.FORBIDDEN,"FORBIDDEN","Área operacional não autorizada.");
+        mfa.requireVerified(principal);
+        UUID orderId; Map<String,Object> row;
+        try { row=jdbc.queryForMap("SELECT * FROM ocorrencia_entrega WHERE id=? FOR UPDATE",incidentId); orderId=(UUID)row.get("pedido_id"); } catch (EmptyResultDataAccessException ex) { throw notFound(); }
+        if (!List.of("ABERTA","PENDENTE_RESOLUCAO").contains(row.get("estado"))) throw error(HttpStatus.CONFLICT,"INVALID_STATE","A ocorrência já foi resolvida ou encerrada.");
+        String decision=input.decision().trim().toUpperCase(), destination=input.destinationType().trim().toUpperCase();
+        if (!List.of("RETORNO","REENTREGA","ENCERRAR").contains(decision) || !List.of("UNIDADE","DESTINATARIO","RETORNO").contains(destination)) throw error(HttpStatus.BAD_REQUEST,"INVALID_INPUT","Decisão ou destino operacional inválido.");
+        if ("RETORNO".equals(decision) && (!"RETORNO".equals(destination) || input.destinationUnitId()==null)) throw error(HttpStatus.UNPROCESSABLE_ENTITY,"RETURN_DESTINATION_REQUIRED","Retorno exige destino de retorno autorizado.");
+        if ("REENTREGA".equals(decision) && input.destinationUnitId()==null) throw error(HttpStatus.UNPROCESSABLE_ENTITY,"REDELIVERY_DESTINATION_REQUIRED","Reentrega exige unidade de destino autorizada.");
+        if (input.destinationUnitId()!=null && jdbc.queryForObject("SELECT count(*) FROM unidade_retirada WHERE id=? AND estado_cadastro='ATIVA'",Long.class,input.destinationUnitId())!=1) throw error(HttpStatus.UNPROCESSABLE_ENTITY,"DESTINATION_UNAVAILABLE","O destino não está ativo.");
+        String snapshot=json.createObjectNode().put("decision",decision).put("destinationType",destination).put("instructions",input.instructions().trim()).put("evidenceReference",input.evidenceReference()==null?"":input.evidenceReference().trim()).toString();
+        jdbc.update("UPDATE ocorrencia_entrega SET estado='ENCERRADA',responsavel_id=?,decisao=?,destino_tipo=?,destino_unidade_id=?,instrucoes=?,cobertura_snapshot=coalesce(cobertura_snapshot,'{}'::jsonb),apuracao=coalesce(apuracao,'{}'::jsonb),evidencia_referencia=?,resolvida_em=clock_timestamp(),encerrada_em=clock_timestamp() WHERE id=?",principal.userId(),decision,destination,input.destinationUnitId(),input.instructions().trim(),input.evidenceReference(),incidentId);
+        if ("RETORNO".equals(decision)) jdbc.update("UPDATE custodia SET destino_tipo='RETORNO',destino_unidade_id=?,version=version+1 WHERE pedido_id=? AND encerrada_em IS NULL",input.destinationUnitId(),orderId);
+        jdbc.update("INSERT INTO evento_custodia(id,pedido_id,custodia_id,designacao_id,ator_id,tipo,estado_anterior,estado_novo,motivo_codigo) SELECT ?,pedido_id,custodia_id,designacao_id,?,'OCORRENCIA',estado,'ENCERRADA',? FROM ocorrencia_entrega WHERE id=?",UUID.randomUUID(),principal.userId(),decision,incidentId);
+        return incident(incidentId);
     }
 
     CustodyView custodyFor(UUID actor,UUID orderId){lockless(orderId);if(!isParticipant(actor,orderId)&&!assignedDriver(actor,orderId))throw notFound();try{return jdbc.queryForObject("SELECT id FROM custodia WHERE pedido_id=?",(rs,n)->custody(rs.getObject(1,UUID.class)),orderId);}catch(EmptyResultDataAccessException ex){throw notFound();}}

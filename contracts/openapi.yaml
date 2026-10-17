@@ -4457,6 +4457,75 @@ paths:
       responses:
         '200': {description: Decisão humana registrada, content: {application/json: {schema: {$ref: '#/components/schemas/BenefitRequestV7'}}}}
         '422': {$ref: '#/components/responses/Error422'}
+  /admin/operational-policies:
+    get:
+      operationId: listOperationalPolicies
+      summary: Listar políticas operacionais
+      description: Área administrativa protegida por ANALISTA_OPERACIONAL e MFA. Pacientes e entregadores não possuem acesso.
+      x-permission: ANALISTA_OPERACIONAL + MFA
+      responses:
+        '200': {description: Versões, vigência e situação, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/OperationalPolicy'}}}}}
+        '403': {$ref: '#/components/responses/Error403'}
+  /admin/operational-policies/tariffs:
+    post:
+      operationId: createTariffPolicyDraft
+      summary: Criar rascunho tarifário
+      description: Valores exatos são recebidos como decimais e persistidos sem defaults comerciais. O rascunho não afeta pedidos.
+      x-permission: ANALISTA_OPERACIONAL + MFA
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/TariffPolicyInput'}}}}
+      responses:
+        '200': {description: Rascunho criado, content: {application/json: {schema: {$ref: '#/components/schemas/OperationalPolicy'}}}}
+        '403': {$ref: '#/components/responses/Error403'}
+        '422': {$ref: '#/components/responses/Error422'}
+  /admin/operational-policies/tariffs/{id}/publish:
+    post:
+      operationId: publishTariffPolicy
+      summary: Publicar tarifa
+      description: Valida sobreposição no escopo sob lock transacional e registra auditoria. Não altera orçamentos existentes.
+      x-permission: ANALISTA_OPERACIONAL + MFA
+      parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+      responses:
+        '200': {description: Política publicada, content: {application/json: {schema: {$ref: '#/components/schemas/OperationalPolicy'}}}}
+        '403': {$ref: '#/components/responses/Error403'}
+        '422': {$ref: '#/components/responses/Error422'}
+  /admin/operational-policies/tariffs/{id}/deactivate:
+    post:
+      operationId: deactivateTariffPolicy
+      summary: Desativar tarifa
+      x-permission: ANALISTA_OPERACIONAL + MFA
+      parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+      responses:
+        '200': {description: Política desativada, content: {application/json: {schema: {$ref: '#/components/schemas/OperationalPolicy'}}}}
+        '403': {$ref: '#/components/responses/Error403'}
+        '422': {$ref: '#/components/responses/Error422'}
+  /admin/operational-policies/cancellations:
+    post:
+      operationId: createCancellationPolicyDraft
+      summary: Criar rascunho de cancelamento
+      x-permission: ANALISTA_OPERACIONAL + MFA
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CancellationPolicyInput'}}}}
+      responses: {'200': {description: Rascunho criado, content: {application/json: {schema: {$ref: '#/components/schemas/OperationalPolicy'}}}}, '403': {$ref: '#/components/responses/Error403'}, '422': {$ref: '#/components/responses/Error422'}}
+  /admin/operational-policies/designations:
+    post:
+      operationId: createDesignationPolicyDraft
+      summary: Criar rascunho de capacidade
+      x-permission: ANALISTA_OPERACIONAL + MFA
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/DesignationPolicyInput'}}}}
+      responses: {'200': {description: Rascunho criado, content: {application/json: {schema: {$ref: '#/components/schemas/OperationalPolicy'}}}}, '403': {$ref: '#/components/responses/Error403'}, '422': {$ref: '#/components/responses/Error422'}}
+  /admin/operational-policies/{type}/{id}/publish:
+    post:
+      operationId: publishOperationalPolicy
+      summary: Publicar política operacional
+      x-permission: ANALISTA_OPERACIONAL + MFA
+      parameters: [{name: type, in: path, required: true, schema: {type: string, enum: [CANCELAMENTO, DESIGNACAO]}}, {name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+      responses: {'200': {description: Política publicada, content: {application/json: {schema: {$ref: '#/components/schemas/OperationalPolicy'}}}}, '403': {$ref: '#/components/responses/Error403'}, '422': {$ref: '#/components/responses/Error422'}}
+  /admin/operational-policies/{type}/{id}/deactivate:
+    post:
+      operationId: deactivateOperationalPolicy
+      summary: Desativar política operacional
+      x-permission: ANALISTA_OPERACIONAL + MFA
+      parameters: [{name: type, in: path, required: true, schema: {type: string, enum: [CANCELAMENTO, DESIGNACAO]}}, {name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+      responses: {'200': {description: Política desativada, content: {application/json: {schema: {$ref: '#/components/schemas/OperationalPolicy'}}}}, '403': {$ref: '#/components/responses/Error403'}, '422': {$ref: '#/components/responses/Error422'}}
 
 components:
   securitySchemes:
@@ -4521,6 +4590,57 @@ components:
       description: Obrigatório em requisições WEB com cookie, além de Origin permitido; omitido em MOBILE sem cookie.
         Falha 403.
   schemas:
+    OperationalPolicy:
+      type: object
+      required: [id, type, number, version, scope, status, startsAt, used]
+      properties:
+        id: {type: string, format: uuid}
+        type: {type: string, enum: [TARIFA, CANCELAMENTO, DESIGNACAO]}
+        number: {type: integer, minimum: 1}
+        version: {type: integer, minimum: 1}
+        scope: {type: string}
+        status: {type: string, enum: [RASCUNHO, ATIVA, INATIVA]}
+        startsAt: {type: string, format: date-time}
+        endsAt: {type: string, format: date-time, nullable: true}
+        publishedAt: {type: string, format: date-time, nullable: true}
+        deactivatedAt: {type: string, format: date-time, nullable: true}
+        used: {type: boolean}
+    TariffPolicyInput:
+      type: object
+      required: [scope, baseAmount, perKmAmount, perMinuteAmount, minimumAmount, roundingScale, quoteValiditySeconds, acceptanceDeadlineSeconds, executionDeadlineSeconds, returnAmount, returnCoverage, startsAt]
+      properties:
+        scope: {type: string, maxLength: 120}
+        baseAmount: {type: string, pattern: '^[0-9]+(\\.[0-9]{1,4})?$'}
+        perKmAmount: {type: string, pattern: '^[0-9]+(\\.[0-9]{1,4})?$'}
+        perMinuteAmount: {type: string, pattern: '^[0-9]+(\\.[0-9]{1,4})?$'}
+        minimumAmount: {type: string, pattern: '^[0-9]+(\\.[0-9]{1,4})?$'}
+        roundingScale: {type: integer, minimum: 1, maximum: 4}
+        quoteValiditySeconds: {type: integer, minimum: 1, maximum: 604800}
+        acceptanceDeadlineSeconds: {type: integer, minimum: 1, maximum: 604800}
+        executionDeadlineSeconds: {type: integer, minimum: 1, maximum: 2592000}
+        returnAmount: {type: string, pattern: '^[0-9]+(\\.[0-9]{1,4})?$'}
+        returnCoverage: {type: string, maxLength: 40}
+        startsAt: {type: string, format: date-time}
+        endsAt: {type: string, format: date-time, nullable: true}
+    CancellationPolicyInput:
+      type: object
+      required: [scope, beforeDesignation, afterDesignation, afterPickup, refundHandling, startsAt]
+      properties:
+        scope: {type: string, maxLength: 120}
+        beforeDesignation: {type: string, maxLength: 40}
+        afterDesignation: {type: string, maxLength: 40}
+        afterPickup: {type: string, maxLength: 40}
+        refundHandling: {type: string, maxLength: 40}
+        startsAt: {type: string, format: date-time}
+        endsAt: {type: string, format: date-time, nullable: true}
+    DesignationPolicyInput:
+      type: object
+      required: [scope, simultaneousTasks, startsAt]
+      properties:
+        scope: {type: string, maxLength: 120}
+        simultaneousTasks: {type: integer, minimum: 1}
+        startsAt: {type: string, format: date-time}
+        endsAt: {type: string, format: date-time, nullable: true}
     BenefitPolicyOptionV7:
       type: object
       required: [id, institutionId, institutionName, code, version, criteria, maximumPercentage]
@@ -5883,7 +6003,7 @@ components:
       properties:
         type:
           type: string
-          enum: [UNIDADE_FECHADA, DESTINATARIO_AUSENTE, LACRE_COMPROMETIDO, OUTRA]
+          enum: [UNIDADE_FECHADA, DESTINATARIO_AUSENTE, ATRASO, LACRE_COMPROMETIDO, AVARIA, RECUSA, OUTRA]
         description:
           type: string
           maxLength: 500
@@ -5900,7 +6020,7 @@ components:
           format: uuid
         type:
           type: string
-          enum: [UNIDADE_FECHADA, DESTINATARIO_AUSENTE, LACRE_COMPROMETIDO, OUTRA]
+          enum: [UNIDADE_FECHADA, DESTINATARIO_AUSENTE, ATRASO, LACRE_COMPROMETIDO, AVARIA, RECUSA, OUTRA]
         description:
           type: string
           maxLength: 500
@@ -5931,40 +6051,22 @@ components:
       type: object
       additionalProperties: false
       properties:
-        action:
+        decision:
           type: string
           enum:
-          - RETOMAR
+          - RETORNO
+          - REENTREGA
           - ENCERRAR
-        reasonCode:
+        destinationType:
           type: string
-          minLength: 1
-          maxLength: 50
-        destinationEvidenceId:
-          type: string
-          format: uuid
-        returnUnitId:
+          enum: [UNIDADE, DESTINATARIO, RETORNO]
+        destinationUnitId:
           type: string
           format: uuid
-        serviceEvidenceIds:
-          type: array
-          minItems: 1
-          uniqueItems: true
-          items:
-            type: string
-            format: uuid
-      required:
-      - action
-      - reasonCode
-      description: 'RETOMAR restaura apenas previousOrderStatus persistido pelo servidor: ACEITA exige retirada
-        posterior, RETIRADA exige início posterior, EM_ENTREGA retoma deslocamento. Não admite salto de retirada.
-        Custo novo exige política, concordância e cobertura; caso contrário 422 POLICY_UNDEFINED. ENCERRAR requer
-        resolução e remuneração apuradas. ENCERRAR após retirada requer destinationEvidenceId e returnUnitId do
-        protocolo aceito: registrar devolução comprovada e encerramento de custódia; entrega ao destinatário usa
-        fluxo normal de código. Persistir prova/destino antes de concluir apuração na mesma transação, sem encerramento
-        parcial. Não fixar valores/multas/responsabilidades. RETOMAR não aceita esses campos. ENCERRAR requer serviceEvidenceIds;
-        comando cria ou conclui a apuração pelo mesmo serviço/guardas de reviewRemuneration e persiste sua trilha
-        na transação de resolução. Não exige chamar review antes de existir destino comprovado.'
+        instructions: {type: string, minLength: 1, maxLength: 1000}
+        evidenceReference: {type: string, maxLength: 300}
+      required: [decision, destinationType, instructions]
+      description: 'Resolução administrativa com MFA. Retorno exige unidade ativa e mantém a custódia aberta; reentrega não é entrega normal concluída nem cria remuneração automática.'
     LocationInput:
       type: object
       additionalProperties: false

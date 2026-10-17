@@ -1,5 +1,42 @@
 # Status — atualizado em 16/10/2026
 
+## Políticas operacionais configuráveis — continuação de `65cc4ce`
+
+Foi acrescentado o ciclo administrativo às tabelas existentes de tarifa,
+cancelamento e designação, sem criar um segundo motor de regras. A migração
+V23 registra escopo, versão, responsável, publicação/desativação, uso e
+auditoria; a publicação valida sobreposição por escopo sob lock transacional.
+Tarifas novas começam como rascunho e só passam a vigentes por ação explícita
+de ANALISTA_OPERACIONAL com MFA. Uma tarifa usada por uma cotação não é
+alterada retroativamente; a cotação congela fórmula, parâmetros exatos,
+versão, vigência e estimativa de rota. O banco normal não recebeu política
+nova nem valores comerciais padrão.
+
+Em `/app/operacao`, a área administrativa ganhou formulário de rascunho
+tarifário, lista de versões e ações Publicar/Desativar. Não há JSON ou UUID
+digitado pela interface. A API é `/api/v1/admin/operational-policies` e as
+rotas filhas `tariffs`, `publish` e `deactivate`; pacientes e entregadores não
+possuem autorização para elas. Os prazos de cotação, aceite e execução e a
+cobertura de retorno são campos obrigatórios, porém continuam decisão
+operacional do responsável.
+
+A migração V24 ampliou ocorrências para atraso, avaria e recusa e criou
+resolução operacional auditável. `POST /incidents/{incidentId}/resolve` exige
+ANALISTA_OPERACIONAL + MFA, destino autorizado, instruções e evidência de
+execução. Retorno exige unidade ativa e mantém a custódia aberta; reentrega
+exige destino, mas não é convertida em entrega normal nem gera remuneração ou
+estorno automático. Cancelamento financeiro continua distinguindo a operação
+pendente/incerta de confirmação externa; nenhum pagamento ou estorno foi
+confirmado.
+
+Validações: compilação Maven com JDK 21, build Vite e `OrderFlowTest` passaram
+com PostgreSQL 17.6 descartável e 24 migrações, incluindo V23/V24. A jornada
+de navegador para preencher/publicar uma tarifa e o ensaio completo de
+resolução de ocorrência ainda precisam ser exercitados com uma sessão
+administrativa MFA sintética; não foram executados contra o banco normal.
+Android, GPS em segundo plano, pagamento oficial/webhook, parceiros,
+financiamento e operação real continuam adiados.
+
 ## Operação local do antimalware — continuação de `0b794bf` — 16/10/2026
 
 Os scripts normais agora carregam a configuração antimalware sem export manual:

@@ -5101,9 +5101,62 @@ function OperationalWorkspace({ session }: { session: Tokens }) {
         </div>
       </section>
       <MfaAccess session={session} />
+      <OperationalPolicyPanel session={session} />
       {queue === "deliverers" ? <OperationalReviewPanel session={session} /> : <VehicleReviewPanel session={session} />}
     </>
   );
+}
+
+function OperationalPolicyPanel({ session }: { session: Tokens }) {
+  const [policies, setPolicies] = useState<Array<{ id: string; type: string; number: number; version: number; scope: string; status: string; startsAt: string; endsAt?: string; used: boolean }>>([]);
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [form, setForm] = useState({ scope: "GLOBAL", base: "", perKm: "", perMinute: "", minimum: "", rounding: "2", validity: "900", acceptance: "900", execution: "86400", returnAmount: "", returnCoverage: "" });
+  const [cancellation, setCancellation] = useState({ scope: "GLOBAL", before: "", after: "", pickup: "", refund: "" });
+  const [designation, setDesignation] = useState({ scope: "GLOBAL", simultaneousTasks: "" });
+  async function api(path: string, init: RequestInit = {}) {
+    return parse(await fetch(`/api/v1${path}`, { ...init, headers: { Authorization: `Bearer ${session.accessToken}`, ...(init.body ? { "Content-Type": "application/json" } : {}), ...(init.headers ?? {}) } }));
+  }
+  async function load() { setPolicies((await api("/admin/operational-policies")).result as typeof policies); }
+  useEffect(() => { void load().catch((e) => setNotice({ tone: "error", text: (e as Error).message })); }, [session.accessToken]);
+  async function create() {
+    setBusy(true); setNotice(null);
+    try {
+      await api("/admin/operational-policies/tariffs", { method: "POST", body: JSON.stringify({ scope: form.scope, baseAmount: form.base, perKmAmount: form.perKm, perMinuteAmount: form.perMinute, minimumAmount: form.minimum, roundingScale: Number(form.rounding), quoteValiditySeconds: Number(form.validity), acceptanceDeadlineSeconds: Number(form.acceptance), executionDeadlineSeconds: Number(form.execution), returnAmount: form.returnAmount, returnCoverage: form.returnCoverage, startsAt: new Date().toISOString() }) });
+      await load(); setNotice({ tone: "info", text: "Rascunho tarifário persistido. Publique-o explicitamente após revisar os prazos e a cobertura." });
+    } catch (e) { setNotice({ tone: "error", text: e instanceof Error ? e.message : "Não foi possível salvar a política." }); }
+    finally { setBusy(false); }
+  }
+  async function transition(id: string, action: "publish" | "deactivate") {
+    setBusy(true); setNotice(null);
+    try { await api(`/admin/operational-policies/tariffs/${id}/${action}`, { method: "POST" }); await load(); setNotice({ tone: "info", text: action === "publish" ? "Política publicada pelo backend." : "Política desativada pelo backend." }); }
+    catch (e) { setNotice({ tone: "error", text: e instanceof Error ? e.message : "Transição não confirmada." }); }
+    finally { setBusy(false); }
+  }
+  async function createPolicy(path: string, body: object, label: string) {
+    setBusy(true); setNotice(null);
+    try { await api(`/admin/operational-policies/${path}`, { method: "POST", body: JSON.stringify({ ...body, startsAt: new Date().toISOString() }) }); await load(); setNotice({ tone: "info", text: `${label} persistida como rascunho.` }); }
+    catch (e) { setNotice({ tone: "error", text: e instanceof Error ? e.message : "Não foi possível salvar a política." }); }
+    finally { setBusy(false); }
+  }
+  const field = (key: keyof typeof form, label: string, type = "text") => <label>{label}<input type={type} value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} required /></label>;
+  return <section className="family review-panel" aria-label="Políticas operacionais">
+    <div className="section-heading"><span className="eyebrow dark">POLÍTICAS</span><h2>Tarifa e vigência</h2><p>Rascunhos exigem MFA e publicação explícita. Valores aceitos ficam vinculados à versão e à rota da cotação; não há valores comerciais preenchidos por padrão.</p></div>
+    <form className="review-toolbar" onSubmit={(e) => { e.preventDefault(); void create(); }}>
+      {field("scope", "Escopo")}{field("base", "Tarifa base", "number")}{field("perKm", "Valor por km", "number")}{field("perMinute", "Valor por minuto", "number")}{field("minimum", "Valor mínimo", "number")}{field("rounding", "Casas de arredondamento", "number")}{field("validity", "Validade da cotação (s)", "number")}{field("acceptance", "Prazo para aceite (s)", "number")}{field("execution", "Prazo para execução (s)", "number")}{field("returnAmount", "Valor de retorno", "number")}{field("returnCoverage", "Cobertura de retorno")}
+      <button type="submit" disabled={busy}>Salvar rascunho</button>
+    </form>
+    <div className="review-toolbar">
+      <form onSubmit={(e) => { e.preventDefault(); void createPolicy("cancellations", { scope: cancellation.scope, beforeDesignation: cancellation.before, afterDesignation: cancellation.after, afterPickup: cancellation.pickup, refundHandling: cancellation.refund }, "Política de cancelamento"); }}>
+        <h3>Cancelamento e estorno</h3><label>Escopo<input value={cancellation.scope} onChange={(e) => setCancellation({ ...cancellation, scope: e.target.value })} required /></label><label>Antes da designação<input value={cancellation.before} onChange={(e) => setCancellation({ ...cancellation, before: e.target.value })} required /></label><label>Após designação<input value={cancellation.after} onChange={(e) => setCancellation({ ...cancellation, after: e.target.value })} required /></label><label>Após retirada<input value={cancellation.pickup} onChange={(e) => setCancellation({ ...cancellation, pickup: e.target.value })} required /></label><label>Tratamento financeiro<input value={cancellation.refund} onChange={(e) => setCancellation({ ...cancellation, refund: e.target.value })} required /></label><button type="submit" disabled={busy}>Salvar rascunho</button>
+      </form>
+      <form onSubmit={(e) => { e.preventDefault(); void createPolicy("designations", { scope: designation.scope, simultaneousTasks: Number(designation.simultaneousTasks) }, "Política de designação"); }}>
+        <h3>Capacidade de designação</h3><label>Escopo<input value={designation.scope} onChange={(e) => setDesignation({ ...designation, scope: e.target.value })} required /></label><label>Tarefas simultâneas<input type="number" min="1" value={designation.simultaneousTasks} onChange={(e) => setDesignation({ ...designation, simultaneousTasks: e.target.value })} required /></label><button type="submit" disabled={busy}>Salvar rascunho</button>
+      </form>
+    </div>
+    <div className="registers">{policies.filter((p) => p.type === "TARIFA").map((p) => <article key={p.id}><h3>Tarifa {p.number} · v{p.version}</h3><p><strong>{p.status}</strong><span>Escopo {p.scope} · vigência a partir de {new Date(p.startsAt).toLocaleString("pt-BR")}</span></p><div className="journey-actions">{p.status === "RASCUNHO" && <button type="button" disabled={busy} onClick={() => void transition(p.id, "publish")}>Publicar</button>}{p.status === "ATIVA" && <button type="button" disabled={busy} onClick={() => void transition(p.id, "deactivate")}>Desativar</button>}</div></article>)}</div>
+    {notice && <p className={`feedback ${notice.tone}`} role="alert">{notice.text}</p>}
+  </section>;
 }
 
 function OperationalReviewPanel({ session }: { session: Tokens }) {

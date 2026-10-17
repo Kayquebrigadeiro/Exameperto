@@ -41,6 +41,9 @@ public class RegistrationErrorHandler {
     @ExceptionHandler(UnitCatalogService.UnitCatalogServiceException.class)
     ResponseEntity<ApiError> unitCatalog(UnitCatalogService.UnitCatalogServiceException ex) { return ResponseEntity.status(ex.status).header("Cache-Control", "no-store").body(ex.body); }
 
+    @ExceptionHandler(OperationalPolicyService.PolicyException.class)
+    ResponseEntity<ApiError> operationalPolicy(OperationalPolicyService.PolicyException ex) { return ResponseEntity.status(ex.status).header("Cache-Control", "no-store").body(ex.body); }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ApiError> invalid(MethodArgumentNotValidException ignored) {
         return ResponseEntity.badRequest().body(new ApiError("INVALID_INPUT", "Confira os campos informados.", UUID.randomUUID(), false));
