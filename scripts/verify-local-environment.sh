@@ -35,6 +35,7 @@ grep -q '"code":"INVALID_INPUT"' /tmp/exame-perto-local-check.json || fail "corp
 if [[ "${EXAME_PERTO_ANTIMALWARE_ENABLED:-false}" == "true" ]]; then
   command -v clamdscan >/dev/null || fail "clamdscan ausente enquanto antimalware está habilitado"
   clamdscan --config-file="$ROOT_DIR/.local-run/clamd.conf" --ping 1 >/dev/null 2>&1 || fail "clamd não responde; inspeção deve permanecer indisponível"
+  "$ROOT_DIR/scripts/start-local-antimalware.sh" --healthcheck-only >/dev/null 2>&1 || fail "base de assinaturas ausente, inválida ou desatualizada"
   echo "OK: ClamAV local responde em loopback; nenhum resultado limpo é produzido sem scanner."
 fi
 

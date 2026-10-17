@@ -62,6 +62,8 @@ class DelivererEvidenceFlowTest {
         assertThat(request(analyst,"POST","/me/mfa/totp/confirmation",json.writeValueAsString(Map.of("code",code)),"application/json").statusCode()).isEqualTo(200);
         assertThat(request(analyst,"POST","/analyst/reviews/"+reviewId+"/assign",null,"application/json").statusCode()).isEqualTo(200);
         assertThat(request(analyst,"POST","/analyst/reviews/"+reviewId+"/inspection",null,"application/json").statusCode()).isEqualTo(200);
+        var situation=request(owner,"GET","/me/deliverer/documents",null,"application/json");
+        assertThat(situation.statusCode()).isEqualTo(200); assertThat(situation.body()).contains("LIMPO");
         var downloaded=request(owner,"GET","/documents/"+id+"/download",null,"application/octet-stream"); assertThat(downloaded.statusCode()).isEqualTo(200); assertThat(downloaded.headers().firstValue("Cache-Control")).contains("no-store"); assertThat(downloaded.body()).isEqualTo(new String(pdf));
         assertThat(request(other,"GET","/documents/"+id+"/download",null,"application/octet-stream").statusCode()).isEqualTo(404);
         var decision=request(analyst,"POST","/analyst/reviews/"+reviewId+"/decision","{\"decision\":\"APROVAR\",\"reason\":\"synthetic\"}","application/json"); assertThat(decision.statusCode()).isEqualTo(422); assertThat(decision.body()).contains("POLICY_UNDEFINED");

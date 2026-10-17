@@ -72,6 +72,7 @@ wait_for_port postgres 5433
 export EXAME_PERTO_ANTIMALWARE_ENABLED=true
 export EXAME_PERTO_ANTIMALWARE_HOST=127.0.0.1
 export EXAME_PERTO_ANTIMALWARE_PORT="${EXAME_PERTO_ANTIMALWARE_PORT:-3310}"
+export EXAME_PERTO_ANTIMALWARE_MAX_AGE_SECONDS="${EXAME_PERTO_ANTIMALWARE_MAX_AGE_SECONDS:-604800}"
 
 if port_open 8080; then
   [[ -f "$RUN_DIR/backend.pid" ]] || fail "porta 8080 ocupada por processo não iniciado por este script"

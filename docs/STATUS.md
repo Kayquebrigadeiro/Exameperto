@@ -1,5 +1,41 @@
 # Status — atualizado em 16/10/2026
 
+## Operação local do antimalware — continuação de `0b794bf` — 16/10/2026
+
+Os scripts normais agora carregam a configuração antimalware sem export manual:
+`start-local.sh` inicia o ClamD local e propaga host, porta e limite de idade;
+`verify-local-environment.sh` exige o `ping` e a base válida; e
+`update-local-antimalware.sh` fornece o caminho administrativo de atualização.
+O critério explícito é base CVD/CLD presente, assinatura digital verificada e
+arquivo mais novo com no máximo 7 dias. Ausência, assinatura inválida ou idade
+acima do limite fazem o start falhar fechado; não há declaração de proteção
+absoluta.
+
+A base existente foi inspecionada com `sigtool`: ClamAV 1.4.5, `main.cvd`
+versão 63 e `daily.cvd` versão 28104, build de 26/08/2026; a idade excede o
+limite. `freshclam` não pôde atualizar nesta sessão porque `/var/lib/clamav`
+pertence ao usuário administrativo `clamav` e a sessão não tem privilégio para
+escrever nele. O stop foi executado e o start recusou a base antiga, conforme a
+política. O administrador deve executar
+`sudo scripts/update-local-antimalware.sh` e depois `scripts/start-local.sh`;
+nenhum pacote, banco ou dado pessoal foi alterado.
+
+Com uma exceção explícita apenas para ensaio isolado da base existente, o
+ClamD real foi iniciado em loopback e os testes Testcontainers passaram:
+`ClamAvMalwareScannerIntegrationTest` 2/2 e `DelivererEvidenceFlowTest` 2/2,
+incluindo upload, inspeção e atualização persistida da situação. Ao final, o
+ClamD foi parado; o ambiente normal permanece fail-closed até a atualização.
+
+Administração ainda necessária para pedido/entrega: cadastrar unidade real,
+registrar parceria/aceite, publicar protocolo de retirada/custódia/retorno,
+definir tarifa versionada, publicar políticas de cancelamento/apuração e
+confirmar cobertura de retorno. A interface administrativa já oferece cadastro
+e ativação de unidades, parceria e protocolos; a interface de pedido já permite
+selecionar unidade, anexar autorização e escolher programa quando o catálogo
+existir. Faltam decisões e evidências reais do autor para habilitar essas
+ações; sem elas o backend mantém oferta, cotação, aceite, retirada, encerramento
+e cobertura bloqueados. Não foram inventados parceiros, aprovações ou valores.
+
 ## Antimalware local para uploads privados — 16/10/2026
 
 Foi integrado o ClamAV/ClamD local por `INSTREAM`, limitado a loopback
