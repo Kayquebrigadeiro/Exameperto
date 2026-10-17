@@ -14,13 +14,19 @@ async function login(page: Page, email: string) {
 }
 
 async function openArea(page: Page, name: string) {
-  const area = {
-    'Operação': 'operacao',
-    'Análise de benefícios': 'analise-beneficios',
-    'Operação de privacidade': 'operacao-privacidade',
+  const destination = {
+    'Operação': { area: 'operacao', route: 'operacao' },
+    'Análise de benefícios': { area: 'beneficios', route: '(analise-beneficios|beneficios)' },
+    'Operação de privacidade': { area: 'privacidade-operacional', route: 'privacidade/operacao' },
   }[name];
-  if (area) {
-    await page.getByLabel('Selecionar área de atuação').selectOption(area);
+  if (destination) {
+    const selector = page.getByLabel('Selecionar área de atuação');
+    if (await selector.locator(`option[value="${destination.area}"]`).count()) await selector.selectOption(destination.area);
+    else {
+      const chooser = page.getByRole('button', { name: new RegExp(`ATUAR COMO.*${name}`) });
+      if (await chooser.count()) await chooser.click();
+    }
+    await expect(page).toHaveURL(new RegExp(`/app/${destination.route}$`));
     return;
   }
   await page.getByRole('navigation', { name: 'Áreas do produto' }).getByRole('link', { name, exact: true }).click();
@@ -61,7 +67,11 @@ test('navegador → análise operacional, benefícios e privacidade com MFA e bl
   await operationalReview.getByRole('button', { name: 'Abrir detalhe' }).click();
   await operationalPanel.getByRole('button', { name: 'Assumir análise' }).click();
   await expect(operational.getByRole('alert').filter({ hasText: 'Etapa operacional registrada' })).toBeVisible();
+  const inspectionResponsePromise = operational.waitForResponse((response) => response.url().includes('/api/v1/analyst/reviews/') && response.url().endsWith('/inspection'));
   await operationalPanel.getByRole('button', { name: 'Inspecionar evidência' }).click();
+  const inspectionResponse = await inspectionResponsePromise;
+  const inspectionBody = await inspectionResponse.text();
+  expect(inspectionResponse.status(), `inspection response: ${inspectionBody}`).toBe(200);
   await expect(operational.getByRole('alert').filter({ hasText: 'Etapa operacional registrada' })).toBeVisible();
   await operational.screenshot({ path: '/tmp/exameperto-operacao-entregador.png', fullPage: true });
   await operational.getByRole('tab', { name: 'Veículos' }).click();

@@ -1,4 +1,4 @@
-# Status — atualizado em 16/10/2026
+# Status — atualizado em 17/10/2026
 
 ## Validação da entrega `192c00e`/`9afd365` — 17/10/2026
 
@@ -16,16 +16,26 @@ custódia encerrada, ocorrência preservada e código usado. A recusa do outside
 foi verificada por requisição HTTP real disparada no contexto Chromium, não por
 uma ação visual da interface.
 `AcceptanceBrowserFlowTest` e `OrderBrowserFlowTest` também passaram no ensaio
-com quatro testes no conjunto. O fluxo privilegiado ainda falha após
-“Inspecionar evidência”, sem o aviso esperado; a causa precisa ser investigada
-antes de considerar MFA/papel e bloqueios privilegiados concluídos.
+com quatro testes no conjunto. A falha após “Inspecionar evidência” foi
+reproduzida observando a resposta real: o fixture declarava hash SHA-256 e
+tamanho diferentes do objeto persistido, e o backend respondeu `503
+ANTIMALWARE_UNAVAILABLE` com a mensagem de conteúdo alterado, mantendo o
+arquivo bloqueado. O scanner ClamAV real foi habilitado somente no ensaio
+isolado; o fixture agora grava hash/tamanho do mesmo conteúdo que foi colocado
+no armazenamento. O teste Playwright aguarda a resposta, exige HTTP 200 e
+confirma o alerta; o teste Java confirma no PostgreSQL `INSPECAO_APROVADA` e
+`LIMPO`. `PrivilegedOperationsBrowserFlowTest` passou 1/1 após a correção.
 
 Ainda não verificados pela interface neste ensaio: criação/edição/publicação
 de política tarifária, recusa de vigência sobreposta, cotação vinculada à
 versão publicada, nova versão sem retroatividade, cancelamentos nas três fases,
 resolução de ocorrência com retorno/reentrega/encerramento, reservas/custódia
-por fase e apuração/estorno sem pagamento confirmado. Não foram publicadas
-políticas reais, habilitados pagamentos ou criados compromissos institucionais.
+por fase e apuração/estorno sem pagamento confirmado. A tentativa de iniciar
+uma suíte administrativa independente encontrou `401 Sessão inválida` no POST
+de política mesmo após a tela indicar sessão MFA elevada; a suíte foi retirada
+sem remover asserções e esse ponto permanece pendente de diagnóstico. Não foram
+publicadas políticas reais, habilitados pagamentos ou criados compromissos
+institucionais.
 
 ## Políticas operacionais configuráveis — continuação de `65cc4ce`
 

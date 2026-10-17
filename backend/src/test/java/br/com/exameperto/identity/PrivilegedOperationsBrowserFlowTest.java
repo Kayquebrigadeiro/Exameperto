@@ -13,6 +13,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
@@ -49,6 +50,9 @@ class PrivilegedOperationsBrowserFlowTest {
     @DynamicPropertySource static void db(DynamicPropertyRegistry r) {
         r.add("spring.datasource.url", DB::getJdbcUrl); r.add("spring.datasource.username", DB::getUsername);
         r.add("spring.datasource.password", DB::getPassword); r.add("storage.private-root", ROOT::toString);
+        r.add("antimalware.enabled", () -> "true");
+        r.add("antimalware.host", () -> "127.0.0.1");
+        r.add("antimalware.port", () -> "3310");
     }
 
     @LocalServerPort int port;
@@ -112,14 +116,17 @@ class PrivilegedOperationsBrowserFlowTest {
         try { assertThat(child.waitFor(120, TimeUnit.SECONDS)).isTrue(); assertThat(child.exitValue()).isZero(); }
         finally { if (child.isAlive()) child.destroyForcibly(); }
         assertThat(jdbc.queryForObject("SELECT count(*) FROM revisao_entregador WHERE analista_id=(SELECT id FROM usuario WHERE email_busca=?) AND estado='ATRIBUIDA'", Long.class, lookup(operational))).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT d.estado FROM documento d JOIN entregador_documento ed ON ed.documento_id=d.id WHERE ed.entregador_id=?", String.class, operationalDeliverer)).isEqualTo("INSPECAO_APROVADA");
+        assertThat(jdbc.queryForObject("SELECT d.antimalware_estado FROM documento d JOIN entregador_documento ed ON ed.documento_id=d.id WHERE ed.entregador_id=?", String.class, operationalDeliverer)).isEqualTo("LIMPO");
         assertThat(jdbc.queryForObject("SELECT estado FROM solicitacao_beneficio WHERE solicitante_id=(SELECT id FROM usuario WHERE email_busca=?)", String.class, lookup(benefitSubject))).isEqualTo("DECIDIDA");
         assertThat(jdbc.queryForObject("SELECT estado FROM usuario WHERE id=?", String.class, privacySubjectId)).isEqualTo("ENCERRADO");
     }
 
     private UUID operationalFixture(String email, String key) {
         UUID user = user(email), deliverer = UUID.randomUUID(), document = UUID.randomUUID();
-        String object = objects.put(document, new MockMultipartFile("file", key + ".pdf", "application/pdf", "%PDF-1.4\n%%EOF".getBytes()));
-        jdbc.update("INSERT INTO documento(id,proprietario_id,categoria,objeto_chave,sha256,mime,tamanho,estado) VALUES (?,?, 'HABILITACAO',?,'12345678901234567890123456789012','application/pdf',12,'QUARENTENA')", document, user, object);
+        byte[] content = ("%PDF-1.4\n" + key + "\n%%EOF").getBytes();
+        String object = objects.put(document, new MockMultipartFile("file", key + ".pdf", "application/pdf", content));
+        jdbc.update("INSERT INTO documento(id,proprietario_id,categoria,objeto_chave,sha256,mime,tamanho,estado) VALUES (?,?, 'HABILITACAO',?,?,'application/pdf',?,'QUARENTENA')", document, user, object, hash(content), content.length);
         jdbc.update("INSERT INTO entregador(id,usuario_id,nascimento,estado) VALUES (?,?,DATE '1990-01-01','EM_ANALISE')", deliverer, user);
         jdbc.update("INSERT INTO entregador_documento(entregador_id,documento_id,finalidade) VALUES (?,?,'HABILITACAO')", deliverer, document);
         jdbc.update("INSERT INTO revisao_entregador(id,entregador_id,documento_id,estado) VALUES (?,?,?,'PENDENTE')", UUID.randomUUID(), deliverer, document);
@@ -133,8 +140,9 @@ class PrivilegedOperationsBrowserFlowTest {
         jdbc.update("INSERT INTO paciente(id,usuario_id,cpf_cifrado,cpf_busca,nascimento,identidade_estado) VALUES (?,?,?,?,DATE '1980-01-01','VERIFICADA')", patient, subject, protector.encrypt("12345678901"), protector.lookup("12345678901"));
         jdbc.update("INSERT INTO solicitacao_beneficio(id,paciente_id,solicitante_id,instituicao_id,politica_id,politica_versao,politica_snapshot,estado) VALUES (?,?,?,?,?,1,'{}'::jsonb,'EM_ANALISE')", request, patient, subject, institution, policy);
         jdbc.update("INSERT INTO solicitacao_dimensao(solicitacao_id,dimensao) VALUES (?,'IDADE')", request);
-        String object = objects.put(document, new MockMultipartFile("file", "idade.pdf", "application/pdf", "%PDF-1.4\n%%EOF".getBytes()));
-        jdbc.update("INSERT INTO documento(id,proprietario_id,categoria,objeto_chave,sha256,mime,tamanho,estado) VALUES (?,?, 'IDADE',?,'12345678901234567890123456789012','application/pdf',12,'QUARENTENA')", document, subject, object);
+        byte[] content = "%PDF-1.4\nidade\n%%EOF".getBytes();
+        String object = objects.put(document, new MockMultipartFile("file", "idade.pdf", "application/pdf", content));
+        jdbc.update("INSERT INTO documento(id,proprietario_id,categoria,objeto_chave,sha256,mime,tamanho,estado) VALUES (?,?, 'IDADE',?,?,'application/pdf',?,'QUARENTENA')", document, subject, object, hash(content), content.length);
         jdbc.update("INSERT INTO beneficio_evidencia(solicitacao_id,documento_id,finalidade) VALUES (?,?,'IDADE')", request, document);
         jdbc.update("INSERT INTO revisao_beneficio(id,solicitacao_id,tipo,solicitacao_version,estado) VALUES (?,?, 'INICIAL',0,'PENDENTE')", UUID.randomUUID(), request);
     }
@@ -149,6 +157,7 @@ class PrivilegedOperationsBrowserFlowTest {
     private String account(String prefix) { String email = prefix + "-" + UUID.randomUUID() + "@example.test"; UUID id = UUID.randomUUID(); jdbc.update("INSERT INTO usuario(id,email_cifrado,email_busca,senha_hash,nome_cifrado,estado,email_verificado_em) VALUES (?,?,?,?,?,'ATIVO',clock_timestamp())", id, protector.encrypt(email), protector.lookup(email), Passwords.hash(password), protector.encrypt(prefix)); return email; }
     private UUID user(String email) { return jdbc.queryForObject("SELECT id FROM usuario WHERE email_busca=?", UUID.class, lookup(email)); }
     private byte[] lookup(String email) { return protector.lookup(email); }
+    private byte[] hash(byte[] content) { try { return MessageDigest.getInstance("SHA-256").digest(content); } catch (Exception ex) { throw new IllegalStateException(ex); } }
     private String enrollMfa(String email) throws Exception { String token = login(email); JsonNode e = json.readTree(postToken(token, "/me/mfa/totp/enrollment", Map.of("password", password)).body()); return e.get("secret").asText(); }
     private String login(String email) throws Exception { return json.readTree(postToken(null, "/auth/login", Map.of("email", email, "password", password, "client", "MOBILE")).body()).get("accessToken").asText(); }
     private HttpResponse<String> get(String email, String path) throws Exception { return getToken(login(email), path); }
