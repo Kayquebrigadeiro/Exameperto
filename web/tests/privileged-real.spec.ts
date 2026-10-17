@@ -14,6 +14,15 @@ async function login(page: Page, email: string) {
 }
 
 async function openArea(page: Page, name: string) {
+  const area = {
+    'Operação': 'operacao',
+    'Análise de benefícios': 'analise-beneficios',
+    'Operação de privacidade': 'operacao-privacidade',
+  }[name];
+  if (area) {
+    await page.getByLabel('Selecionar área de atuação').selectOption(area);
+    return;
+  }
   await page.getByRole('navigation', { name: 'Áreas do produto' }).getByRole('link', { name, exact: true }).click();
 }
 

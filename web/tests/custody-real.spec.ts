@@ -80,6 +80,7 @@ test('navegador → API real → PostgreSQL ensaia custódia e segredo do destin
   expect((await command(outsiderPage, outsider, `/orders/${delivered}/receipt-code`, 5)).status).toBe(404);
 
   await loginUi(page, process.env.CUSTODY_RECIPIENT_EMAIL!);
+  await page.getByLabel('Selecionar área de atuação').selectOption('paciente');
   await page.getByRole('navigation', { name: 'Áreas do produto' }).getByRole('link', { name: 'Meus pedidos', exact: true }).click();
   const panel = page.getByRole('region', { name: 'Pedidos', exact: true });
   const orderItems = panel.locator('button.order-list-item');

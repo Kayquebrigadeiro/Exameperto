@@ -1,5 +1,30 @@
 # Status — atualizado em 16/10/2026
 
+## Validação da entrega `192c00e`/`9afd365` — 17/10/2026
+
+Foi executado ensaio real com Chromium, Vite, Spring Boot e PostgreSQL 17.6
+descartável via Testcontainers, sem interceptação de API e sem tocar no banco
+normal. A correção em `web/tests/custody-real.spec.ts` seleciona a área
+Paciente antes de abrir “Meus pedidos”; a correção em
+`web/tests/privileged-real.spec.ts` seleciona a área operacional antes da
+navegação. As asserções existentes foram preservadas.
+
+`CustodyBrowserFlowTest` passou: login, ações de entregador e destinatário,
+retirada, custódia, localização web, ocorrência, reload, segredo de recebimento
+e recusa do outsider foram exercitados pela interface; o banco descartável
+confirmou entrega, custódia encerrada, ocorrência preservada e código usado.
+`AcceptanceBrowserFlowTest` e `OrderBrowserFlowTest` também passaram no ensaio
+com quatro testes no conjunto. O fluxo privilegiado ainda falha após
+“Inspecionar evidência”, sem o aviso esperado; a causa precisa ser investigada
+antes de considerar MFA/papel e bloqueios privilegiados concluídos.
+
+Ainda não verificados pela interface neste ensaio: criação/edição/publicação
+de política tarifária, recusa de vigência sobreposta, cotação vinculada à
+versão publicada, nova versão sem retroatividade, cancelamentos nas três fases,
+resolução de ocorrência com retorno/reentrega/encerramento, reservas/custódia
+por fase e apuração/estorno sem pagamento confirmado. Não foram publicadas
+políticas reais, habilitados pagamentos ou criados compromissos institucionais.
+
 ## Políticas operacionais configuráveis — continuação de `65cc4ce`
 
 Foi acrescentado o ciclo administrativo às tabelas existentes de tarifa,
