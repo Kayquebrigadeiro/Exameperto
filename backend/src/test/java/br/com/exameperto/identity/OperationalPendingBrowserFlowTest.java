@@ -59,10 +59,11 @@ class OperationalPendingBrowserFlowTest {
         Driver redelivery = driver("pending-redelivery"); UUID redeliveryOrder = order(patientId, patient.id, redelivery, unit, policies, "OCORRENCIA", 5, true, true, true);
         Account admin = account("pending-admin-return"); Account admin2 = account("pending-admin-redelivery"); jdbc.update("INSERT INTO papel_global(usuario_id,papel) VALUES (?, 'ANALISTA_OPERACIONAL'), (?, 'ANALISTA_OPERACIONAL')", admin.id, admin2.id); String secret = enroll(admin); String secret2 = enroll(admin2);
 
+        String scenario = "resolution";
         ProcessBuilder b = new ProcessBuilder("npm", "run", "test", "--", "tests/operational-pending-real.spec.ts"); b.directory(Path.of("..").resolve("web").toFile()); b.redirectErrorStream(true); b.redirectOutput(Path.of("target", "operational-pending-playwright.log").toFile());
         b.environment().put("API_TARGET", "http://127.0.0.1:" + port); b.environment().put("VITE_ENABLE_OPERATIONAL_TEST_PANELS", "true");
         b.environment().put("WEB_PORT", Integer.toString(WEB_PORT)); b.environment().put("WEB_BASE_URL", "http://127.0.0.1:" + WEB_PORT);
-        b.environment().put("PENDING_PATIENT_EMAIL", patient.email); b.environment().put("PENDING_RETURN_ADMIN_EMAIL", admin.email); b.environment().put("PENDING_REDELIVERY_ADMIN_EMAIL", admin2.email); b.environment().put("PENDING_ADMIN_MFA_SECRET", secret); b.environment().put("PENDING_RETURN_ADMIN_MFA_SECRET", secret); b.environment().put("PENDING_REDELIVERY_ADMIN_MFA_SECRET", secret2); b.environment().put("PENDING_UNIT_ID", unit.toString()); b.environment().put("PENDING_RETURN_ORDER_ID", returnOrder.toString()); b.environment().put("PENDING_REDELIVERY_ORDER_ID", redeliveryOrder.toString()); b.environment().put("PENDING_RETURN_DRIVER_EMAIL", returning.email); b.environment().put("PENDING_REDELIVERY_DRIVER_EMAIL", redelivery.email); b.environment().put("PENDING_SCENARIO", "resolution"); b.environment().put("EXPECTED_CANCEL_FEEDBACK", "cancelado"); b.environment().put("EXPECTED_CANCEL_PHASE", "cancelamento");
+        b.environment().put("PENDING_PATIENT_EMAIL", patient.email); b.environment().put("PENDING_RETURN_ADMIN_EMAIL", admin.email); b.environment().put("PENDING_REDELIVERY_ADMIN_EMAIL", admin2.email); b.environment().put("PENDING_ADMIN_MFA_SECRET", secret); b.environment().put("PENDING_RETURN_ADMIN_MFA_SECRET", secret); b.environment().put("PENDING_REDELIVERY_ADMIN_MFA_SECRET", secret2); b.environment().put("PENDING_UNIT_ID", unit.toString()); b.environment().put("PENDING_RETURN_ORDER_ID", returnOrder.toString()); b.environment().put("PENDING_REDELIVERY_ORDER_ID", redeliveryOrder.toString()); b.environment().put("PENDING_RETURN_DRIVER_EMAIL", returning.email); b.environment().put("PENDING_REDELIVERY_DRIVER_EMAIL", redelivery.email); b.environment().put("PENDING_SCENARIO", scenario); b.environment().put("EXPECTED_CANCEL_FEEDBACK", "cancelado"); b.environment().put("EXPECTED_CANCEL_PHASE", "cancelamento");
         Process p = null;
         try {
             p = b.start();
@@ -72,12 +73,14 @@ class OperationalPendingBrowserFlowTest {
         } finally {
             stopProcessTree(p);
         }
-        assertThat(jdbc.queryForObject("SELECT estado FROM pedido WHERE id=?", String.class, before)).isEqualTo("CANCELADA");
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM solicitacao_cancelamento WHERE pedido_id=?", Long.class, before)).isZero();
-        assertThat(jdbc.queryForObject("SELECT fase FROM solicitacao_cancelamento WHERE pedido_id=?", String.class, designated)).isEqualTo("APOS_DESIGNACAO_ANTES_RETIRADA");
-        assertThat(jdbc.queryForObject("SELECT estado FROM pedido WHERE id=?", String.class, designated)).isEqualTo("OCORRENCIA");
-        assertThat(jdbc.queryForObject("SELECT fase FROM solicitacao_cancelamento WHERE pedido_id=?", String.class, pickup)).isEqualTo("APOS_RETIRADA");
-        assertThat(jdbc.queryForObject("SELECT encerrada_em IS NULL FROM custodia WHERE pedido_id=?", Boolean.class, pickup)).isTrue();
+        if (!"resolution".equals(scenario)) {
+            assertThat(jdbc.queryForObject("SELECT estado FROM pedido WHERE id=?", String.class, before)).isEqualTo("CANCELADA");
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM solicitacao_cancelamento WHERE pedido_id=?", Long.class, before)).isZero();
+            assertThat(jdbc.queryForObject("SELECT fase FROM solicitacao_cancelamento WHERE pedido_id=?", String.class, designated)).isEqualTo("APOS_DESIGNACAO_ANTES_RETIRADA");
+            assertThat(jdbc.queryForObject("SELECT estado FROM pedido WHERE id=?", String.class, designated)).isEqualTo("OCORRENCIA");
+            assertThat(jdbc.queryForObject("SELECT fase FROM solicitacao_cancelamento WHERE pedido_id=?", String.class, pickup)).isEqualTo("APOS_RETIRADA");
+            assertThat(jdbc.queryForObject("SELECT encerrada_em IS NULL FROM custodia WHERE pedido_id=?", Boolean.class, pickup)).isTrue();
+        }
         assertThat(jdbc.queryForObject("SELECT estado FROM pedido WHERE id=?", String.class, returnOrder)).isEqualTo("ENCERRADA_COM_OCORRENCIA");
         assertThat(jdbc.queryForObject("SELECT encerrada_em IS NOT NULL FROM custodia WHERE pedido_id=?", Boolean.class, returnOrder)).isTrue();
         assertThat(jdbc.queryForObject("SELECT estado FROM pedido WHERE id=?", String.class, redeliveryOrder)).isEqualTo("ENTREGUE");

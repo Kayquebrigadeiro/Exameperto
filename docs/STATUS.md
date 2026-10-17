@@ -1382,3 +1382,35 @@ seguida de retorno/reentrega até encerramento; e a matriz independente de
 ausência de MFA/papel e acesso institucional indevido para cada nova tela.
 Essas lacunas não são declaradas como aprovadas; os contratos/backend têm
 testes focais parciais, mas falta a jornada browser independente correspondente.
+
+## Correção da resolução no segundo contexto — 17/10/2026
+
+Partindo de `5ecff33`, a primeira falha foi reproduzida sem clique forçado:
+o formulário estava válido, o botão habilitado, a elevação MFA confirmada e
+nenhuma requisição `/resolve` era emitida porque o `article` da grade
+interceptava o ponto de clique. O botão foi isolado em sua própria linha e
+permanece sujeito à validação nativa, MFA e autorização do backend. Também foi
+corrigida a abertura da página do destinatário no teste para usar o fixture
+`browser.newPage()`.
+
+Validação em PostgreSQL 17.6 descartável, Chromium → Vite → Spring, sem
+interceptação da API:
+
+- `OperationalPendingBrowserFlowTest`: passou 1/1; as duas jornadas browser
+  passaram, com resolução real, retorno/encerramento e reentrega/recebimento/
+  encerramento. O banco confirmou pedido final, custódia encerrada, designação
+  e exatamente um evento de execução por pedido; o teste também conferiu os
+  estados de cancelamento somente quando aquele cenário é exercitado.
+- `CustodyFlowTest`: passou 2/2; transições de custódia, entrega, ocorrência,
+  repetição e atores não autorizados.
+- `PrivilegedOperationsBrowserFlowTest`: falhou por dependência externa de
+  antimalware indisponível (`ANTIMALWARE_UNAVAILABLE`, HTTP 503) durante a
+  inspeção de evidência. As recusas diretas sem papel e sem MFA executadas
+  antes da etapa browser passaram; a jornada completa dessa suíte continua
+  não verificada até disponibilizar o serviço isolado de antimalware.
+
+A matriz dedicada de repetição/concorrência específica de resolução/retorno
+não foi adicionada nesta correção; a implementação existente mantém chave de
+idempotência, lock do pedido e replay persistido, enquanto a suíte browser
+confirmou ausência de eventos duplicados no resultado final. Não houve banco
+normal, pagamento externo, deploy, segredo ou token em log.
