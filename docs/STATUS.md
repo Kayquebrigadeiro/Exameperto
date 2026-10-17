@@ -10,9 +10,11 @@ Paciente antes de abrir “Meus pedidos”; a correção em
 navegação. As asserções existentes foram preservadas.
 
 `CustodyBrowserFlowTest` passou: login, ações de entregador e destinatário,
-retirada, custódia, localização web, ocorrência, reload, segredo de recebimento
-e recusa do outsider foram exercitados pela interface; o banco descartável
-confirmou entrega, custódia encerrada, ocorrência preservada e código usado.
+retirada, custódia, localização web, ocorrência, reload e segredo de recebimento
+foram exercitados pela interface; o banco descartável confirmou entrega,
+custódia encerrada, ocorrência preservada e código usado. A recusa do outsider
+foi verificada por requisição HTTP real disparada no contexto Chromium, não por
+uma ação visual da interface.
 `AcceptanceBrowserFlowTest` e `OrderBrowserFlowTest` também passaram no ensaio
 com quatro testes no conjunto. O fluxo privilegiado ainda falha após
 “Inspecionar evidência”, sem o aviso esperado; a causa precisa ser investigada
