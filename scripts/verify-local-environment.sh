@@ -33,10 +33,12 @@ status="$(curl -sS -o /tmp/exame-perto-local-check.json -w '%{http_code}' --max-
 grep -q '"code":"INVALID_INPUT"' /tmp/exame-perto-local-check.json || fail "corpo de erro da API não é o esperado"
 
 if [[ "${EXAME_PERTO_ANTIMALWARE_ENABLED:-false}" == "true" ]]; then
-  command -v clamdscan >/dev/null || fail "clamdscan ausente enquanto antimalware está habilitado"
-  clamdscan --config-file="$ROOT_DIR/.local-run/clamd.conf" --ping 1 >/dev/null 2>&1 || fail "clamd não responde; inspeção deve permanecer indisponível"
-  "$ROOT_DIR/scripts/start-local-antimalware.sh" --healthcheck-only >/dev/null 2>&1 || fail "base de assinaturas ausente, inválida ou desatualizada"
-  echo "OK: ClamAV local responde em loopback; nenhum resultado limpo é produzido sem scanner."
+  if command -v clamdscan >/dev/null && clamdscan --config-file="$ROOT_DIR/.local-run/clamd.conf" --ping 1 >/dev/null 2>&1 &&
+     EXAME_PERTO_ANTIMALWARE_DATABASE_DIR="${EXAME_PERTO_ANTIMALWARE_DATABASE_DIR:-/var/lib/clamav}" "$ROOT_DIR/scripts/start-local-antimalware.sh" --healthcheck-only >/dev/null 2>&1; then
+    echo "OK: ClamAV local responde em loopback; nenhum resultado limpo é produzido sem scanner."
+  else
+    echo "AVISO: aplicação disponível; scanner antimalware indisponível ou base fora do critério. Uploads/inspeções/downloads dependentes permanecem fail-closed." >&2
+  fi
 fi
 
 docker compose --env-file "$ENV_FILE" -f "$ROOT_DIR/infra/compose.yaml" exec -T postgres \

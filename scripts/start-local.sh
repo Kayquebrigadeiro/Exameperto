@@ -68,11 +68,15 @@ echo "Dependências locais verificadas: Docker, Java, Maven, Node, npm e curl."
 docker compose --env-file "$ENV_FILE" -f "$ROOT_DIR/infra/compose.yaml" up -d postgres
 wait_for_port postgres 5433
 
-"$ROOT_DIR/scripts/start-local-antimalware.sh"
 export EXAME_PERTO_ANTIMALWARE_ENABLED=true
 export EXAME_PERTO_ANTIMALWARE_HOST=127.0.0.1
 export EXAME_PERTO_ANTIMALWARE_PORT="${EXAME_PERTO_ANTIMALWARE_PORT:-3310}"
 export EXAME_PERTO_ANTIMALWARE_MAX_AGE_SECONDS="${EXAME_PERTO_ANTIMALWARE_MAX_AGE_SECONDS:-604800}"
+export EXAME_PERTO_ANTIMALWARE_DATABASE_DIR="${EXAME_PERTO_ANTIMALWARE_DATABASE_DIR:-/var/lib/clamav}"
+
+if ! "$ROOT_DIR/scripts/start-local-antimalware.sh"; then
+  echo "AVISO: aplicação continuará disponível, mas o scanner antimalware está indisponível; uploads/inspeções/downloads dependentes permanecerão bloqueados." >&2
+fi
 
 if port_open 8080; then
   [[ -f "$RUN_DIR/backend.pid" ]] || fail "porta 8080 ocupada por processo não iniciado por este script"

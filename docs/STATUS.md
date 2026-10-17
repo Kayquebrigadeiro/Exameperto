@@ -6,6 +6,12 @@ Os scripts normais agora carregam a configuração antimalware sem export manual
 `start-local.sh` inicia o ClamD local e propaga host, porta e limite de idade;
 `verify-local-environment.sh` exige o `ping` e a base válida; e
 `update-local-antimalware.sh` fornece o caminho administrativo de atualização.
+O início distingue aplicação e scanner: web/backend podem responder login e
+consultas independentes quando o ClamD não está pronto; upload, inspeção,
+download e demais ações que exigem evidência limpa continuam fail-closed.
+`EXAME_PERTO_ANTIMALWARE_DATABASE_DIR` permite uma base no diretório do usuário;
+o padrão permanece `/var/lib/clamav` e só a atualização dessa base exige
+privilégio administrativo.
 O critério explícito é base CVD/CLD presente, assinatura digital verificada e
 arquivo mais novo com no máximo 7 dias. Ausência, assinatura inválida ou idade
 acima do limite fazem o start falhar fechado; não há declaração de proteção
