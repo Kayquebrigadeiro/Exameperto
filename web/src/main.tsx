@@ -5118,7 +5118,14 @@ function OperationalPolicyPanel({ session }: { session: Tokens }) {
     return parse(await fetch(`/api/v1${path}`, { ...init, headers: { Authorization: `Bearer ${session.accessToken}`, ...(init.body ? { "Content-Type": "application/json" } : {}), ...(init.headers ?? {}) } }));
   }
   async function load() { setPolicies((await api("/admin/operational-policies")).result as typeof policies); }
-  useEffect(() => { void load().catch((e) => setNotice({ tone: "error", text: (e as Error).message })); }, [session.accessToken]);
+  useEffect(() => {
+    const refreshAfterMfa = () => {
+      void load().catch((e) => setNotice({ tone: "error", text: (e as Error).message }));
+    };
+    void load().catch((e) => setNotice({ tone: "error", text: (e as Error).message }));
+    addEventListener("mfa-elevated", refreshAfterMfa);
+    return () => removeEventListener("mfa-elevated", refreshAfterMfa);
+  }, [session.accessToken]);
   async function create() {
     setBusy(true); setNotice(null);
     try {

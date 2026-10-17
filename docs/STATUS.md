@@ -26,16 +26,34 @@ no armazenamento. O teste Playwright aguarda a resposta, exige HTTP 200 e
 confirma o alerta; o teste Java confirma no PostgreSQL `INSPECAO_APROVADA` e
 `LIMPO`. `PrivilegedOperationsBrowserFlowTest` passou 1/1 após a correção.
 
-Ainda não verificados pela interface neste ensaio: criação/edição/publicação
-de política tarifária, recusa de vigência sobreposta, cotação vinculada à
+Na investigação seguinte, o access token WEB usado no POST foi comparado
+somente por hashes sanitizados com o `sessao.id` e `access_hash` descartáveis:
+eles correspondiam; a sessão estava válida e `mfa_verificada_ate` estava ativo.
+O `401` vinha de `SecurityConfig`: a rota administrativa não estava na lista
+de recursos autenticados e caía no `anyRequest().denyAll()`. O matcher foi
+incluído sem alterar as exigências de papel ou MFA do serviço.
+
+O ensaio também revelou dois defeitos subsequentes. A migração original ainda
+mantinha os checks antigos de estado e rejeitava `RASCUNHO` em tarifas,
+cancelamento e designação; V26 passou a permitir explicitamente
+`RASCUNHO/ATIVA/INATIVA`. Após refresh, a nova sessão corretamente perde a
+elevação MFA; o painel tarifário, porém, não recarregava depois de uma nova
+elevação. O painel agora escuta `mfa-elevated` e recarrega a fila.
+
+`OperationalPolicySessionBrowserFlowTest` passou 3/3 com PostgreSQL
+descartável: Chromium executou login → MFA → criação → consulta; a suíte
+confirmou que refresh retorna a sessão sem elevação até nova validação; e
+testes focais recusaram elevação expirada e sessão revogada. A resposta de
+erro inesperado agora registra somente `correlationId` e tipo da exceção,
+sem tokens ou segredos.
+
+Ainda não verificados pela interface neste ensaio: edição/publicação e
+desativação completas, recusa de vigência sobreposta, cotação vinculada à
 versão publicada, nova versão sem retroatividade, cancelamentos nas três fases,
 resolução de ocorrência com retorno/reentrega/encerramento, reservas/custódia
-por fase e apuração/estorno sem pagamento confirmado. A tentativa de iniciar
-uma suíte administrativa independente encontrou `401 Sessão inválida` no POST
-de política mesmo após a tela indicar sessão MFA elevada; a suíte foi retirada
-sem remover asserções e esse ponto permanece pendente de diagnóstico. Não foram
-publicadas políticas reais, habilitados pagamentos ou criados compromissos
-institucionais.
+por fase e apuração/estorno sem pagamento confirmado. A causa do `401` foi
+corrigida e a regressão agora passa. Não foram publicadas políticas reais,
+habilitados pagamentos ou criados compromissos institucionais.
 
 ## Políticas operacionais configuráveis — continuação de `65cc4ce`
 

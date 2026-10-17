@@ -93,7 +93,7 @@ test('navegador → análise operacional, benefícios e privacidade com MFA e bl
   const noMfaPanel = noMfa.getByRole('region', { name: 'Análise de entregadores' });
   await noMfaPanel.getByRole('article').nth(2).getByRole('button', { name: 'Abrir detalhe' }).click();
   await noMfaPanel.getByRole('button', { name: 'Assumir análise' }).click();
-  await expect(noMfa.getByRole('alert').filter({ hasText: /MFA|segundo fator/i })).toBeVisible();
+  await expect(noMfaPanel.getByRole('alert').filter({ hasText: /MFA|segundo fator/i })).toBeVisible();
 
   const benefits = await browser.newPage();
   await login(benefits, process.env.BENEFIT_ANALYST_EMAIL!);

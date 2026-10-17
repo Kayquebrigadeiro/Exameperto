@@ -8,9 +8,12 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestControllerAdvice
 public class RegistrationErrorHandler {
+    private static final Logger LOG = LoggerFactory.getLogger(RegistrationErrorHandler.class);
     @ExceptionHandler(RegistrationService.RegistrationException.class)
     ResponseEntity<ApiError> registration(RegistrationService.RegistrationException ex) { return ResponseEntity.status(ex.getStatusCode()).body(ex.body()); }
 
@@ -61,7 +64,9 @@ public class RegistrationErrorHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    ResponseEntity<ApiError> unexpected(Exception ignored) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiError("INTERNAL_ERROR", "Não foi possível concluir a solicitação.", UUID.randomUUID(), true));
+    ResponseEntity<ApiError> unexpected(Exception ex) {
+        UUID correlationId = UUID.randomUUID();
+        LOG.error("unexpected_error correlationId={} exceptionType={}", correlationId, ex.getClass().getName());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiError("INTERNAL_ERROR", "Não foi possível concluir a solicitação.", correlationId, true));
     }
 }
