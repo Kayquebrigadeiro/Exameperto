@@ -127,7 +127,7 @@ class CustodyService {
 
     List<OperationalIncidentView> operationalIncidents(AuthService.SessionPrincipal principal) {
         requireAnalyst(principal); mfa.requireVerified(principal);
-        return jdbc.query("SELECT o.id,o.pedido_id,p.estado,o.tipo,o.estado,o.descricao,o.custodia_id,c.encerrada_em IS NOT NULL,c.decisao,c.destino_tipo,o.created_at FROM ocorrencia_entrega o JOIN pedido p ON p.id=o.pedido_id LEFT JOIN custodia c ON c.id=o.custodia_id WHERE o.estado IN ('ABERTA','PENDENTE_RESOLUCAO','ENCERRADA') ORDER BY o.created_at DESC,o.id",(rs,n)->new OperationalIncidentView(rs.getObject(1,UUID.class),rs.getObject(2,UUID.class),rs.getString(3),rs.getString(4),rs.getString(5),rs.getString(6),rs.getObject(7,UUID.class),rs.getBoolean(8)?"ENCERRADA":"ATIVA",rs.getString(9),rs.getString(10),rs.getTimestamp(11).toInstant()));
+        return jdbc.query("SELECT o.id,o.pedido_id,p.estado,o.tipo,o.estado,o.descricao,o.custodia_id,c.encerrada_em IS NOT NULL,o.decisao,o.destino_tipo,o.created_at FROM ocorrencia_entrega o JOIN pedido p ON p.id=o.pedido_id LEFT JOIN custodia c ON c.id=o.custodia_id WHERE o.estado IN ('ABERTA','PENDENTE_RESOLUCAO','ENCERRADA') ORDER BY o.created_at DESC,o.id",(rs,n)->new OperationalIncidentView(rs.getObject(1,UUID.class),rs.getObject(2,UUID.class),rs.getString(3),rs.getString(4),rs.getString(5),rs.getString(6),rs.getObject(7,UUID.class),rs.getBoolean(8)?"ENCERRADA":"ATIVA",rs.getString(9),rs.getString(10),rs.getTimestamp(11).toInstant()));
     }
 
     @Transactional
