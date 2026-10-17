@@ -8,11 +8,15 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Map;
@@ -47,12 +51,13 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 class PrivilegedOperationsBrowserFlowTest {
     @Container static final PostgreSQLContainer<?> DB = new PostgreSQLContainer<>("postgres:17.6");
     static final Path ROOT = Path.of(System.getProperty("java.io.tmpdir"), "exame-perto-privileged-browser-" + UUID.randomUUID());
+    static final int CLAM_PORT = findFreePort();
     @DynamicPropertySource static void db(DynamicPropertyRegistry r) {
         r.add("spring.datasource.url", DB::getJdbcUrl); r.add("spring.datasource.username", DB::getUsername);
         r.add("spring.datasource.password", DB::getPassword); r.add("storage.private-root", ROOT::toString);
         r.add("antimalware.enabled", () -> "true");
         r.add("antimalware.host", () -> "127.0.0.1");
-        r.add("antimalware.port", () -> "3310");
+        r.add("antimalware.port", () -> Integer.toString(CLAM_PORT));
     }
 
     @LocalServerPort int port;
@@ -112,9 +117,11 @@ class PrivilegedOperationsBrowserFlowTest {
         builder.environment().put("PRIVACY_MFA_SECRET", privacySecret);
         builder.environment().put("BENEFIT_ANALYST_EMAIL", benefit);
         builder.environment().put("PRIVACY_OPERATOR_EMAIL", privacy);
-        Process child = builder.start();
-        try { assertThat(child.waitFor(120, TimeUnit.SECONDS)).isTrue(); assertThat(child.exitValue()).isZero(); }
-        finally { if (child.isAlive()) child.destroyForcibly(); }
+        try (ClamAvProcess clam = ClamAvProcess.start(CLAM_PORT)) {
+            Process child = builder.start();
+            try { assertThat(child.waitFor(120, TimeUnit.SECONDS)).isTrue(); assertThat(child.exitValue()).isZero(); }
+            finally { if (child.isAlive()) child.destroyForcibly(); }
+        }
         assertThat(jdbc.queryForObject("SELECT count(*) FROM revisao_entregador WHERE analista_id=(SELECT id FROM usuario WHERE email_busca=?) AND estado='ATRIBUIDA'", Long.class, lookup(operational))).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT d.estado FROM documento d JOIN entregador_documento ed ON ed.documento_id=d.id WHERE ed.entregador_id=?", String.class, operationalDeliverer)).isEqualTo("INSPECAO_APROVADA");
         assertThat(jdbc.queryForObject("SELECT d.antimalware_estado FROM documento d JOIN entregador_documento ed ON ed.documento_id=d.id WHERE ed.entregador_id=?", String.class, operationalDeliverer)).isEqualTo("LIMPO");
@@ -164,4 +171,43 @@ class PrivilegedOperationsBrowserFlowTest {
     private HttpResponse<String> getToken(String token, String path) throws Exception { return request(token, "GET", path, null); }
     private HttpResponse<String> postToken(String token, String path, Object body) throws Exception { return request(token, "POST", path, body); }
     private HttpResponse<String> request(String token, String method, String path, Object body) throws Exception { var b = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/api/v1" + path)).header("Content-Type", "application/json"); if (token != null) b.header("Authorization", "Bearer " + token); String payload = body == null ? null : json.writeValueAsString(body); return http.send(b.method(method, payload == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(payload)).build(), HttpResponse.BodyHandlers.ofString()); }
+
+    private static int findFreePort() { try (ServerSocket socket = new ServerSocket()) { socket.bind(new InetSocketAddress("127.0.0.1", 0)); return socket.getLocalPort(); } catch (Exception ex) { throw new IllegalStateException("Não foi possível reservar porta do ClamAV", ex); } }
+
+    private static final class ClamAvProcess implements AutoCloseable {
+        private final Process process;
+        private final Path root;
+        private ClamAvProcess(Process process, Path root) { this.process = process; this.root = root; }
+
+        static ClamAvProcess start(int port) throws Exception {
+            Path database = Path.of("/var/lib/clamav");
+            if (!Files.isReadable(database.resolve("main.cvd")) || !Files.isReadable(database.resolve("daily.cld"))) {
+                throw new IllegalStateException("Cache ClamAV válida ausente em /var/lib/clamav; o teste não baixa assinaturas automaticamente.");
+            }
+            Path root = Files.createTempDirectory("exame-perto-clamav-");
+            Path config = root.resolve("clamd.conf");
+            Files.writeString(config, "TCPSocket " + port + "\nTCPAddr 127.0.0.1\nForeground yes\nDatabaseDirectory " + database + "\nTemporaryDirectory " + root + "\nLogFile " + root.resolve("clamd.log") + "\nPidFile " + root.resolve("clamd.pid") + "\nMaxThreads 2\nMaxQueue 4\nReadTimeout 20\nCommandReadTimeout 5\nStreamMaxLength 10M\nMaxScanSize 10M\nMaxFileSize 10M\n", StandardCharsets.UTF_8);
+            Process process = new ProcessBuilder("clamd", "--config-file=" + config).redirectErrorStream(true).redirectOutput(root.resolve("process.log").toFile()).start();
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(90);
+            while (System.nanoTime() < deadline) {
+                if (!process.isAlive()) throw new IllegalStateException("ClamAV encerrou durante a inicialização: " + Files.readString(root.resolve("process.log")));
+                try (Socket socket = new Socket()) {
+                    socket.connect(new InetSocketAddress("127.0.0.1", port), 500);
+                    socket.setSoTimeout(1000);
+                    socket.getOutputStream().write("PING\0".getBytes(StandardCharsets.US_ASCII));
+                    socket.getOutputStream().flush();
+                    byte[] response = socket.getInputStream().readNBytes(5);
+                    if ("PONG".equals(new String(response, StandardCharsets.US_ASCII).replace("\0", "").trim())) return new ClamAvProcess(process, root);
+                } catch (Exception ignored) { Thread.sleep(200); }
+            }
+            process.destroyForcibly();
+            throw new IllegalStateException("ClamAV não ficou pronto em 90s: " + Files.readString(root.resolve("process.log")));
+        }
+
+        @Override public void close() throws Exception {
+            if (process.isAlive()) process.destroy();
+            if (!process.waitFor(5, TimeUnit.SECONDS)) process.destroyForcibly();
+            if (Files.exists(root)) try (var paths = Files.walk(root)) { paths.sorted(java.util.Comparator.reverseOrder()).forEach(path -> { try { Files.deleteIfExists(path); } catch (Exception ignored) {} }); }
+        }
+    }
 }

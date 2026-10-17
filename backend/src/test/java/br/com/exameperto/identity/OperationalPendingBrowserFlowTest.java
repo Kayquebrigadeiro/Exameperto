@@ -15,6 +15,7 @@ import java.nio.file.Path;
 import java.sql.Timestamp;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
@@ -91,6 +92,52 @@ class OperationalPendingBrowserFlowTest {
         assertThat(jdbc.queryForObject("SELECT count(*) FROM auditoria_politica_operacional", Long.class)).isGreaterThanOrEqualTo(0L);
     }
 
+    @Test
+    void resolutionExecutionAndReturnAreIdempotentUnderReplayAndConcurrency() throws Exception {
+        Account patient = account("idem-patient");
+        UUID patientId = patient(patient);
+        UUID unit = unit(patient.id);
+        Policies policies = policies(unit);
+        Driver driver = driver("idem-driver");
+        UUID order = order(patientId, patient.id, driver, unit, policies, "OCORRENCIA", 5, true, true, true);
+        Account analyst = account("analyst");
+        jdbc.update("INSERT INTO papel_global(usuario_id,papel) VALUES (?, 'ANALISTA_OPERACIONAL')", analyst.id);
+        String analystToken = elevatedToken(analyst);
+        UUID incident = jdbc.queryForObject("SELECT id FROM ocorrencia_entrega WHERE pedido_id=?", UUID.class, order);
+        assertThat(request("POST", "/api/v1/admin/operational-policies/incidents/" + incident + "/resolve", Map.of("decision", "RETORNO", "destinationType", "RETORNO", "destinationUnitId", unit.toString(), "instructions", "retorno idempotente", "evidenceReference", "fixture"), analystToken).statusCode()).isEqualTo(200);
+
+        String driverToken = token(new Account(driver.id, driver.email));
+        Map<String,String> executeHeaders = Map.of("Authorization", "Bearer " + driverToken, "Idempotency-Key", "resolution-execution-same-key", "Content-Type", "application/json");
+        String executeBody = json.writeValueAsString(Map.of("evidenceDocumentId", driver.evidence.toString()));
+        var executionOne = CompletableFuture.supplyAsync(() -> send("POST", "/api/v1/orders/" + order + "/resolution-execution", executeBody, executeHeaders));
+        var executionTwo = CompletableFuture.supplyAsync(() -> send("POST", "/api/v1/orders/" + order + "/resolution-execution", executeBody, executeHeaders));
+        CompletableFuture.allOf(executionOne, executionTwo).join();
+        assertThat(executionOne.join().statusCode()).isEqualTo(200);
+        assertThat(executionTwo.join().statusCode()).isEqualTo(200);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM evento_custodia WHERE pedido_id=? AND tipo='RESOLUCAO_EXECUTADA'", Long.class, order)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM custodia_idempotencia WHERE pedido_id=? AND operacao='RESOLUTION_EXECUTION:' || ?", Long.class, order, order)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM custodia WHERE pedido_id=? AND retirada_em IS NOT NULL", Long.class, order)).isEqualTo(1);
+
+        long deliveryVersion = jdbc.queryForObject("SELECT version FROM pedido WHERE id=?", Long.class, order);
+        assertThat(request("POST", "/api/v1/orders/" + order + "/start-delivery", null, driverToken, Map.of("If-Match", Long.toString(deliveryVersion), "Idempotency-Key", "start-idempotency" )).statusCode()).isEqualTo(200);
+        long returnVersion = jdbc.queryForObject("SELECT version FROM pedido WHERE id=?", Long.class, order);
+        Map<String,String> returnHeaders = Map.of("Authorization", "Bearer " + driverToken, "If-Match", Long.toString(returnVersion), "Idempotency-Key", "return-completion-same-key", "Content-Type", "application/json");
+        String returnBody = json.writeValueAsString(Map.of("evidenceDocumentId", driver.evidence.toString()));
+        var returnOne = CompletableFuture.supplyAsync(() -> send("POST", "/api/v1/orders/" + order + "/return-completion", returnBody, returnHeaders));
+        var returnTwo = CompletableFuture.supplyAsync(() -> send("POST", "/api/v1/orders/" + order + "/return-completion", returnBody, returnHeaders));
+        CompletableFuture.allOf(returnOne, returnTwo).join();
+        assertThat(returnOne.join().statusCode()).isEqualTo(200);
+        assertThat(returnTwo.join().statusCode()).isEqualTo(200);
+        assertThat(jdbc.queryForObject("SELECT estado FROM pedido WHERE id=?", String.class, order)).isEqualTo("ENCERRADA_COM_OCORRENCIA");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM evento_custodia WHERE pedido_id=? AND tipo='RETORNO_ENCERRADO'", Long.class, order)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM custodia WHERE pedido_id=? AND encerrada_em IS NOT NULL", Long.class, order)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM designacao WHERE pedido_id=? AND encerrada_em IS NOT NULL", Long.class, order)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM operacao_financeira WHERE pedido_id=?", Long.class, order)).isZero();
+        assertThat(request("POST", "/api/v1/orders/" + order + "/resolution-execution", Map.of("evidenceDocumentId", UUID.randomUUID().toString()), driverToken, Map.of("Idempotency-Key", "resolution-execution-same-key")).statusCode()).isEqualTo(409);
+        assertThat(jdbc.queryForObject("SELECT estado FROM pedido WHERE id=?", String.class, order)).isEqualTo("ENCERRADA_COM_OCORRENCIA");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM evento_custodia WHERE pedido_id=?", Long.class, order)).isEqualTo(4);
+    }
+
     private static int findFreePort() { try (ServerSocket socket = new ServerSocket()) { socket.setReuseAddress(true); socket.bind(new InetSocketAddress("127.0.0.1", 0)); return socket.getLocalPort(); } catch (Exception ex) { throw new IllegalStateException("Não foi possível reservar porta para o Vite", ex); } }
     private void stopProcessTree(Process process) throws Exception {
         if (process == null) return;
@@ -103,8 +150,12 @@ class OperationalPendingBrowserFlowTest {
         }
     }
 
-    private String enroll(Account a) throws Exception { HttpResponse<String> login = request("POST", "/api/v1/auth/login", Map.of("email", a.email, "password", "Senha-sintetica-123", "client", "MOBILE"), null); String token = json.readTree(login.body()).get("accessToken").asText(); HttpResponse<String> r = request("POST", "/api/v1/me/mfa/totp/enrollment", Map.of("password", "Senha-sintetica-123"), token); String secret = json.readTree(r.body()).get("secret").asText(); long step = java.time.Instant.now().getEpochSecond() / 30 - 1; request("POST", "/api/v1/me/mfa/totp/confirmation", Map.of("code", MfaService.totp(MfaService.decodeBase32(secret), step)), token); return secret; }
+    private String enroll(Account a) throws Exception { String token = token(a); HttpResponse<String> r = request("POST", "/api/v1/me/mfa/totp/enrollment", Map.of("password", "Senha-sintetica-123"), token); String secret = json.readTree(r.body()).get("secret").asText(); long step = java.time.Instant.now().getEpochSecond() / 30 - 1; request("POST", "/api/v1/me/mfa/totp/confirmation", Map.of("code", MfaService.totp(MfaService.decodeBase32(secret), step)), token); return secret; }
+    private String elevatedToken(Account a) throws Exception { String token = token(a); HttpResponse<String> r = request("POST", "/api/v1/me/mfa/totp/enrollment", Map.of("password", "Senha-sintetica-123"), token); String secret = json.readTree(r.body()).get("secret").asText(); long step = java.time.Instant.now().getEpochSecond() / 30 - 1; request("POST", "/api/v1/me/mfa/totp/confirmation", Map.of("code", MfaService.totp(MfaService.decodeBase32(secret), step)), token); return token; }
+    private String token(Account a) throws Exception { HttpResponse<String> login = request("POST", "/api/v1/auth/login", Map.of("email", a.email, "password", "Senha-sintetica-123", "client", "MOBILE"), null); assertThat(login.statusCode()).withFailMessage("login status=%s body=%s", login.statusCode(), login.body()).isEqualTo(200); return json.readTree(login.body()).get("accessToken").asText(); }
     private HttpResponse<String> request(String method, String path, Object body, String token) throws Exception { var b = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path)).header("Content-Type", "application/json"); if (token != null) b.header("Authorization", "Bearer " + token); return HttpClient.newHttpClient().send(b.method(method, HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body))).build(), HttpResponse.BodyHandlers.ofString()); }
+    private HttpResponse<String> request(String method, String path, Object body, String token, Map<String,String> headers) throws Exception { var b = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path)).header("Content-Type", "application/json"); if (token != null) b.header("Authorization", "Bearer " + token); headers.forEach(b::header); return HttpClient.newHttpClient().send(b.method(method, body == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body))).build(), HttpResponse.BodyHandlers.ofString()); }
+    private HttpResponse<String> send(String method, String path, String body, Map<String,String> headers) { try { var b = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path)); headers.forEach(b::header); return HttpClient.newHttpClient().send(b.method(method, HttpRequest.BodyPublishers.ofString(body)).build(), HttpResponse.BodyHandlers.ofString()); } catch (Exception ex) { throw new RuntimeException(ex); } }
     private Account account(String prefix) { UUID id = UUID.randomUUID(); String email = prefix + "-" + id + "@example.test"; jdbc.update("INSERT INTO usuario(id,email_cifrado,email_busca,senha_hash,nome_cifrado,estado,email_verificado_em) VALUES (?,?,?,?,?,'ATIVO',clock_timestamp())", id, protector.encrypt(email), protector.lookup(email), Passwords.hash("Senha-sintetica-123"), protector.encrypt(prefix)); return new Account(id, email); }
     private UUID patient(Account a) { UUID id = UUID.randomUUID(); String cpf = String.format("%011d", Integer.toUnsignedLong(id.hashCode())); jdbc.update("INSERT INTO paciente(id,usuario_id,cpf_cifrado,cpf_busca,nascimento,identidade_estado) VALUES (?,?,?,?,DATE '1980-01-01','VERIFICADA')", id, a.id, protector.encrypt(cpf), protector.lookup(cpf)); return id; }
     private UUID unit(UUID actor) { UUID id = UUID.randomUUID(); jdbc.update("INSERT INTO unidade_retirada(id,nome,cidade,estado,estado_cadastro,criado_por,atualizado_por) VALUES (?,'Unidade pendente','Cidade','SP','ATIVA',?,?)", id, actor, actor); jdbc.update("INSERT INTO aceite_unidade_retirada(id,unidade_id,estado,evidencia_referencia,observacao,aceito_por,aceito_em,criado_por) VALUES (?,?,'ACEITA','fixture','Fixture autorizado',?,clock_timestamp(),?)", UUID.randomUUID(), id, actor, actor); return id; }

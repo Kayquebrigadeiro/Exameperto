@@ -1414,3 +1414,14 @@ não foi adicionada nesta correção; a implementação existente mantém chave 
 idempotência, lock do pedido e replay persistido, enquanto a suíte browser
 confirmou ausência de eventos duplicados no resultado final. Não houve banco
 normal, pagamento externo, deploy, segredo ou token em log.
+
+## Fechamento das pendências de idempotência e antimalware — 17/10/2026
+
+Partindo de `47937d1`, as duas pendências foram executadas em fixtures
+isoladas. Não foram repetidas as jornadas de cancelamento, retorno ou
+reentrega já aprovadas.
+
+- `OperationalPendingBrowserFlowTest#resolutionExecutionAndReturnAreIdempotentUnderReplayAndConcurrency`: passou 1/1 com PostgreSQL 17.6 descartável. Duas chamadas simultâneas e o replay da execução de resolução retornaram 200, com um único registro de idempotência, uma única retirada e um único evento `RESOLUCAO_EXECUTADA`. Duas chamadas simultâneas de retorno também retornaram 200, com uma única finalização, custódia e designação encerradas, um único `RETORNO_ENCERRADO` e nenhuma operação financeira. A mesma chave com decisão/payload incompatível retornou 409; o pedido permaneceu `ENCERRADA_COM_OCORRENCIA` e a contagem de eventos não mudou.
+- `PrivilegedOperationsBrowserFlowTest -DbrowserTest=true`: passou 1/1 com Chromium → Vite → Spring → PostgreSQL, sem interceptação da API. O teste iniciou somente o próprio `clamd`, em porta dinâmica, aguardou prontidão pelo protocolo `PING/PONG`, executou a inspeção privilegiada e limpou o processo e seus arquivos temporários ao final. Foi reutilizada a base válida já presente em `/var/lib/clamav` (aprox. 168 MB); não houve download de assinaturas. O comportamento fail-closed quando o scanner está ausente não foi alterado.
+
+Os testes não registraram tokens, TOTP ou segredos. Não houve escrita no banco normal, pagamento externo, deploy ou publicação real.
