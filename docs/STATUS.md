@@ -37,6 +37,12 @@ administrativa MFA sintética; não foram executados contra o banco normal.
 Android, GPS em segundo plano, pagamento oficial/webhook, parceiros,
 financiamento e operação real continuam adiados.
 
+A migração V25 também registra cancelamento após designação e após retirada em
+`solicitacao_cancelamento`, com fase, motivo, apuração pendente e estados
+`INTENCAO_ESTORNO`, `ESTORNO_SOLICITADO` e `ESTORNO_CONFIRMADO`. Essas fases
+entram em ocorrência e preservam custódia e reservas até resolução; não há
+confirmação automática de estorno.
+
 ## Operação local do antimalware — continuação de `0b794bf` — 16/10/2026
 
 Os scripts normais agora carregam a configuração antimalware sem export manual:

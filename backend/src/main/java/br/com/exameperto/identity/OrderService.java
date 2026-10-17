@@ -93,7 +93,18 @@ class OrderService {
     @Transactional
     OrderView cancel(UUID actor,UUID orderId,long expectedVersion,String idem,CancelOrderInput input){
         if(idem==null||idem.isBlank())throw error(HttpStatus.BAD_REQUEST,"IDEMPOTENCY_REQUIRED","O cancelamento exige Idempotency-Key.");authorizeRead(actor,orderId);byte[] requestHash=hash(input);UUID replay=replay(actor,"CANCEL_ORDER",idem,requestHash);if(replay!=null)return order(replay);Map<String,Object> current=forUpdate(orderId);replay=replay(actor,"CANCEL_ORDER",idem,requestHash);if(replay!=null)return order(replay);requireVersion(current,expectedVersion);
-        if(jdbc.queryForObject("SELECT count(*) FROM designacao WHERE pedido_id=? AND encerrada_em IS NULL",Long.class,orderId)>0)throw error(HttpStatus.UNPROCESSABLE_ENTITY,"POLICY_UNDEFINED","Cancelamento após designação depende de apuração ainda não definida.");
+        long assigned=jdbc.queryForObject("SELECT count(*) FROM designacao WHERE pedido_id=? AND encerrada_em IS NULL",Long.class,orderId);
+        if(assigned>0){
+            String state=String.valueOf(current.get("estado"));
+            String phase="ACEITA".equals(state)?"APOS_DESIGNACAO_ANTES_RETIRADA":(("RETIRADA".equals(state)||"EM_ENTREGA".equals(state)||"OCORRENCIA".equals(state))?"APOS_RETIRADA":null);
+            if(phase==null)throw error(HttpStatus.CONFLICT,"ORDER_NOT_CANCELLABLE","O pedido não pode receber cancelamento nesta fase.");
+            UUID assignment=jdbc.queryForObject("SELECT id FROM designacao WHERE pedido_id=? AND encerrada_em IS NULL",UUID.class,orderId); UUID custody=null; try{custody=jdbc.queryForObject("SELECT id FROM custodia WHERE pedido_id=? AND encerrada_em IS NULL",UUID.class,orderId);}catch(EmptyResultDataAccessException ignored){}
+            String finance=jdbc.queryForObject("SELECT count(*) FROM operacao_financeira WHERE pedido_id=? AND tipo='COBRANCA' AND estado IN ('CONFIRMADA','PENDENTE','INCERTA','RECONCILIAR')",Long.class,orderId)>0?"INTENCAO_ESTORNO":"NAO_APLICAVEL";
+            jdbc.update("INSERT INTO solicitacao_cancelamento(id,pedido_id,designacao_id,custodia_id,solicitada_por,fase,motivo_codigo,estado,tratamento_financeiro) VALUES (?,?,?,?,?,?,?,'PENDENTE_APURACAO',?)",UUID.randomUUID(),orderId,assignment,custody,actor,phase,input.reasonCode(),finance);
+            if(!"OCORRENCIA".equals(state))jdbc.update("UPDATE pedido SET estado='OCORRENCIA',version=version+1,updated_at=clock_timestamp() WHERE id=?",orderId);
+            jdbc.update("INSERT INTO pedido_idempotencia(ator_id,operacao,chave,request_hash,pedido_id) VALUES (?,?,?,?,?)",actor,"CANCEL_ORDER",idem,requestHash,orderId);
+            return order(orderId);
+        }
         if(!List.of("AGUARDANDO_ACEITE","DISPONIVEL").contains(current.get("estado")))throw error(HttpStatus.CONFLICT,"ORDER_NOT_CANCELLABLE","O pedido não pode ser cancelado neste estado.");
         releaseCoverageForReplacement(orderId,"cancelamento");jdbc.update("UPDATE orcamento SET estado='SUBSTITUIDO',version=version+1 WHERE pedido_id=? AND estado='ACEITO'",orderId);jdbc.update("UPDATE pedido SET estado='CANCELADA',version=version+1,updated_at=clock_timestamp() WHERE id=?",orderId);jdbc.update("INSERT INTO evento_designacao(id,pedido_id,ator_id,tipo,estado_anterior,estado_novo,pedido_version,motivo_codigo) VALUES (?,?,?,'CANCELAMENTO_PRE_DESIGNACAO',?,'CANCELADA',?,?)",UUID.randomUUID(),orderId,actor,current.get("estado"),expectedVersion+1,input.reasonCode());jdbc.update("INSERT INTO pedido_idempotencia(ator_id,operacao,chave,request_hash,pedido_id) VALUES (?,?,?,?,?)",actor,"CANCEL_ORDER",idem,requestHash,orderId);return order(orderId);
     }
