@@ -1318,3 +1318,40 @@ Validações executadas:
 - `mvn -q -DskipTests compile`, `npm run typecheck`, `npm run build:android` e `expo config --type public`: passaram. O export confirma bundle/configuração, não execução física.
 
 Evidência limitada: backend e persistência foram exercitados em ambiente isolado com dados sintéticos; a captura real em segundo plano, tela bloqueada, troca de app, perda/retomada de sinal, reinício, revogação durante o app suspenso e consumo de bateria continuam pendentes do autor com aparelho Android/development build. Não foi feito rastreamento real de pessoas. O ambiente normal mantém `EXAME_PERTO_TRACKING_ENABLED=false` e `EXAME_PERTO_TRACKING_RETENTION_ENABLED=false`; sem política aprovada, captura e expurgo permanecem bloqueados.
+
+## Validação restante das políticas operacionais — 17/10/2026
+
+Partindo de `f53639a`, a validação não repetiu a regressão de sessão MFA já
+aprovada. A interface aprovada disponível expõe criação de rascunho,
+consulta, publicação e desativação de tarifa; a inspeção do código confirmou
+que ela não expõe edição de rascunho, solicitação de cancelamento nem os
+controles de resolução/retorno/reentrega de ocorrência. Esses itens não foram
+simulados por chamadas de API nem transformados em nova funcionalidade.
+
+Resultados independentes em PostgreSQL 17.6 descartável:
+
+- `OrderFlowTest`: 1/1, passou; cotação, versão do pedido, substituição da
+  cotação após alteração de endereço e recusa de acesso institucional
+  indevido.
+- `QuoteAcceptanceFlowTest`: 4/4, passou; concorrência/deduplicação de
+  eventos, reservas de benefício, rollback atômico, aceite obsoleto/expirado
+  e bloqueio sem política válida. A apuração continua distinta de pagamento
+  confirmado.
+- `CustodyFlowTest`: 2/2, passou; custódia, retirada, ocorrência, transições
+  inválidas, idempotência e destinatário/entregador não autorizado.
+- `CustodyBrowserFlowTest -DbrowserTest=true`: 1/1, passou com Chromium →
+  Vite → Spring → PostgreSQL, sem interceptação; confirmou retirada, entrega,
+  reload/persistência e registro de ocorrência aberta. O banco confirmou
+  custódia encerrada somente na entrega e custódia preservada enquanto a
+  ocorrência permaneceu aberta.
+
+Não executados por ausência de interface aprovada: edição de rascunho;
+cancelamento nas três fases com conferência visual da operação; resolução
+administrativa e execução de retorno/reentrega. O backend possui os contratos
+correspondentes, mas a entrega autorizada não fornece controles navegáveis
+para exercê-los. A validação dessas jornadas exige primeiro uma interface
+aprovada ou autorização explícita para ampliá-la.
+
+O log sanitizado de erro da execução contém somente `correlationId` e tipo da
+exceção; tokens, TOTP e segredos não foram registrados. Não houve escrita em
+banco normal, publicação de política real, pagamento externo ou deploy.
