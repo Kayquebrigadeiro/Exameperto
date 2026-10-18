@@ -20,7 +20,8 @@ record TariffPolicyInput(@NotBlank @Size(max=120) String scope,
                          @Min(1) long executionDeadlineSeconds,
                          @NotNull @DecimalMin("0.00") BigDecimal returnAmount,
                          @NotBlank @Size(max=40) String returnCoverage,
-                         @NotNull Instant startsAt, Instant endsAt) {
+                         @NotNull Instant startsAt, Instant endsAt,
+                         @Size(max=40) String returnCalculationMode) {
   boolean validWindow() { return endsAt == null || endsAt.isAfter(startsAt); }
 }
 

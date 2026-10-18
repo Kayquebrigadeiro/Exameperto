@@ -63,8 +63,17 @@ class OperationalPolicySessionBrowserFlowTest {
         Process child = browser.start();
         try { assertThat(child.waitFor(120, TimeUnit.SECONDS)).isTrue(); assertThat(child.exitValue()).isZero(); }
         finally { if (child.isAlive()) child.destroyForcibly(); }
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM tarifa WHERE escopo='browser-session-policy' AND estado='RASCUNHO'", Long.class)).isEqualTo(1);
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM auditoria_politica_operacional WHERE escopo='browser-session-policy' AND acao='CRIADA'", Long.class)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM tarifa WHERE escopo='PORTFOLIO_V1_EXPERIMENTAL' AND estado='RASCUNHO'", Long.class)).isEqualTo(1);
+        var params = json.readTree(jdbc.queryForObject("SELECT parametros::text FROM tarifa WHERE escopo='PORTFOLIO_V1_EXPERIMENTAL' AND estado='RASCUNHO'", String.class));
+        assertThat(params.get("base").asText()).isEqualTo("5.00");
+        assertThat(params.get("perKm").asText()).isEqualTo("1.50");
+        assertThat(params.get("perMinute").asText()).isEqualTo("0.20");
+        assertThat(params.get("minimum").asText()).isEqualTo("10.00");
+        assertThat(params.get("maximumDistanceMeters").asInt()).isEqualTo(30000);
+        assertThat(params.get("validitySeconds").asInt()).isEqualTo(600);
+        assertThat(params.get("acceptanceDeadlineSeconds").asInt()).isEqualTo(600);
+        assertThat(params.get("returnCalculationMode").asText()).isEqualTo("SAME_INITIAL_FORMULA");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM auditoria_politica_operacional WHERE escopo='PORTFOLIO_V1_EXPERIMENTAL' AND acao='CRIADA'", Long.class)).isEqualTo(1);
     }
     @Test void expiredElevationIsRejectedWithoutChangingSessionAuthorization() throws Exception {
         String email = account(); global(email, "ANALISTA_OPERACIONAL"); String token = login(email); String secret = enrollMfa(email);

@@ -1,10 +1,22 @@
 # Status — atualizado em 17/10/2026
 
+## Correção dos parâmetros da política de portfólio V1 — continuação de `c1e6275`
+
+A configuração experimental foi corrigida para base `R$ 5,00`, km `R$ 1,50`, minuto `R$ 0,20`, mínimo `R$ 10,00`, aceite em 600 segundos e limite de 30.000 m. O arredondamento é em centavos (`roundingScale=2`) com arredondamento HALF_UP no motor existente. O exemplo obrigatório foi registrado e conferido: `max(10,00; 5,00 + 8×1,50 + 20×0,20) = R$ 21,00`.
+
+Não há tarifa dinâmica (`dynamicPricing=false`) nem receita da plataforma (`platformRevenue=0,00`, modo ZERO) nesta configuração. O retorno usa `returnCalculationMode=SAME_INITIAL_FORMULA`, reutilizando a fórmula do trecho inicial, inclusive o mínimo único, sem segunda base ou segundo mínimo; `returnAmount=0,00` existe apenas para compatibilidade do contrato legado e é ignorado nesse modo.
+
+O formulário administrativo foi ajustado para enviar e consultar esse modo de retorno. A jornada browser isolada login → MFA → formulário → rascunho → reload consulta os valores V1 e confirma no PostgreSQL descartável os parâmetros persistidos. Fixtures de cobertura/pedido com `10,00/2,00/0,10`, 50 km e 900 s continuam genéricas e não são apresentadas como política V1.
+
+No banco normal não há rascunho V1 persistido nesta execução; a configuração existe somente no arquivo experimental e no fixture descartável do teste. Não houve publicação, ativação, alteração de pedido ou movimento financeiro.
+
+Decisões ainda ausentes: remuneração após designação, critérios de serviço parcial, custo de retorno além da fórmula, responsabilidade por disputa, liquidação e estorno confirmado. Nenhuma foi inventada.
+
 ## Preparação da política de portfólio V1 experimental — continuação de `965b382`
 
 O modelo existente representa a fórmula V1 proposta (`máximo(piso, base + km × tarifa_km + minutos × tarifa_minuto)`), valores do paciente e subsídio da instituição, reserva idempotente e snapshot da tarifa no orçamento. As divergências concretas corrigidas foram: a entrada aceitava arredondamento diferente de centavos, a distância máxima não era persistida nem aplicada no cálculo, e a leitura do snapshot não validava esses parâmetros. Não foi criado outro motor tarifário. O retorno continua sem segunda base; remuneração após designação, serviço parcial, custo adicional de retorno, responsável por disputa e contrato de liquidação/estorno continuam ausentes e não são calculados.
 
-Foi preparado [`docs/PORTFOLIO-V1-POLICY-EXPERIMENTAL.json`](PORTFOLIO-V1-POLICY-EXPERIMENTAL.json), explicitamente experimental, sem aplicação automática e sem cobrança real. Valores sintéticos: BRL; fórmula `max(minimum, base + distanceKm * perKm + durationMinutes * perMinute)`; base `10.00`; km `2.00`; minuto `0.10`; mínimo `5.00`; arredondamento 2; distância máxima de teste `50000 m`; validade 900 s; aceite 900 s; execução 3600 s; retorno declarativo `5.00`/`UNIDADE`; sem segunda base. No banco normal nenhuma política foi criada, publicada ou ativada e nenhum pedido foi alterado.
+Foi preparado [`docs/PORTFOLIO-V1-POLICY-EXPERIMENTAL.json`](PORTFOLIO-V1-POLICY-EXPERIMENTAL.json), explicitamente experimental, sem aplicação automática e sem cobrança real. (Os valores desta seção descrevem a versão anterior; os parâmetros atuais estão registrados acima.)
 
 Validação isolada concluída com Chromium → Vite → Spring Boot → PostgreSQL 17.6 descartável via Testcontainers, sem interceptação de API. A jornada browser de cobertura calculou `38.00` (10 + 12.5×2 + 30×0.10), confirmou uma única reserva de `38.00`, preservou centavos e snapshot e recusou saldo insuficiente sem aceite/reserva. A rota de 12.5 km foi recusada quando o limite sintético foi reduzido a 10 km, sem criar orçamento; restaurado o limite, a jornada passou. O erro de interface foi rastreado ao fixture sem `validitySeconds`, não a autorização ou ao seletor; o fixture foi completado. Pagamento externo não foi habilitado, e nenhuma apuração de remuneração ou estorno foi apresentada como confirmação.
 

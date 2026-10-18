@@ -5161,7 +5161,7 @@ function OperationalPolicyPanel({ session }: { session: Tokens }) {
   const [history, setHistory] = useState<Array<{ action: string; version: number; scope: string; occurredAt: string }>>([]);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
-  const [form, setForm] = useState({ scope: "GLOBAL", base: "", perKm: "", perMinute: "", minimum: "", rounding: "2", maximumDistance: "", validity: "900", acceptance: "900", execution: "86400", returnAmount: "", returnCoverage: "" });
+  const [form, setForm] = useState({ scope: "GLOBAL", base: "", perKm: "", perMinute: "", minimum: "", rounding: "2", maximumDistance: "", validity: "900", acceptance: "900", execution: "86400", returnAmount: "", returnCoverage: "", returnCalculationMode: "FIXED_AMOUNT" });
   const [cancellation, setCancellation] = useState({ scope: "GLOBAL", before: "", after: "", pickup: "", refund: "" });
   const [designation, setDesignation] = useState({ scope: "GLOBAL", simultaneousTasks: "" });
   async function api(path: string, init: RequestInit = {}) {
@@ -5179,7 +5179,7 @@ function OperationalPolicyPanel({ session }: { session: Tokens }) {
   async function create() {
     setBusy(true); setNotice(null);
     try {
-      const body = { scope: form.scope, baseAmount: form.base, perKmAmount: form.perKm, perMinuteAmount: form.perMinute, minimumAmount: form.minimum, roundingScale: Number(form.rounding), maximumDistanceMeters: Number(form.maximumDistance), quoteValiditySeconds: Number(form.validity), acceptanceDeadlineSeconds: Number(form.acceptance), executionDeadlineSeconds: Number(form.execution), returnAmount: form.returnAmount, returnCoverage: form.returnCoverage, startsAt: new Date().toISOString() };
+      const body = { scope: form.scope, baseAmount: form.base, perKmAmount: form.perKm, perMinuteAmount: form.perMinute, minimumAmount: form.minimum, roundingScale: Number(form.rounding), maximumDistanceMeters: Number(form.maximumDistance), quoteValiditySeconds: Number(form.validity), acceptanceDeadlineSeconds: Number(form.acceptance), executionDeadlineSeconds: Number(form.execution), returnAmount: form.returnAmount, returnCoverage: form.returnCoverage, returnCalculationMode: form.returnCalculationMode, startsAt: new Date().toISOString() };
       await api(editingId ? `/admin/operational-policies/tariffs/${editingId}` : "/admin/operational-policies/tariffs", { method: editingId ? "PUT" : "POST", body: JSON.stringify(body) });
       await load(); setEditingId(null); setNotice({ tone: "info", text: editingId ? "Rascunho atualizado. A versão publicada permaneceu imutável." : "Rascunho tarifário persistido. Publique-o explicitamente após revisar os prazos e a cobertura." });
     } catch (e) { setNotice({ tone: "error", text: e instanceof Error ? e.message : "Não foi possível salvar a política." }); }
@@ -5190,7 +5190,7 @@ function OperationalPolicyPanel({ session }: { session: Tokens }) {
     try {
       const response = await api(`/admin/operational-policies/TARIFA/${id}`);
       const values = response.result.values as Record<string, string | number>;
-      setForm({ scope: policies.find((p) => p.id === id)?.scope ?? "GLOBAL", base: String(values.base ?? ""), perKm: String(values.perKm ?? ""), perMinute: String(values.perMinute ?? ""), minimum: String(values.minimum ?? ""), rounding: String(values.roundingScale ?? "2"), maximumDistance: String(values.maximumDistanceMeters ?? ""), validity: String(values.validitySeconds ?? "900"), acceptance: String(values.acceptanceDeadlineSeconds ?? "900"), execution: String(values.executionDeadlineSeconds ?? "86400"), returnAmount: String(values.returnAmount ?? ""), returnCoverage: String(values.returnCoverage ?? "") });
+      setForm({ scope: policies.find((p) => p.id === id)?.scope ?? "GLOBAL", base: String(values.base ?? ""), perKm: String(values.perKm ?? ""), perMinute: String(values.perMinute ?? ""), minimum: String(values.minimum ?? ""), rounding: String(values.roundingScale ?? "2"), maximumDistance: String(values.maximumDistanceMeters ?? ""), validity: String(values.validitySeconds ?? "900"), acceptance: String(values.acceptanceDeadlineSeconds ?? "900"), execution: String(values.executionDeadlineSeconds ?? "86400"), returnAmount: String(values.returnAmount ?? ""), returnCoverage: String(values.returnCoverage ?? ""), returnCalculationMode: String(values.returnCalculationMode ?? "FIXED_AMOUNT") });
       setEditingId(id); setHistory((await api(`/admin/operational-policies/TARIFA/${id}/history`)).result as typeof history);
     } catch (e) { setNotice({ tone: "error", text: e instanceof Error ? e.message : "Não foi possível abrir a política." }); }
     finally { setBusy(false); }
@@ -5211,7 +5211,7 @@ function OperationalPolicyPanel({ session }: { session: Tokens }) {
   return <section className="family review-panel" aria-label="Políticas operacionais">
     <div className="section-heading"><span className="eyebrow dark">POLÍTICAS</span><h2>Tarifa e vigência</h2><p>Rascunhos exigem MFA e publicação explícita. Valores aceitos ficam vinculados à versão e à rota da cotação; não há valores comerciais preenchidos por padrão.</p></div>
     <form className="review-toolbar" onSubmit={(e) => { e.preventDefault(); void create(); }}>
-      {field("scope", "Escopo")}{field("base", "Tarifa base", "number")}{field("perKm", "Valor por km", "number")}{field("perMinute", "Valor por minuto", "number")}{field("minimum", "Valor mínimo", "number")}{field("rounding", "Casas de arredondamento", "number")}{field("maximumDistance", "Limite de distância (m)", "number")}{field("validity", "Validade da cotação (s)", "number")}{field("acceptance", "Prazo para aceite (s)", "number")}{field("execution", "Prazo para execução (s)", "number")}{field("returnAmount", "Valor de retorno", "number")}{field("returnCoverage", "Cobertura de retorno")}
+      {field("scope", "Escopo")}{field("base", "Tarifa base", "number")}{field("perKm", "Valor por km", "number")}{field("perMinute", "Valor por minuto", "number")}{field("minimum", "Valor mínimo", "number")}{field("rounding", "Casas de arredondamento", "number")}{field("maximumDistance", "Limite de distância (m)", "number")}{field("validity", "Validade da cotação (s)", "number")}{field("acceptance", "Prazo para aceite (s)", "number")}{field("execution", "Prazo para execução (s)", "number")}{field("returnAmount", "Valor de retorno compatível", "number")}{field("returnCoverage", "Cobertura de retorno")}<label>Cálculo de retorno<select value={form.returnCalculationMode} onChange={(e) => setForm({ ...form, returnCalculationMode: e.target.value })}><option value="FIXED_AMOUNT">Valor fixo legado</option><option value="SAME_INITIAL_FORMULA">Mesma fórmula do trecho inicial</option></select></label>
       <button type="submit" disabled={busy}>{editingId ? "Atualizar rascunho" : "Salvar rascunho"}</button>{editingId && <button type="button" className="secondary" onClick={() => { setEditingId(null); setHistory([]); }}>Cancelar edição</button>}
     </form>
     <div className="review-toolbar">

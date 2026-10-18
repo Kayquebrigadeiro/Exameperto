@@ -4690,6 +4690,7 @@ components:
         executionDeadlineSeconds: {type: integer, minimum: 1, maximum: 2592000}
         returnAmount: {type: string, pattern: '^[0-9]+(\\.[0-9]{1,4})?$'}
         returnCoverage: {type: string, maxLength: 40}
+        returnCalculationMode: {type: string, enum: [FIXED_AMOUNT, SAME_INITIAL_FORMULA], description: SAME_INITIAL_FORMULA reusa base, km, minuto e mínimo do trecho inicial; não cria segunda base.}
         startsAt: {type: string, format: date-time}
         endsAt: {type: string, format: date-time, nullable: true}
     CancellationPolicyInput:
