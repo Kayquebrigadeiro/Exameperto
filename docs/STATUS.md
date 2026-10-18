@@ -1,5 +1,15 @@
 # Status — atualizado em 17/10/2026
 
+## Preparação da política de portfólio V1 experimental — continuação de `965b382`
+
+O modelo existente representa a fórmula V1 proposta (`máximo(piso, base + km × tarifa_km + minutos × tarifa_minuto)`), valores do paciente e subsídio da instituição, reserva idempotente e snapshot da tarifa no orçamento. As divergências concretas corrigidas foram: a entrada aceitava arredondamento diferente de centavos, a distância máxima não era persistida nem aplicada no cálculo, e a leitura do snapshot não validava esses parâmetros. Não foi criado outro motor tarifário. O retorno continua sem segunda base; remuneração após designação, serviço parcial, custo adicional de retorno, responsável por disputa e contrato de liquidação/estorno continuam ausentes e não são calculados.
+
+Foi preparado [`docs/PORTFOLIO-V1-POLICY-EXPERIMENTAL.json`](PORTFOLIO-V1-POLICY-EXPERIMENTAL.json), explicitamente experimental, sem aplicação automática e sem cobrança real. Valores sintéticos: BRL; fórmula `max(minimum, base + distanceKm * perKm + durationMinutes * perMinute)`; base `10.00`; km `2.00`; minuto `0.10`; mínimo `5.00`; arredondamento 2; distância máxima de teste `50000 m`; validade 900 s; aceite 900 s; execução 3600 s; retorno declarativo `5.00`/`UNIDADE`; sem segunda base. No banco normal nenhuma política foi criada, publicada ou ativada e nenhum pedido foi alterado.
+
+Validação isolada concluída com Chromium → Vite → Spring Boot → PostgreSQL 17.6 descartável via Testcontainers, sem interceptação de API. A jornada browser de cobertura calculou `38.00` (10 + 12.5×2 + 30×0.10), confirmou uma única reserva de `38.00`, preservou centavos e snapshot e recusou saldo insuficiente sem aceite/reserva. A rota de 12.5 km foi recusada quando o limite sintético foi reduzido a 10 km, sem criar orçamento; restaurado o limite, a jornada passou. O erro de interface foi rastreado ao fixture sem `validitySeconds`, não a autorização ou ao seletor; o fixture foi completado. Pagamento externo não foi habilitado, e nenhuma apuração de remuneração ou estorno foi apresentada como confirmação.
+
+Resultado focal: `OperationalPolicySessionBrowserFlowTest` 3/3, `BenefitCoverageBrowserFlowTest` 1/1, `OrderFlowTest` 1/1 e `QuoteAcceptanceFlowTest` 4/4; build Vite e compilação Maven passaram. A aplicação agora retorna `DISTANCE_LIMIT_EXCEEDED` para rota fora do limite e mantém `POLICY_UNDEFINED` apenas para parâmetros ausentes/inválidos. Pagamento oficial/webhook e Android permanecem pendentes.
+
 ## Validação da entrega `192c00e`/`9afd365` — 17/10/2026
 
 Foi executado ensaio real com Chromium, Vite, Spring Boot e PostgreSQL 17.6

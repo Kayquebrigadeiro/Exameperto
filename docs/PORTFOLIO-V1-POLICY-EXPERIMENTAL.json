@@ -1,0 +1,37 @@
+{
+  "name": "portfolio-v1-experimental",
+  "experimental": true,
+  "applyAutomatically": false,
+  "realBilling": false,
+  "scope": "PORTFOLIO_V1_EXPERIMENTAL",
+  "formula": "max(minimum, base + distanceKm * perKm + durationMinutes * perMinute)",
+  "currency": "BRL",
+  "roundingScale": 2,
+  "maximumDistanceMeters": 50000,
+  "base": "10.00",
+  "perKm": "2.00",
+  "perMinute": "0.10",
+  "minimum": "5.00",
+  "quoteValiditySeconds": 900,
+  "acceptanceDeadlineSeconds": 900,
+  "executionDeadlineSeconds": 3600,
+  "returnAmount": "5.00",
+  "returnCoverage": "UNIDADE",
+  "returnUsesSecondBase": false,
+  "coverage": {
+    "patientAndInstitutionOnly": true,
+    "patientPlusSubsidyEqualsFreight": true,
+    "reservationIsIdempotent": true
+  },
+  "driverRemuneration": {
+    "status": "UNDEFINED",
+    "requiredBeforeDesignation": [
+      "remunerationBasis",
+      "partialServiceCriteria",
+      "returnAdditionalCostRule",
+      "disputeAndReviewOwner",
+      "settlementAndReversalContract"
+    ],
+    "consequence": "No designação real, remuneração, estorno confirmado ou pagamento é habilitado por esta configuração."
+  }
+}

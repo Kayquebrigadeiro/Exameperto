@@ -4676,14 +4676,15 @@ components:
         values: {type: object, additionalProperties: true}
     TariffPolicyInput:
       type: object
-      required: [scope, baseAmount, perKmAmount, perMinuteAmount, minimumAmount, roundingScale, quoteValiditySeconds, acceptanceDeadlineSeconds, executionDeadlineSeconds, returnAmount, returnCoverage, startsAt]
+      required: [scope, baseAmount, perKmAmount, perMinuteAmount, minimumAmount, roundingScale, maximumDistanceMeters, quoteValiditySeconds, acceptanceDeadlineSeconds, executionDeadlineSeconds, returnAmount, returnCoverage, startsAt]
       properties:
         scope: {type: string, maxLength: 120}
         baseAmount: {type: string, pattern: '^[0-9]+(\\.[0-9]{1,4})?$'}
         perKmAmount: {type: string, pattern: '^[0-9]+(\\.[0-9]{1,4})?$'}
         perMinuteAmount: {type: string, pattern: '^[0-9]+(\\.[0-9]{1,4})?$'}
         minimumAmount: {type: string, pattern: '^[0-9]+(\\.[0-9]{1,4})?$'}
-        roundingScale: {type: integer, minimum: 1, maximum: 4}
+        roundingScale: {type: integer, minimum: 2, maximum: 2, description: Valores monetários são arredondados em centavos.}
+        maximumDistanceMeters: {type: integer, minimum: 1, maximum: 6000000, description: Limite operacional da rota; acima dele a cotação é recusada.}
         quoteValiditySeconds: {type: integer, minimum: 1, maximum: 604800}
         acceptanceDeadlineSeconds: {type: integer, minimum: 1, maximum: 604800}
         executionDeadlineSeconds: {type: integer, minimum: 1, maximum: 2592000}

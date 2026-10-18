@@ -64,6 +64,22 @@ class BenefitCoverageBrowserFlowTest {
         assertThat(jdbc.queryForObject("SELECT count(*) FROM orcamento WHERE pedido_id=?", Long.class, fixture.insufficientOrder)).isZero();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM reserva_subsidio WHERE programa_id=?", Long.class, fixture.program)).isZero();
 
+        jdbc.update("UPDATE tarifa SET parametros=jsonb_set(parametros,'{maximumDistanceMeters}','10000') WHERE id=?", fixture.tariff);
+        var distanceRejected = request(account.token, "POST", "/orders/" + fixture.insufficientOrder + "/quotes", Map.of(), "distance-limit", "0");
+        assertThat(distanceRejected.statusCode()).as(distanceRejected.body()).isEqualTo(422);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM orcamento WHERE pedido_id=?", Long.class, fixture.insufficientOrder)).isZero();
+        jdbc.update("UPDATE tarifa SET parametros=jsonb_set(parametros,'{maximumDistanceMeters}','50000') WHERE id=?", fixture.tariff);
+
+        jdbc.update("UPDATE tarifa SET parametros=?::jsonb WHERE id=?", "{\"base\":\"1.00\",\"perKm\":\"0.00\",\"perMinute\":\"0.00\",\"minimum\":\"5.00\",\"roundingScale\":2,\"maximumDistanceMeters\":50000,\"validitySeconds\":900,\"acceptanceDeadlineSeconds\":900,\"executionDeadlineSeconds\":3600,\"returnAmount\":\"5.00\",\"returnCoverage\":\"UNIDADE\"}", fixture.tariff);
+        var minimumQuote = request(account.token, "POST", "/orders/" + fixture.insufficientOrder + "/quotes", Map.of(), "minimum-floor", "0");
+        assertThat(minimumQuote.statusCode()).as(minimumQuote.body()).isEqualTo(201);
+        var minimumQuoteId = json.readTree(minimumQuote.body()).get("id").asText();
+        assertThat(json.readTree(minimumQuote.body()).get("grossAmount").decimalValue()).isEqualByComparingTo("5.00");
+        jdbc.update("DELETE FROM pedido_idempotencia WHERE orcamento_id=?", UUID.fromString(minimumQuoteId));
+        jdbc.update("DELETE FROM orcamento WHERE id=?", UUID.fromString(minimumQuoteId));
+        jdbc.update("UPDATE pedido SET estado='EM_VERIFICACAO' WHERE id=?", fixture.insufficientOrder);
+        jdbc.update("UPDATE tarifa SET parametros=?::jsonb WHERE id=?", "{\"base\":\"10.00\",\"perKm\":\"2.00\",\"perMinute\":\"0.10\",\"minimum\":\"5.00\",\"roundingScale\":2,\"maximumDistanceMeters\":50000,\"validitySeconds\":900,\"acceptanceDeadlineSeconds\":900,\"executionDeadlineSeconds\":3600,\"returnAmount\":\"5.00\",\"returnCoverage\":\"UNIDADE\"}", fixture.tariff);
+
         ProcessBuilder browser = new ProcessBuilder("npm", "run", "test", "--", "tests/benefit-coverage-real.spec.ts");
         browser.directory(Path.of("..", "web").toFile());
         browser.redirectErrorStream(true).redirectOutput(Path.of("target", "benefit-coverage-browser-playwright.log").toFile());
@@ -94,11 +110,11 @@ class BenefitCoverageBrowserFlowTest {
         jdbc.update("INSERT INTO solicitacao_beneficio(id,paciente_id,solicitante_id,instituicao_id,politica_id,politica_versao,politica_snapshot,estado,decisao,percentual,motivo_codigo,decisao_valida_ate) VALUES (?,?,?, ?,?,1,'{}','DECIDIDA','APROVADA',100,'TESTE',clock_timestamp()+interval '1 day')", benefit, account.patient, account.user, institution, policy);
         jdbc.update("INSERT INTO conta_programa(programa_id,disponivel) VALUES (?,38.00)", program);
         UUID tariff = UUID.randomUUID(), cancellation = UUID.randomUUID();
-        jdbc.update("INSERT INTO tarifa(id,numero,formula_codigo,parametros,inicio,estado) VALUES (?,1,'BASE_KM_MINUTO','{\"base\":\"10.00\",\"perKm\":\"2.00\",\"perMinute\":\"0.10\",\"minimum\":\"5.00\"}',clock_timestamp(),'ATIVA')", tariff);
+        jdbc.update("INSERT INTO tarifa(id,numero,formula_codigo,parametros,inicio,estado) VALUES (?,1,'BASE_KM_MINUTO','{\"base\":\"10.00\",\"perKm\":\"2.00\",\"perMinute\":\"0.10\",\"minimum\":\"5.00\",\"roundingScale\":2,\"maximumDistanceMeters\":50000,\"validitySeconds\":900,\"acceptanceDeadlineSeconds\":900,\"executionDeadlineSeconds\":3600,\"returnAmount\":\"5.00\",\"returnCoverage\":\"UNIDADE\"}',clock_timestamp(),'ATIVA')", tariff);
         jdbc.update("INSERT INTO politica_cancelamento(id,numero,criterios,inicio,estado) VALUES (?,1,'{}',clock_timestamp(),'ATIVA')", cancellation);
         UUID happy = order(account, tariff, cancellation), insufficient = order(account, tariff, cancellation);
         jdbc.update("UPDATE pedido SET created_at=clock_timestamp()+interval '1 second' WHERE id=?", happy);
-        return new Fixture(account, program, foreignProgram, benefit, happy, insufficient);
+        return new Fixture(account, tariff, program, foreignProgram, benefit, happy, insufficient);
     }
 
     private UUID order(Account account, UUID tariff, UUID cancellation) {
@@ -121,5 +137,5 @@ class BenefitCoverageBrowserFlowTest {
 
     private HttpResponse<String> request(String token, String method, String path, Object body, String idem, String version) throws Exception { var builder = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/api/v1" + path)).header("Content-Type", "application/json"); if (token != null) builder.header("Authorization", "Bearer " + token); if (idem != null) builder.header("Idempotency-Key", idem); if (version != null) builder.header("If-Match", version); String payload = body == null ? null : json.writeValueAsString(body); return http.send(builder.method(method, payload == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(payload)).build(), HttpResponse.BodyHandlers.ofString()); }
     record Account(UUID user, UUID patient, String email, String token) {}
-    record Fixture(Account account, UUID program, UUID foreignProgram, UUID benefit, UUID happyOrder, UUID insufficientOrder) {}
+    record Fixture(Account account, UUID tariff, UUID program, UUID foreignProgram, UUID benefit, UUID happyOrder, UUID insufficientOrder) {}
 }

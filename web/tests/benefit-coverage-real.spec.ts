@@ -9,6 +9,7 @@ test('seleciona benefício, aceita orçamento, persiste cobertura e recusa saldo
   await page.getByLabel('Senha', { exact: true }).fill('Senha-sintetica-123');
   await page.locator('button[type=submit]').click();
   await expect(page.getByRole('status').filter({ hasText: 'Sessão iniciada' })).toContainText('Sessão iniciada');
+  await page.getByLabel('Selecionar área de atuação').selectOption('paciente');
   await page.getByRole('navigation', { name: 'Áreas do produto' }).getByRole('link', { name: 'Meus pedidos', exact: true }).click();
 
   const panel = page.locator('section[aria-label="Pedidos"]');
