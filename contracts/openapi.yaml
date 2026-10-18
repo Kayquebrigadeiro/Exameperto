@@ -4590,6 +4590,56 @@ paths:
       parameters: [{name: type, in: path, required: true, schema: {type: string, enum: [CANCELAMENTO, DESIGNACAO]}}, {name: id, in: path, required: true, schema: {type: string, format: uuid}}]
       responses: {'200': {description: Política desativada, content: {application/json: {schema: {$ref: '#/components/schemas/OperationalPolicy'}}}}, '403': {$ref: '#/components/responses/Error403'}, '422': {$ref: '#/components/responses/Error422'}}
 
+  /financial/assessments:
+    get:
+      operationId: listServiceAssessments
+      summary: Listar pendências de apuração manual
+      x-permission: GESTOR_FINANCEIRO institucional + MFA
+      responses:
+        '200': {description: Pendências no escopo autorizado, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/ServiceAssessment'}}}}}
+        '403': {$ref: '#/components/responses/Error403'}
+  /financial/assessments/{id}:
+    get:
+      operationId: getServiceAssessment
+      summary: Consultar apuração manual autorizada
+      parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+      responses:
+        '200': {description: Apuração, content: {application/json: {schema: {$ref: '#/components/schemas/ServiceAssessment'}}}}
+        '403': {$ref: '#/components/responses/Error403'}
+        '404': {$ref: '#/components/responses/Error404'}
+  /financial/assessments/{id}/proposal:
+    post:
+      operationId: proposeServiceAssessment
+      summary: Registrar proposta de serviço executado
+      x-permission: Responsável financeiro institucional + MFA
+      parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}, {$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ServiceAssessmentProposal'}}}}
+      responses:
+        '200': {description: Proposta registrada, content: {application/json: {schema: {$ref: '#/components/schemas/ServiceAssessment'}}}}
+        '403': {$ref: '#/components/responses/Error403'}
+        '409': {$ref: '#/components/responses/Error409'}
+        '422': {$ref: '#/components/responses/Error422'}
+  /financial/assessments/{id}/review:
+    post:
+      operationId: reviewServiceAssessment
+      summary: Aprovar, rejeitar ou pedir complemento da apuração
+      x-permission: Revisor financeiro distinto, institucional + MFA
+      parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}, {$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ServiceAssessmentReview'}}}}
+      responses:
+        '200': {description: Decisão registrada, content: {application/json: {schema: {$ref: '#/components/schemas/ServiceAssessment'}}}}
+        '403': {$ref: '#/components/responses/Error403'}
+        '409': {$ref: '#/components/responses/Error409'}
+        '422': {$ref: '#/components/responses/Error422'}
+  /orders/{orderId}/service-assessment:
+    get:
+      operationId: getOrderServiceAssessment
+      summary: Consultar apuração do pedido por participante autorizado
+      parameters: [{name: orderId, in: path, required: true, schema: {type: string, format: uuid}}]
+      responses:
+        '200': {description: Apuração do pedido, content: {application/json: {schema: {$ref: '#/components/schemas/ServiceAssessment'}}}}
+        '404': {$ref: '#/components/responses/Error404'}
+
 components:
   securitySchemes:
     bearerAuth:
@@ -7068,6 +7118,43 @@ components:
         GPS isolado insuficiente. Sem critérios/cobertura validados, 422; sem provedor, 503. Não aceita valor livre
         ou multas inventadas.
   responses:
+    ServiceAssessmentProposal:
+      type: object
+      required: [driverAmount, patientAmount, institutionAmount, reason, evidenceReferences]
+      properties:
+        driverAmount: {type: number, format: double, minimum: 0}
+        patientAmount: {type: number, format: double, minimum: 0}
+        institutionAmount: {type: number, format: double, minimum: 0}
+        reason: {type: string, minLength: 1, maxLength: 2000}
+        evidenceReferences: {type: array, minItems: 1, items: {type: string, minLength: 1, maxLength: 500}}
+    ServiceAssessmentReview:
+      type: object
+      required: [decision, reason]
+      properties:
+        decision: {type: string, enum: [APROVAR, REJEITAR, COMPLEMENTAR]}
+        reason: {type: string, minLength: 1, maxLength: 2000}
+    ServiceAssessment:
+      type: object
+      required: [id, orderId, modality, status, version, hasProposal]
+      properties:
+        id: {type: string, format: uuid}
+        orderId: {type: string, format: uuid}
+        incidentId: {type: string, format: uuid, nullable: true}
+        cancellationId: {type: string, format: uuid, nullable: true}
+        modality: {type: string, enum: [SERVICO_PARCIAL, OCORRENCIA, SERVICO_COMPLETO]}
+        status: {type: string, enum: [BLOQUEADA, PENDENTE_REVISAO, COMPLEMENTO_SOLICITADO, REJEITADA, APROVADA, CONCLUIDA]}
+        responsibleId: {type: string, format: uuid, nullable: true}
+        reviewerId: {type: string, format: uuid, nullable: true}
+        driverAmount: {type: number, format: double, minimum: 0, nullable: true}
+        patientAmount: {type: number, format: double, minimum: 0, nullable: true}
+        institutionAmount: {type: number, format: double, minimum: 0, nullable: true}
+        balanceToRelease: {type: number, format: double, minimum: 0}
+        balanceToReturn: {type: number, format: double, minimum: 0}
+        reason: {type: string, nullable: true}
+        evidenceReferences: {type: array, items: {type: string}}
+        version: {type: integer, minimum: 0}
+        updatedAt: {type: string, format: date-time}
+        hasProposal: {type: boolean}
     Error400:
       description: Requisição inválida / cursor inválido.
       content:

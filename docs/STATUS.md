@@ -1,5 +1,15 @@
 # Status — atualizado em 17/10/2026
 
+## Apuração manual de serviço parcial — continuação de `011af19`
+
+Implementada a apuração experimental vinculada a pedido, ocorrência/cancelamento e orçamento/política aceitos. A proposta exige responsável nominal, motivo e referências de evidência; a decisão exige outro gestor financeiro da mesma instituição, MFA validado no servidor e histórico append-only. Aprovar registra somente obrigação interna, liquidação contábil balanceada e repasse `OBRIGACAO_REGISTRADA`; não confirma pagamento. Estorno, quando aplicável, permanece `PENDENTE` até evidência autenticada do fornecedor.
+
+Reservas são consumidas apenas na parcela institucional proposta: no caso browser validado de R$5,00 reservados, R$2,00 liquidados e R$3,00 liberados, o saldo reservado terminou em zero. Cobertura insuficiente retorna pendência sem cobrança, financiamento ou reserva parcial indevida; rejeição/complemento não criam efeito financeiro definitivo. Replays idempotentes e revisão concorrente mantêm uma única liquidação/obrigação e recusam decisão incompatível sem persistência parcial.
+
+Validação isolada concluída: `ServiceAssessmentBrowserFlowTest` passou 1/1 com Chromium → Vite → Spring Boot → PostgreSQL 17.6 descartável, sem interceptação da API; a regressão focal de autorização/idempotência/concorrência passou 2/2, e a jornada browser confirmou proposta, revisão distinta, auditoria, reserva, liquidação e estorno pendente. O defeito encontrado no teste browser foi a escolha de `confirm` para fator MFA já confirmado; a interface passou a usar `verify` quando `enrolled=true`. O defeito financeiro encontrado foi a baixa incorreta do campo reservado ao misturar liquidação/liberação; a atualização agora baixa o saldo reservado total e separa os valores.
+
+Não houve política publicada, registro experimental no banco normal, pagamento externo, webhook, deploy ou alteração de arquivos pessoais. Permanecem decisões externas: evidência autenticada do fornecedor para confirmar estorno, integração oficial de pagamento/webhook, autorização de cobertura adicional e classificação profissional/contábil da obrigação.
+
 ## Correção dos parâmetros da política de portfólio V1 — continuação de `c1e6275`
 
 A configuração experimental foi corrigida para base `R$ 5,00`, km `R$ 1,50`, minuto `R$ 0,20`, mínimo `R$ 10,00`, aceite em 600 segundos e limite de 30.000 m. O arredondamento é em centavos (`roundingScale=2`) com arredondamento HALF_UP no motor existente. O exemplo obrigatório foi registrado e conferido: `max(10,00; 5,00 + 8×1,50 + 20×0,20) = R$ 21,00`.

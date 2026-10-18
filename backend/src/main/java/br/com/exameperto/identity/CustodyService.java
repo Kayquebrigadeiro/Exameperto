@@ -20,10 +20,11 @@ class CustodyService {
     private final DataProtector protector;
     private final ObjectMapper json;
     private final PayoutService payouts;
+    private final ServiceAssessmentService assessments;
     private final MfaService mfa;
 
-    CustodyService(JdbcTemplate jdbc, DataProtector protector, ObjectMapper json, PayoutService payouts, MfaService mfa) {
-        this.jdbc = jdbc; this.protector = protector; this.json = json; this.payouts = payouts; this.mfa = mfa;
+    CustodyService(JdbcTemplate jdbc, DataProtector protector, ObjectMapper json, PayoutService payouts, ServiceAssessmentService assessments, MfaService mfa) {
+        this.jdbc = jdbc; this.protector = protector; this.json = json; this.payouts = payouts; this.assessments = assessments; this.mfa = mfa;
     }
 
     @Transactional
@@ -122,6 +123,7 @@ class CustodyService {
         jdbc.update("UPDATE ocorrencia_entrega SET estado='ENCERRADA',responsavel_id=?,decisao=?,destino_tipo=?,destino_unidade_id=?,instrucoes=?,cobertura_snapshot=coalesce(cobertura_snapshot,'{}'::jsonb),apuracao=jsonb_build_object('status','PENDENTE_APURACAO','decision',?),evidencia_referencia=?,resolvida_em=clock_timestamp(),encerrada_em=clock_timestamp() WHERE id=?",principal.userId(),decision,destination,input.destinationUnitId(),input.instructions().trim(),decision,input.evidenceReference(),incidentId);
         if ("RETORNO".equals(decision)) jdbc.update("UPDATE custodia SET destino_tipo='RETORNO',destino_unidade_id=?,version=version+1 WHERE pedido_id=? AND encerrada_em IS NULL",input.destinationUnitId(),orderId);
         jdbc.update("INSERT INTO evento_custodia(id,pedido_id,custodia_id,designacao_id,ator_id,tipo,estado_anterior,estado_novo,motivo_codigo) SELECT ?,pedido_id,custodia_id,designacao_id,?,'OCORRENCIA',estado,'ENCERRADA',? FROM ocorrencia_entrega WHERE id=?",UUID.randomUUID(),principal.userId(),decision,incidentId);
+        assessments.ensureForIncident(orderId,incidentId,principal.userId());
         return incident(incidentId);
     }
 

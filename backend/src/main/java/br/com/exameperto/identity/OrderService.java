@@ -18,8 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 class OrderService {
-    private final JdbcTemplate jdbc; private final DataProtector protector; private final ObjectMapper json; private final RouteProvider routes; private final DelivererService evidence; private final PaymentProvider payments; private final ConfiguredGeocoder geocoder; private final boolean requireConfirmedLocation;
-    OrderService(JdbcTemplate jdbc, DataProtector protector, ObjectMapper json, RouteProvider routes, DelivererService evidence, PaymentProvider payments, ConfiguredGeocoder geocoder, @org.springframework.beans.factory.annotation.Value("${orders.require-confirmed-location:${orders.route.enabled:false}}") boolean requireConfirmedLocation){this.jdbc=jdbc;this.protector=protector;this.json=json;this.routes=routes;this.evidence=evidence;this.payments=payments;this.geocoder=geocoder;this.requireConfirmedLocation=requireConfirmedLocation;}
+    private final JdbcTemplate jdbc; private final DataProtector protector; private final ObjectMapper json; private final RouteProvider routes; private final DelivererService evidence; private final PaymentProvider payments; private final ConfiguredGeocoder geocoder; private final ServiceAssessmentService assessments; private final boolean requireConfirmedLocation;
+    OrderService(JdbcTemplate jdbc, DataProtector protector, ObjectMapper json, RouteProvider routes, DelivererService evidence, PaymentProvider payments, ConfiguredGeocoder geocoder, ServiceAssessmentService assessments, @org.springframework.beans.factory.annotation.Value("${orders.require-confirmed-location:${orders.route.enabled:false}}") boolean requireConfirmedLocation){this.jdbc=jdbc;this.protector=protector;this.json=json;this.routes=routes;this.evidence=evidence;this.payments=payments;this.geocoder=geocoder;this.assessments=assessments;this.requireConfirmedLocation=requireConfirmedLocation;}
 
     @Transactional
     OrderView create(UUID actor, OrderInput input, String idem) {
@@ -101,7 +101,9 @@ class OrderService {
             if(phase==null)throw error(HttpStatus.CONFLICT,"ORDER_NOT_CANCELLABLE","O pedido não pode receber cancelamento nesta fase.");
             UUID assignment=jdbc.queryForObject("SELECT id FROM designacao WHERE pedido_id=? AND encerrada_em IS NULL",UUID.class,orderId); UUID custody=null; try{custody=jdbc.queryForObject("SELECT id FROM custodia WHERE pedido_id=? AND encerrada_em IS NULL",UUID.class,orderId);}catch(EmptyResultDataAccessException ignored){}
             String finance=jdbc.queryForObject("SELECT count(*) FROM operacao_financeira WHERE pedido_id=? AND tipo='COBRANCA' AND estado IN ('CONFIRMADA','PENDENTE','INCERTA','RECONCILIAR')",Long.class,orderId)>0?"INTENCAO_ESTORNO":"NAO_APLICAVEL";
-            jdbc.update("INSERT INTO solicitacao_cancelamento(id,pedido_id,designacao_id,custodia_id,solicitada_por,fase,motivo_codigo,estado,tratamento_financeiro) VALUES (?,?,?,?,?,?,?,'PENDENTE_APURACAO',?)",UUID.randomUUID(),orderId,assignment,custody,actor,phase,input.reasonCode(),finance);
+            UUID cancellationId=UUID.randomUUID();
+            jdbc.update("INSERT INTO solicitacao_cancelamento(id,pedido_id,designacao_id,custodia_id,solicitada_por,fase,motivo_codigo,estado,tratamento_financeiro) VALUES (?,?,?,?,?,?,?,'PENDENTE_APURACAO',?)",cancellationId,orderId,assignment,custody,actor,phase,input.reasonCode(),finance);
+            assessments.ensureForCancellation(orderId,cancellationId,actor);
             if(!"OCORRENCIA".equals(state))jdbc.update("UPDATE pedido SET estado='OCORRENCIA',version=version+1,updated_at=clock_timestamp() WHERE id=?",orderId);
             jdbc.update("INSERT INTO pedido_idempotencia(ator_id,operacao,chave,request_hash,pedido_id) VALUES (?,?,?,?,?)",actor,"CANCEL_ORDER",idem,requestHash,orderId);
             return order(orderId);

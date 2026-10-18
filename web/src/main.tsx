@@ -297,6 +297,26 @@ type PayoutPage = {
   divergences: number;
   uncertain: number;
 };
+type ServiceAssessment = {
+  id: string;
+  orderId: string;
+  incidentId: string | null;
+  cancellationId: string | null;
+  modality: string;
+  status: string;
+  responsibleId: string | null;
+  reviewerId: string | null;
+  driverAmount: number | null;
+  patientAmount: number | null;
+  institutionAmount: number | null;
+  balanceToRelease: number;
+  balanceToReturn: number;
+  reason: string | null;
+  evidenceReferences: string[];
+  version: number;
+  updatedAt: string;
+  hasProposal: boolean;
+};
 type FinancialProgram = {
   id: string;
   institutionId: string;
@@ -2069,7 +2089,7 @@ function FinancialWorkspace({ session, capabilities }: { session: Tokens; capabi
   const selectedProgram = programs.find((item) => item.id === programId);
   const visibleFunding = funding.filter((item) => (statusFilter === "TODOS" || item.status === statusFilter) && `${item.status} ${formatMoney(item.amount)}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())).slice(page * 5, page * 5 + 5);
   const visiblePayouts = (payouts?.items ?? []).filter((item) => (statusFilter === "TODOS" || item.status === statusFilter) && `${item.status} ${item.orderId}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())).slice(page * 5, page * 5 + 5);
-  const tabs = [{ id: "overview", label: "Visão geral" }, { id: "programs", label: "Programas e aportes" }, { id: "balance", label: "Saldos e movimentações" }, { id: "obligations", label: "Obrigações e repasses" }, { id: "reconciliation", label: "Conciliação e divergências" }];
+  const tabs = [{ id: "overview", label: "Visão geral" }, { id: "programs", label: "Programas e aportes" }, { id: "balance", label: "Saldos e movimentações" }, { id: "obligations", label: "Obrigações e repasses" }, { id: "assessments", label: "Pendências de apuração" }, { id: "reconciliation", label: "Conciliação e divergências" }];
   return <section className="family financial-workspace" aria-label="Operação financeira">
     <div className="section-heading"><span className="eyebrow dark">OPERAÇÃO FINANCEIRA</span><h2>Financeiro</h2><p>Recursos com rastreabilidade. Somente registros autorizados para a instituição vinculada à sua conta aparecem nesta área.</p><strong className="institution-context">Instituição em atuação: {institutionLabel || "nenhuma instituição financeira autorizada"}</strong></div>
     <nav className="financial-tabs" aria-label="Navegação financeira">{tabs.map((item) => <button type="button" className={tab === item.id ? "active" : "secondary"} onClick={() => setTab(item.id)} key={item.id}>{item.label}</button>)}</nav>
@@ -2092,9 +2112,24 @@ function FinancialWorkspace({ session, capabilities }: { session: Tokens; capabi
         setPage={setPage}
       />
     )}
+    {tab === "assessments" && <ServiceAssessmentPanel session={session} />}
     {selectedFunding && <aside className="financial-detail" aria-label="Detalhe do aporte"><button type="button" className="secondary" onClick={() => setSelectedFunding(null)}>Fechar detalhe</button><span className="card-kicker">DETALHE DO APORTE</span><h3>{formatMoney(selectedFunding.amount)} · {selectedFunding.status}</h3><p>Comprovante: anexado e autorizado. Saldo só muda em CONFIRMADO.</p>{selectedFunding.status === "PENDENTE" && <><label>Evidência de conciliação<input type="file" accept="application/pdf,image/png,image/jpeg" onChange={(event) => void upload(event, true)} /></label><label>Motivo da revisão<input value={reason} onChange={(event) => setReason(event.target.value)} /></label><div className="financial-actions"><button type="button" disabled={busy || !reconciliationId} onClick={() => void review("CONFIRMADO")}>Confirmar aporte</button><button type="button" className="secondary" disabled={busy || !reconciliationId} onClick={() => void review("REJEITADO")}>Rejeitar aporte</button></div></>}<HistoryList history={history} /></aside>}
     {selectedPayout && <aside className="financial-detail" aria-label="Detalhe da obrigação"><button type="button" className="secondary" onClick={() => setSelectedPayout(null)}>Fechar detalhe</button><span className="card-kicker">DETALHE DA OBRIGAÇÃO</span><h3>{formatMoney(selectedPayout.amount)} · {selectedPayout.status.replaceAll("_", " ")}</h3><p>Obrigação registrada não é pagamento confirmado. Resultado incerto exige conciliação da mesma referência.</p><div className="financial-actions">{selectedPayout.status === "OBRIGACAO_REGISTRADA" && <button type="button" disabled={busy || selectedPayout.availability === "INDISPONIVEL"} onClick={() => void payoutAction("request")}>{selectedPayout.availability === "INDISPONIVEL" ? "Integração indisponível" : "Solicitar repasse"}</button>}{["INCERTO", "DIVERGENTE", "SOLICITADO"].includes(selectedPayout.status) && <button type="button" disabled={busy} onClick={() => void payoutAction("reconcile")}>Conciliar mesma referência</button>}</div>{selectedPayout.divergenceCode && <p className="ledger-alert">Divergência: {selectedPayout.divergenceCode}</p>}<HistoryList history={history} /></aside>}
   </section>;
+}
+
+function ServiceAssessmentPanel({ session }: { session: Tokens }) {
+  const [items, setItems] = useState<ServiceAssessment[]>([]);
+  const [selected, setSelected] = useState<ServiceAssessment | null>(null);
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const [busy, setBusy] = useState(false);
+  async function api(path: string, init: RequestInit = {}) { return parse(await fetch(`/api/v1${path}`, { ...init, headers: { Authorization: `Bearer ${session.accessToken}`, "Content-Type": "application/json", ...(init.headers ?? {}) } })); }
+  async function load() { setItems((await api("/financial/assessments")).result as ServiceAssessment[]); }
+  useEffect(() => { void load().catch((e) => setNotice({ tone: "error", text: e instanceof Error ? e.message : "Não foi possível carregar as apurações." })); }, [session.accessToken]);
+  async function open(item: ServiceAssessment) { try { setSelected((await api(`/financial/assessments/${item.id}`)).result as ServiceAssessment); } catch (e) { setNotice({ tone: "error", text: e instanceof Error ? e.message : "Detalhe indisponível." }); } }
+  async function proposal(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!selected) return; const data = new FormData(event.currentTarget); setBusy(true); try { const result = await api(`/financial/assessments/${selected.id}/proposal`, { method: "POST", headers: { "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify({ driverAmount: Number(data.get("driverAmount")), patientAmount: Number(data.get("patientAmount")), institutionAmount: Number(data.get("institutionAmount")), reason: data.get("reason"), evidenceReferences: String(data.get("evidenceReferences")).split("\n").map((v) => v.trim()).filter(Boolean) }) }); setSelected(result.result as ServiceAssessment); setNotice({ tone: "info", text: "Proposta registrada. Outra pessoa deverá revisar com MFA." }); await load(); } catch (e) { setNotice({ tone: "error", text: e instanceof Error ? e.message : "A proposta foi recusada." }); } finally { setBusy(false); } }
+  async function review(decision: string) { if (!selected) return; const reason = window.prompt("Motivo da decisão", decision === "APROVAR" ? "Revisão independente concluída" : "Complemento necessário") || ""; if (!reason.trim()) return; setBusy(true); try { const result = await api(`/financial/assessments/${selected.id}/review`, { method: "POST", headers: { "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify({ decision, reason }) }); setSelected(result.result as ServiceAssessment); setNotice({ tone: "info", text: decision === "APROVAR" ? "Apuração aprovada; obrigação interna registrada. Nenhum pagamento externo foi confirmado." : decision === "REJEITAR" ? "Apuração rejeitada sem efeito financeiro definitivo." : "Complemento solicitado sem efeito financeiro." }); await load(); } catch (e) { setNotice({ tone: "error", text: e instanceof Error ? e.message : "A revisão foi recusada." }); } finally { setBusy(false); } }
+  return <section className="financial-list" aria-label="Pendências de apuração"><div className="card-heading"><div><span className="card-kicker">APURAÇÃO MANUAL</span><h3>Serviço parcial e cancelamentos</h3></div><span>{items.length} pendência(s)</span></div>{notice && <p className={`feedback ${notice.tone}`} role="alert">{notice.text}</p>}{!selected ? <div className="financial-records">{items.length ? items.map((item) => <article key={item.id}><button type="button" className="financial-record" onClick={() => void open(item)}><strong>{item.status.replaceAll("_", " ")}</strong><span>{item.modality.replaceAll("_", " ")}</span><small>Pedido {item.orderId.slice(0, 8)} · responsável {item.responsibleId ? "definido" : "pendente"}</small></button></article>) : <p className="empty-state">Nenhuma apuração pendente no escopo institucional.</p>}</div> : <article className="financial-detail" aria-label="Detalhe da apuração"><button type="button" className="secondary" onClick={() => setSelected(null)}>Voltar à fila</button><span className="card-kicker">DETALHE DA APURAÇÃO</span><h3>{selected.modality.replaceAll("_", " ")} · {selected.status.replaceAll("_", " ")}</h3><p>Responsável: {selected.responsibleId ? "definido" : "pendente"} · Revisor: {selected.reviewerId ? "registrado" : "pendente"}</p>{selected.balanceToRelease > 0 && <p className="inline-status">Reserva a liberar: {formatMoney(selected.balanceToRelease)}.</p>}{selected.balanceToReturn > 0 && <p className="ledger-alert">Saldo a devolver: {formatMoney(selected.balanceToReturn)}. Estorno depende do fornecedor e não está confirmado.</p>}{["PENDENTE_REVISAO", "COMPLEMENTO_SOLICITADO"].includes(selected.status) && <form className="review-toolbar" onSubmit={(e) => void proposal(e)}><label>Valor devido ao entregador<input name="driverAmount" type="number" min="0" step="0.01" required defaultValue={selected.driverAmount ?? ""} /></label><label>Parcela do paciente<input name="patientAmount" type="number" min="0" step="0.01" required defaultValue={selected.patientAmount ?? ""} /></label><label>Parcela institucional<input name="institutionAmount" type="number" min="0" step="0.01" required defaultValue={selected.institutionAmount ?? ""} /></label><label>Motivo<textarea name="reason" required defaultValue={selected.reason ?? ""} /></label><label>Evidências, uma referência por linha<textarea name="evidenceReferences" required defaultValue={selected.evidenceReferences.join("\n")} /></label><button disabled={busy}>Registrar proposta</button></form>}{selected.status === "PENDENTE_REVISAO" && selected.hasProposal && <div className="financial-actions"><button disabled={busy} onClick={() => void review("APROVAR")}>Aprovar com MFA</button><button className="secondary" disabled={busy} onClick={() => void review("COMPLEMENTAR")}>Pedir complemento</button><button className="secondary" disabled={busy} onClick={() => void review("REJEITAR")}>Rejeitar</button></div>}<p className="inline-status">Aprovação registra reconhecimento interno e obrigação; repasse e estorno continuam sujeitos à conciliação externa.</p></article>}</section>;
 }
 
 function FinancialList({ title, query, setQuery, statusFilter, setStatusFilter, statuses, items, render, empty, count, page, setPage }: { title: string; query: string; setQuery: (v: string) => void; statusFilter: string; setStatusFilter: (v: string) => void; statuses: string[]; items: Array<Funding | Payout>; render: (item: Funding | Payout) => ReactNode; empty: string; count: number; page: number; setPage: (v: number) => void }) {
@@ -4566,7 +4601,7 @@ function MfaAccess({ session }: { session: Tokens }) {
       ) : (
         <form
           onSubmit={(e) =>
-            void act(e, status?.verifiedForSession ? "verify" : "confirm")
+            void act(e, status?.enrolled ? "verify" : "confirm")
           }
         >
           <label>
