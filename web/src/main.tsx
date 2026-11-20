@@ -561,7 +561,13 @@ function ScopeFields() {
   );
 }
 
-function ProfilePanel({ session }: { session: Tokens }) {
+function ProfilePanel({
+  session,
+  onPatientCreated,
+}: {
+  session: Tokens;
+  onPatientCreated: () => Promise<void>;
+}) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [patient, setPatient] = useState<Patient | null | undefined>(undefined);
   const [cpf, setCpf] = useState("");
@@ -616,9 +622,23 @@ function ProfilePanel({ session }: { session: Tokens }) {
       setPatient(result as Patient);
       setCpf("");
       setBirthDate("");
-      setNotice({ tone: "info", text: "Perfil de paciente criado. A identidade permanece pendente até verificação autorizada." });
+      try {
+        await onPatientCreated();
+        setNotice({ tone: "info", text: "Perfil criado. A identidade permanece pendente até verificação autorizada." });
+      } catch {
+        setNotice({
+          tone: "error",
+          text: "Perfil criado, mas não foi possível atualizar seus acessos. Recarregue a página para continuar.",
+        });
+      }
     } catch (error) {
-      setNotice({ tone: "error", text: error instanceof Error ? error.message : "Não foi possível criar o perfil de paciente." });
+      const code = error instanceof Error && "code" in error ? error.code : null;
+      setNotice({
+        tone: "error",
+        text: code === "PATIENT_CONFLICT"
+          ? "Já existe um perfil nesta conta ou este CPF já está vinculado a outro paciente. Confira os dados."
+          : error instanceof Error ? error.message : "Não foi possível criar o perfil de paciente.",
+      });
     } finally {
       setBusy(false);
     }
@@ -717,13 +737,13 @@ function ProfilePanel({ session }: { session: Tokens }) {
           </div>
           {patient === null && (
             <form className="work-card" onSubmit={createPatient}>
-              <h3>Começar como paciente</h3>
+              <h3>Ativar perfil de paciente</h3>
               <p>Esta é uma adesão explícita; o cadastro não concede verificação de identidade nem habilitação de outros papéis.</p>
               <label htmlFor="patient-cpf">CPF</label>
               <input id="patient-cpf" value={cpf} onChange={(event) => setCpf(event.target.value)} inputMode="numeric" required />
               <label htmlFor="patient-birth-date">Data de nascimento</label>
               <input id="patient-birth-date" type="date" value={birthDate} onChange={(event) => setBirthDate(event.target.value)} required />
-              <button disabled={busy}>Criar perfil de paciente</button>
+              <button disabled={busy}>{busy ? "Ativando…" : "Ativar perfil de paciente"}</button>
             </form>
           )}
           {patient && <p className="feedback info">Perfil de paciente ativo para esta conta. Estado de identidade: {patient.identityStatus}.</p>}
@@ -5956,12 +5976,21 @@ function PortfolioApp({
     navigate(appPath(value));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+  async function onPatientCreated() {
+    const { result } = await parse(await fetch("/api/v1/me/capabilities", {
+      headers: { Authorization: `Bearer ${session.accessToken}` },
+    }));
+    setCapabilities(result as Capabilities);
+    setRoute("paciente");
+    navigate(appPath("paciente"));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
   function content() {
     switch (route) {
       case "paciente": return <PatientDashboard session={session} capabilities={capabilities!} go={go} />;
       case "paciente-pedidos": case "pedidos": case "familia-pedidos": return <OrderPanel session={session} />;
       case "paciente-beneficios": case "beneficios": return <BenefitPanel session={session} />;
-      case "perfil": return <ProfilePanel session={session} />;
+      case "perfil": return <ProfilePanel session={session} onPatientCreated={onPatientCreated} />;
       case "familia": case "familia-autorizacoes": return <FamilyPanel session={session} />;
       case "privacidade": return <PrivacyPanel session={session} />;
       case "entregador": case "entregador-cadastro": return <DelivererPanel session={session} />;

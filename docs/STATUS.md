@@ -1,4 +1,21 @@
-# Status — atualizado em 17/10/2026
+# Status — atualização em 20/11/2026
+
+## Ativação do perfil próprio de paciente
+
+O endpoint já existia: `POST /api/v1/me/patient` recebe CPF e data de
+nascimento, usa o usuário da sessão, cifra o CPF, deriva `cpf_busca` e grava
+`identidade_estado='PENDENTE'`; restrições de duplicidade retornam conflito.
+A Conta já oferecia o formulário, mas após o sucesso mantinha as capacidades
+antigas e não encaminhava a pessoa à área do paciente. Agora a interface
+reconsulta as capacidades e redireciona para `/app/paciente`; conflito de
+perfil/CPF tem mensagem clara. Não houve alteração no endpoint ou no fluxo
+familiar/entregador.
+
+Verificações: `cd web && npm run build` passou; `cd web && npx playwright test
+tests/patient-activation.spec.ts` passou 2/2, incluindo estado inicial negado,
+ativação, redirecionamento, reload e conflito 409. Os testes usam API simulada.
+A validação manual pelo autor em conta real, com backend conectado, permanece
+pendente; não houve deploy.
 
 ## Apuração manual de serviço parcial — continuação de `011af19`
 
