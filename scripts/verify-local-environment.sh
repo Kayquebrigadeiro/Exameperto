@@ -43,7 +43,7 @@ fi
 
 docker compose --env-file "$ENV_FILE" -f "$ROOT_DIR/infra/compose.yaml" exec -T postgres \
   psql -U "$DATABASE_USER" -d exameperto -Atc \
-  "select case when (select max(version::integer) from flyway_schema_history)=22 and (select estado from controle_restauracao where singleton)='NORMAL' then 'ok' else 'fail' end" \
+  "select case when (select max(version::integer) from flyway_schema_history)=28 and (select estado from controle_restauracao where singleton)='NORMAL' then 'ok' else 'fail' end" \
   | grep -qx ok || fail "migrações ou gate de restauração não estão prontos"
 
 if [[ "${EXAME_PERTO_ROUTE_ENABLED:-false}" == "true" && -n "${EXAME_PERTO_ROUTE_API_KEY:-}" ]]; then
@@ -57,4 +57,4 @@ else
   echo "INFO: pagamento sandbox não configurado; cobrança particular permanece bloqueada."
 fi
 echo "INFO: acessibilidade do provedor e consulta de rota são verificações explícitas, não executadas na inicialização."
-echo "OK: Vite → backend → PostgreSQL; V22 aplicada; restauração NORMAL; configuração privada estruturalmente válida."
+echo "OK: Vite → backend → PostgreSQL; V28 aplicada; restauração NORMAL; configuração privada estruturalmente válida."
