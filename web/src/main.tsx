@@ -27,6 +27,9 @@ type Profile = {
   emailVerifiedAt: string | null;
   version: number;
 };
+type ProfileSaveState =
+  | { status: "ocioso" | "salvando" | "salvo" }
+  | { status: "erro"; message: string };
 type PrivacyRequest = {
   id: string;
   protocol: string;
@@ -564,9 +567,11 @@ function ScopeFields() {
 function ProfilePanel({
   session,
   onPatientCreated,
+  onProfileNameChange,
 }: {
   session: Tokens;
   onPatientCreated: () => Promise<void>;
+  onProfileNameChange: (name: string) => void;
 }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [patient, setPatient] = useState<Patient | null | undefined>(undefined);
@@ -576,6 +581,8 @@ function ProfilePanel({
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
+  const [profileSaveState, setProfileSaveState] = useState<ProfileSaveState>({ status: "ocioso" });
+  const hasProfileChanges = Boolean(profile && (name !== profile.name || phone !== (profile.phone ?? "")));
 
   async function api(init: RequestInit = {}) {
     return parse(
@@ -599,6 +606,7 @@ function ProfilePanel({
     setProfile(value);
     setName(value.name);
     setPhone(value.phone ?? "");
+    onProfileNameChange(value.name);
     if (patientResponse.ok) setPatient((await patientResponse.json()) as Patient);
     else if (patientResponse.status === 404) setPatient(null);
     else await parse(patientResponse);
@@ -653,8 +661,8 @@ function ProfilePanel({
   }, [session.accessToken]);
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!profile || busy) return;
-    setBusy(true);
+    if (!profile || profileSaveState.status === "salvando" || !hasProfileChanges) return;
+    setProfileSaveState({ status: "salvando" });
     setNotice(null);
     try {
       const { result } = await api({
@@ -666,20 +674,16 @@ function ProfilePanel({
       setProfile(value);
       setName(value.name);
       setPhone(value.phone ?? "");
-      setNotice({
-        tone: "info",
-        text: "Perfil atualizado. O e-mail permanece confirmado e não é alterado por este formulário.",
-      });
+      onProfileNameChange(value.name);
+      setProfileSaveState({ status: "salvo" });
     } catch (error) {
-      setNotice({
-        tone: "error",
-        text:
+      setProfileSaveState({
+        status: "erro",
+        message:
           error instanceof Error
             ? error.message
             : "Não foi possível atualizar o perfil.",
       });
-    } finally {
-      setBusy(false);
     }
   }
   return (
@@ -692,30 +696,48 @@ function ProfilePanel({
           exibidos como informação protegida.
         </p>
       </div>
-      {profile ? (
-        <div className="work-grid">
-          <form className="work-card" onSubmit={save}>
-            <h3>Dados permitidos</h3>
-            <label htmlFor="profile-name">Nome</label>
-            <input
-              id="profile-name"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              maxLength={160}
-              required
-            />
-            <label htmlFor="profile-phone">Telefone (opcional)</label>
-            <input
-              id="profile-phone"
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
-              maxLength={40}
-              inputMode="tel"
-            />
-            <button disabled={busy}>
-              {busy ? "Salvando…" : "Salvar alterações"}
-            </button>
-          </form>
+      <div className="work-grid">
+        <form className={profile ? "work-card" : undefined} onSubmit={save}>
+          {profile ? (
+            <>
+              <h3>Dados permitidos</h3>
+              <label htmlFor="profile-name">Nome</label>
+              <input
+                id="profile-name"
+                value={name}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  setProfileSaveState((current) => current.status === "salvando" ? current : { status: "ocioso" });
+                }}
+                maxLength={160}
+                required
+              />
+              <label htmlFor="profile-phone">Telefone (opcional)</label>
+              <input
+                id="profile-phone"
+                value={phone}
+                onChange={(event) => {
+                  setPhone(event.target.value);
+                  setProfileSaveState((current) => current.status === "salvando" ? current : { status: "ocioso" });
+                }}
+                maxLength={40}
+                inputMode="tel"
+              />
+              <button disabled={!hasProfileChanges || profileSaveState.status === "salvando"}>
+                {profileSaveState.status === "salvando" ? "Salvando…" : "Salvar alterações"}
+              </button>
+            </>
+          ) : (
+            <p className="feedback info" role="status">Carregando perfil…</p>
+          )}
+          <div className={profileSaveState.status === "salvo" ? "feedback info" : ""} role="status" aria-live="polite">
+            {profileSaveState.status === "salvo" ? "Alterações salvas." : ""}
+          </div>
+          <div className={profileSaveState.status === "erro" ? "feedback error" : ""} role="alert" aria-live="assertive">
+            {profileSaveState.status === "erro" ? profileSaveState.message : ""}
+          </div>
+        </form>
+        {profile && (
           <div className="work-card profile-facts">
             <h3>Estado da conta</h3>
             <p>
@@ -735,24 +757,20 @@ function ProfilePanel({
               Isso não é anonimização integral.
             </p>
           </div>
-          {patient === null && (
-            <form className="work-card" onSubmit={createPatient}>
-              <h3>Ativar perfil de paciente</h3>
-              <p>Esta é uma adesão explícita; o cadastro não concede verificação de identidade nem habilitação de outros papéis.</p>
-              <label htmlFor="patient-cpf">CPF</label>
-              <input id="patient-cpf" value={cpf} onChange={(event) => setCpf(event.target.value)} inputMode="numeric" required />
-              <label htmlFor="patient-birth-date">Data de nascimento</label>
-              <input id="patient-birth-date" type="date" value={birthDate} onChange={(event) => setBirthDate(event.target.value)} required />
-              <button disabled={busy}>{busy ? "Ativando…" : "Ativar perfil de paciente"}</button>
-            </form>
-          )}
-          {patient && <p className="feedback info">Perfil de paciente ativo para esta conta. Estado de identidade: {patient.identityStatus}.</p>}
-        </div>
-      ) : (
-        <p className="feedback info" role="status">
-          Carregando perfil…
-        </p>
-      )}
+        )}
+        {profile && patient === null && (
+          <form className="work-card" onSubmit={createPatient}>
+            <h3>Ativar perfil de paciente</h3>
+            <p>Esta é uma adesão explícita; o cadastro não concede verificação de identidade nem habilitação de outros papéis.</p>
+            <label htmlFor="patient-cpf">CPF</label>
+            <input id="patient-cpf" value={cpf} onChange={(event) => setCpf(event.target.value)} inputMode="numeric" required />
+            <label htmlFor="patient-birth-date">Data de nascimento</label>
+            <input id="patient-birth-date" type="date" value={birthDate} onChange={(event) => setBirthDate(event.target.value)} required />
+            <button disabled={busy}>{busy ? "Ativando…" : "Ativar perfil de paciente"}</button>
+          </form>
+        )}
+        {profile && patient && <p className="feedback info">Perfil de paciente ativo para esta conta. Estado de identidade: {patient.identityStatus}.</p>}
+      </div>
       {notice && (
         <p className={`feedback ${notice.tone}`} role="alert">
           {notice.text}
@@ -5649,10 +5667,12 @@ function PrivacyOperationsPanel({ session }: { session: Tokens }) {
 function PatientDashboard({
   session,
   capabilities,
+  profileName,
   go,
 }: {
   session: Tokens;
   capabilities: Capabilities;
+  profileName: string | null;
   go: (route: AppRoute) => void;
 }) {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -5681,7 +5701,7 @@ function PatientDashboard({
       )
       .finally(() => setLoading(false));
   }, [session.accessToken]);
-  const firstName = profile?.name?.split(" ")[0] ?? "seja bem-vindo";
+  const firstName = (profileName ?? profile?.name)?.split(" ")[0] ?? "seja bem-vindo";
   const statusLabel = profile?.emailVerifiedAt
     ? "E-mail confirmado"
     : "Confirme seu e-mail";
@@ -5910,6 +5930,8 @@ function PortfolioApp({
   const [notice, setNotice] = useState<Notice | null>(null);
   const [route, setRoute] = useState<AppRoute>(appRouteFromPath() ?? "inicio");
   const [activeInstitutionId, setActiveInstitutionId] = useState("");
+  const [sharedProfileName, setSharedProfileName] = useState<{ accessToken: string; name: string } | null>(null);
+  const profileName = sharedProfileName?.accessToken === session.accessToken ? sharedProfileName.name : null;
   useEffect(() => {
     fetch("/api/v1/me/capabilities", { headers: { Authorization: `Bearer ${session.accessToken}` } })
       .then(parse)
@@ -6012,10 +6034,10 @@ function PortfolioApp({
   }
   function content() {
     switch (route) {
-      case "paciente": return <PatientDashboard session={session} capabilities={capabilities!} go={go} />;
+      case "paciente": return <PatientDashboard session={session} capabilities={capabilities!} profileName={profileName} go={go} />;
       case "paciente-pedidos": case "pedidos": case "familia-pedidos": return <OrderPanel session={session} />;
       case "paciente-beneficios": case "beneficios": return <BenefitPanel session={session} />;
-      case "perfil": return <ProfilePanel session={session} onPatientCreated={onPatientCreated} />;
+      case "perfil": return <ProfilePanel session={session} onPatientCreated={onPatientCreated} onProfileNameChange={(name) => setSharedProfileName({ accessToken: session.accessToken, name })} />;
       case "familia": case "familia-autorizacoes": return <FamilyPanel session={session} />;
       case "privacidade": return <PrivacyPanel session={session} />;
       case "entregador": case "entregador-cadastro": return <DelivererPanel session={session} onDelivererCreated={onDelivererCreated} />;
