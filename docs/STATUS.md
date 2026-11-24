@@ -1,6 +1,6 @@
 # Status — atualização em 20/11/2026
 
-Correção implementada; build web, compilação Java e 5/5 cenários focados passaram; suite existente de cadastro 6/7 porque um teste ainda espera `/app` em vez de `/app/conta`.
+Correção implementada; build web, compilação Java e cenários focados 5/5 passaram; suite existente 6/7 pois um teste ainda espera `/app` em vez de `/app/conta`; push bloqueado por credencial ausente, repetir após autenticação.
 
 ## Ativação do perfil próprio de paciente
 
