@@ -1,5 +1,7 @@
 # Status — atualização em 20/11/2026
 
+Correção implementada; build web, compilação Java e 5/5 cenários focados passaram; suite existente de cadastro 6/7 porque um teste ainda espera `/app` em vez de `/app/conta`.
+
 ## Ativação do perfil próprio de paciente
 
 O endpoint já existia: `POST /api/v1/me/patient` recebe CPF e data de

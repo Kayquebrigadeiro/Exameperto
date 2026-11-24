@@ -30,7 +30,7 @@ class CapabilitiesController {
         if (family) areas.add("FAMILIAR");
         // A conta pode abrir a área para iniciar o cadastro; isso não cria o
         // perfil nem concede aprovação, veículo, cobertura ou ofertas.
-        areas.add("ENTREGADOR");
+        if (deliverer) areas.add("ENTREGADOR");
         if (global.contains("ANALISTA_OPERACIONAL")) areas.add("OPERACAO");
         if (institutions.stream().anyMatch(i->"ANALISTA_BENEFICIO".equals(i.role()))) areas.add("ANALISE_BENEFICIO");
         if (global.contains("GESTOR_FINANCEIRO")&&institutions.stream().anyMatch(i->"GESTOR_FINANCEIRO".equals(i.role()))) areas.add("FINANCEIRO");

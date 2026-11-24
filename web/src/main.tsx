@@ -2161,7 +2161,7 @@ function HistoryList({ history }: { history: FinancialHistory[] }) { return <sec
 void PayoutPanel;
 void FundingPanel;
 
-function DelivererPanel({ session }: { session: Tokens }) {
+function DelivererPanel({ session, onDelivererCreated }: { session: Tokens; onDelivererCreated: () => Promise<void> }) {
   const [profile, setProfile] = useState<Deliverer | null>(null);
   const [docs, setDocs] = useState<Evidence[]>([]);
   const [birthDate, setBirthDate] = useState("");
@@ -2228,6 +2228,10 @@ function DelivererPanel({ session }: { session: Tokens }) {
       const b = await r.json();
       if (!r.ok) throw new Error(b.message ?? "Cadastro não salvo.");
       setProfile(b);
+      if (!profile) {
+        await onDelivererCreated();
+        window.sessionStorage.removeItem("exameperto-registration-intent");
+      }
       setNotice({
         tone: "info",
         text: "Cadastro salvo. Isto não aprova o entregador.",
@@ -5957,6 +5961,11 @@ function PortfolioApp({
   };
   const allowed = (value: AppRoute) => {
     const area = areaForRoute(value);
+    if (
+      value === "entregador-cadastro" &&
+      !capabilities?.delivererProfile &&
+      window.sessionStorage.getItem("exameperto-registration-intent") === "entregador"
+    ) return true;
     return !area || actingAreas.includes(area);
   };
   useEffect(() => {
@@ -5965,7 +5974,17 @@ function PortfolioApp({
       navigate(appPath(parsed), true);
       return;
     }
-    if (capabilities && route === "inicio" && actingAreas.length === 1) navigate(appPath(areaDestination[actingAreas[0]]), true);
+    if (capabilities && route === "inicio") {
+      const defaultArea = capabilities.patientProfile
+        ? "paciente"
+        : capabilities.delivererProfile
+          ? "entregador"
+          : capabilities.activeFamilyAuthorization
+            ? "familiar"
+            : (["operacao", "beneficios", "financeiro", "privacidade-operacional"] as const)
+                .find((area) => actingAreas.includes(area));
+      navigate(appPath(defaultArea ? areaDestination[defaultArea] : "perfil"), true);
+    }
   }, [capabilities, route, actingAreas.length]);
   const go = (value: AppRoute) => {
     if (!allowed(value)) {
@@ -5985,6 +6004,12 @@ function PortfolioApp({
     navigate(appPath("paciente"));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
+  async function onDelivererCreated() {
+    const { result } = await parse(await fetch("/api/v1/me/capabilities", {
+      headers: { Authorization: `Bearer ${session.accessToken}` },
+    }));
+    setCapabilities(result as Capabilities);
+  }
   function content() {
     switch (route) {
       case "paciente": return <PatientDashboard session={session} capabilities={capabilities!} go={go} />;
@@ -5993,7 +6018,7 @@ function PortfolioApp({
       case "perfil": return <ProfilePanel session={session} onPatientCreated={onPatientCreated} />;
       case "familia": case "familia-autorizacoes": return <FamilyPanel session={session} />;
       case "privacidade": return <PrivacyPanel session={session} />;
-      case "entregador": case "entregador-cadastro": return <DelivererPanel session={session} />;
+      case "entregador": case "entregador-cadastro": return <DelivererPanel session={session} onDelivererCreated={onDelivererCreated} />;
       case "entregas": return <DeliveryWorkPanel session={session} />;
       case "operacao": return <OperationalWorkspace session={session} />;
       case "catalogo": return <UnitCatalogPanel session={session} />;
@@ -6228,7 +6253,6 @@ function AccountPage() {
       if (mode === "login") {
         setSession(result as Tokens);
         const destination = delivererIntent() ? "/app/entregador/cadastro" : "/app";
-        window.sessionStorage.removeItem("exameperto-registration-intent");
         navigate(destination);
         setFeedback({
           tone: "info",
