@@ -1,4 +1,31 @@
-# Status — atualização em 20/11/2026
+# Status — atualização em 24/11/2026
+
+## Jornada de intenção de entregador — 24/11/2026
+
+Playwright/Chromium validou os fluxos com API simulada: clicar “Sou entregador”
+leva ao cadastro após login; salvar cadastro atualiza o menu e limpa
+`exameperto-registration-intent` do `sessionStorage`; acesso direto sem perfil
+exibe “Acesso não concedido”; sem salvar, logout e novo login preservam a intent
+e voltam ao cadastro. `tests/patient-activation.spec.ts` passou 6/6.
+
+Também foi executado `mvn -q -f backend/pom.xml -Dmaven.repo.local=/tmp/exame-m2
+-Dtest=DelivererBrowserFlowTest -DbrowserTest=true test`: passou com Chromium,
+Vite, Spring Boot e PostgreSQL 17.6 descartável, sem interceptação da API. O
+fluxo Playwright em `web/tests/deliverer-real.spec.ts` usa uma conta sintética
+criada diretamente no banco isolado, sem perfil entregador inicial; validou
+acesso direto negado, entrada via “Sou entregador”, logout/relogin com intent
+persistente, gravação real do cadastro, atualização do menu, limpeza da intent
+e persistência de perfil/documentos/vínculo no banco. SMTP ficou desabilitado;
+não houve envio de e-mail nem uso do banco local persistente. O primeiro ensaio
+revelou que a spec antiga esperava um link de área que não existe sem perfil; ela
+foi alinhada ao fluxo atual e o rerun passou.
+
+`tests/registration.spec.ts` passou 6/7 quando executado junto; o teste restante
+falhou na expectativa preexistente do título “Escolher área” em `/app`. Não foi
+criada conta via formulário público nem validado recebimento de e-mail; no
+ensaio integrado, a conta sintética foi inserida diretamente no PostgreSQL
+descartável. Observação de produto: manter a intent após logout é o comportamento
+observado e pode ser reconsiderado se for indesejado.
 
 Correção implementada; build web, compilação Java e cenários focados 5/5 passaram; suite existente 6/7 pois um teste ainda espera `/app` em vez de `/app/conta`; push bloqueado por credencial ausente, repetir após autenticação.
 

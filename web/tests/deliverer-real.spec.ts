@@ -8,16 +8,38 @@ test('entregador acompanha cadastro, documentos, veículo e bloqueio de ofertas'
   await page.getByLabel('Senha', { exact: true }).fill('Senha-sintetica-123');
   await page.locator('button[type=submit]').click();
   await expect(page.getByRole('status').filter({ hasText: 'Sessão iniciada' })).toBeVisible();
+  await page.goto('/app/entregador');
+  await expect(page.getByRole('heading', { name: 'Acesso não concedido' })).toBeVisible();
+  await page.getByRole('button', { name: 'Sair', exact: true }).click();
+  await expect(page).toHaveURL(/\/acesso$/);
+
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Sou entregador', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação de acesso' }).getByRole('link', { name: 'Entrar', exact: true }).click();
+  await page.getByLabel('E-mail', { exact: true }).fill(process.env.DELIVERER_EMAIL!);
+  await page.getByLabel('Senha', { exact: true }).fill('Senha-sintetica-123');
+  await page.locator('button[type=submit]').click();
+  await expect(page.getByRole('status').filter({ hasText: 'Sessão iniciada' })).toBeVisible();
+  await expect(page).toHaveURL(/\/app\/entregador\/cadastro$/);
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('exameperto-registration-intent'))).toBe('entregador');
+
+  await page.getByRole('button', { name: 'Sair', exact: true }).click();
+  await expect(page).toHaveURL(/\/acesso$/);
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('exameperto-registration-intent'))).toBe('entregador');
+  await page.getByLabel('E-mail', { exact: true }).fill(process.env.DELIVERER_EMAIL!);
+  await page.getByLabel('Senha', { exact: true }).fill('Senha-sintetica-123');
+  await page.locator('button[type=submit]').click();
+  await expect(page).toHaveURL(/\/app\/entregador\/cadastro$/);
 
   const navigation = page.getByRole('navigation', { name: 'Áreas do produto' });
   await expect(navigation).toBeVisible();
-  await navigation.getByRole('link', { name: 'Área do entregador', exact: true }).click();
-  await expect(page).toHaveURL(/\/app\/entregador$/);
   const panel = page.getByRole('region', { name: 'Cadastro e comprovações' });
   await panel.getByRole('tab', { name: 'Cadastro', exact: true }).click();
   await panel.getByLabel('Data de nascimento').fill('1990-01-15');
   await panel.getByRole('button', { name: 'Salvar cadastro' }).click();
   await expect(panel.getByRole('alert')).toContainText('Isto não aprova');
+  await expect(navigation.getByRole('link', { name: 'Área do entregador', exact: true })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('exameperto-registration-intent'))).toBeNull();
   await expect(panel.getByRole('tabpanel', { name: 'Cadastro' })).toBeVisible();
   await page.reload();
   const reloadedPanel = page.getByRole('region', { name: 'Cadastro e comprovações' });
